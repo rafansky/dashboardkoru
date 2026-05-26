@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0b0c10" />
+    <title>KORU eClub Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegacion principal">
+        <a class="brand" href="#inicio">
+          <span class="brand-mark">
+            <img id="nav-logo" alt="KORU eClub" />
+          </span>
+          <span class="brand-copy">
+            <strong>KORU</strong>
+            <small>eClub Hub</small>
+          </span>
+        </a>
+
+        <nav class="main-nav">
+          <a href="#inicio" class="nav-link active"><i data-lucide="layout-dashboard"></i><span>Panel</span></a>
+          <a href="#ligas" class="nav-link"><i data-lucide="trophy"></i><span>Ligas</span></a>
+          <a href="#partidos" class="nav-link"><i data-lucide="calendar-days"></i><span>Partidos</span></a>
+          <a href="#plantilla" class="nav-link"><i data-lucide="users"></i><span>Jugadores</span></a>
+          <a href="#archivo" class="nav-link"><i data-lucide="folder-open"></i><span>Archivo</span></a>
+        </nav>
+
+        <div class="source-stack" id="source-stack"></div>
+      </aside>
+
+      <main class="content">
+        <header class="hero" id="inicio">
+          <div class="hero-backdrop" id="hero-backdrop"></div>
+          <div class="hero-topbar">
+            <div class="live-pill">
+              <span class="pulse"></span>
+              <span id="updated-at">Sincronizando</span>
+            </div>
+            <button class="icon-button" id="refresh-button" type="button" aria-label="Actualizar datos">
+              <i data-lucide="refresh-cw"></i>
+            </button>
+          </div>
+
+          <div class="hero-main">
+            <img class="hero-logo" id="hero-logo" alt="KORU eClub" />
+            <div class="hero-copy">
+              <p class="eyebrow">FC26 Pro Clubs</p>
+              <h1 id="team-name">KORU eClub</h1>
+              <p class="hero-subline">VPG · VPG Zero · PLG</p>
+              <div class="hero-actions" id="social-links"></div>
+            </div>
+          </div>
+
+          <div class="hero-metrics" id="summary-metrics"></div>
+        </header>
+
+        <section class="toolbar-band" aria-label="Filtros de competicion">
+          <div class="section-heading">
+            <span class="section-kicker">Temporada actual</span>
+            <h2>Seguimiento unificado</h2>
+          </div>
+          <div class="segmented" id="competition-tabs"></div>
+        </section>
+
+        <section class="competition-strip" id="ligas"></section>
+
+        <section class="dashboard-grid" id="partidos">
+          <div class="panel panel-standings">
+            <div class="panel-header">
+              <div>
+                <span class="section-kicker">Clasificacion</span>
+                <h3 id="standings-title">Tabla</h3>
+              </div>
+              <a class="ghost-link" id="competition-link" target="_blank" rel="noreferrer">
+                <i data-lucide="external-link"></i>
+                <span>Ver fuente</span>
+              </a>
+            </div>
+            <div class="table-wrap">
+              <table class="standings-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Equipo</th>
+                    <th>PJ</th>
+                    <th>G</th>
+                    <th>E</th>
+                    <th>P</th>
+                    <th>DG</th>
+                    <th>Pts</th>
+                  </tr>
+                </thead>
+                <tbody id="standings-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel panel-next">
+            <div class="panel-header compact">
+              <div>
+                <span class="section-kicker">Proximo</span>
+                <h3>Partido destacado</h3>
+              </div>
+            </div>
+            <div id="next-match" class="next-match"></div>
+          </div>
+
+          <div class="panel panel-matches">
+            <div class="panel-header">
+              <div>
+                <span class="section-kicker">Calendario</span>
+                <h3>Proximos partidos</h3>
+              </div>
+            </div>
+            <div class="match-list" id="upcoming-list"></div>
+          </div>
+
+          <div class="panel panel-results">
+            <div class="panel-header">
+              <div>
+                <span class="section-kicker">Forma</span>
+                <h3>Ultimos resultados</h3>
+              </div>
+            </div>
+            <div class="match-list" id="recent-list"></div>
+          </div>
+        </section>
+
+        <section class="leaderboard-band" id="plantilla">
+          <div class="section-heading">
+            <span class="section-kicker">Rendimiento</span>
+            <h2>Lideres del equipo</h2>
+          </div>
+          <div class="leaderboard-layout">
+            <div class="leader-tabs" id="leader-tabs"></div>
+            <div class="leaderboard-list" id="leaderboard-list"></div>
+          </div>
+        </section>
+
+        <section class="ops-band" id="archivo">
+          <div class="section-heading">
+            <span class="section-kicker">Club house</span>
+            <h2>Notas y archivos</h2>
+          </div>
+          <div class="ops-grid">
+            <div class="tool-panel">
+              <div class="panel-header compact">
+                <div>
+                  <span class="section-kicker">Bitacora</span>
+                  <h3>Notas rapidas</h3>
+                </div>
+              </div>
+              <form class="note-form" id="note-form">
+                <input name="author" type="text" value="KORU" aria-label="Autor" />
+                <textarea name="body" rows="3" placeholder="Convocatoria, idea, recordatorio..."></textarea>
+                <button class="primary-button" type="submit">
+                  <i data-lucide="plus"></i>
+                  <span>Añadir nota</span>
+                </button>
+              </form>
+              <div class="notes-list" id="notes-list"></div>
+            </div>
+
+            <div class="tool-panel">
+              <div class="panel-header compact">
+                <div>
+                  <span class="section-kicker">Repositorio</span>
+                  <h3>Archivos del club</h3>
+                </div>
+              </div>
+              <form class="upload-form" id="upload-form">
+                <label class="file-drop">
+                  <input name="file" type="file" />
+                  <i data-lucide="upload-cloud"></i>
+                  <span id="file-label">Seleccionar archivo</span>
+                </label>
+                <button class="primary-button" type="submit">
+                  <i data-lucide="upload"></i>
+                  <span>Subir</span>
+                </button>
+              </form>
+              <div class="files-list" id="files-list"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
