@@ -36,7 +36,9 @@ Desde PowerShell, indicando el usuario SSH real del mini PC:
 .\scripts\deploy_remote.ps1 -User TU_USUARIO -Password "TU_PASSWORD"
 ```
 
-El script copia la app a `/opt/koru-dashboard`, crea un entorno Python, instala dependencias y deja un servicio `systemd` en el puerto `8090` para no pisar otros paneles que ya usen `80` o `8080`.
+El script copia la app a `/opt/koru-dashboard`, crea un entorno Python, instala dependencias y deja un servicio `systemd` en el puerto `10101` para no pisar otros paneles que ya usen `80` o `8080`.
+
+Si quieres verla desde fuera de la red local, además de arrancarla en `10101` necesitarás redirigir ese puerto en el router hacia la IP del mini PC.
 
 ## Estructura
 

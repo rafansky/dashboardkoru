@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/koru-dashboard}"
-PORT="${PORT:-8090}"
+PORT="${PORT:-10101}"
 ARCHIVE="${ARCHIVE:-/tmp/koru-dashboard.tar.gz}"
 SERVICE_NAME="${SERVICE_NAME:-koru-dashboard}"
 SUDO_PASS="${SUDO_PASS:-}"
@@ -59,3 +59,7 @@ sudo_cmd systemctl daemon-reload
 sudo_cmd systemctl enable --now "$SERVICE_NAME"
 sudo_cmd systemctl restart "$SERVICE_NAME"
 sudo_cmd systemctl --no-pager --full status "$SERVICE_NAME"
+
+if command -v ufw >/dev/null 2>&1; then
+  sudo_cmd ufw allow "$PORT"/tcp >/dev/null || true
+fi

@@ -5,7 +5,7 @@ param(
   [string]$Password,
   [string]$HostKey = "SHA256:0ftcCNGtY+09lW9pQAlsOWasxcEnaqSGdCJu19de4BY",
   [string]$AppDir = "/opt/koru-dashboard",
-  [int]$Port = 8090
+  [int]$Port = 10101
 )
 
 $ErrorActionPreference = "Stop"
