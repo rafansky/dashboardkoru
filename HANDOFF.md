@@ -45,7 +45,10 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 - Local dev server has been run on `http://127.0.0.1:8080`.
 - The mini PC target now uses `10101` because other services already occupied `80` and `8080`.
-- SSH access to `192.168.1.133` exists, but the correct SSH username has not been confirmed yet.
+- Current mini PC URL on LAN: `http://192.168.1.133:10101`
+- The service is already installed and running on the mini PC as `koru-dashboard.service`.
+- SSH user on the mini PC is `rafansky`.
+- To expose it from outside the home network, the router still needs a port forward from external `10101` to `192.168.1.133:10101`.
 
 ## Repo / workflow notes
 
