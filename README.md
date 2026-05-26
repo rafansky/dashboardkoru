@@ -40,7 +40,7 @@ El script copia la app a `/opt/koru-dashboard`, crea un entorno Python, instala 
 
 La web queda accesible en la LAN en `http://192.168.1.133:10101`.
 
-Si quieres verla desde fuera de la red local, además de arrancarla en `10101` necesitarás redirigir ese puerto en el router hacia la IP del mini PC.
+El port forwarding externo ya está configurado sobre `10101` hacia el mini PC, así que también se puede entrar desde fuera por ese puerto.
 
 ## Estructura
 
