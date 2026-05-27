@@ -814,6 +814,36 @@ tr.koru-row {
   line-height: 1.1;
 }
 
+.trends-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.trend-chip {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid rgba(249, 85, 22, 0.22);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(249, 85, 22, 0.08), rgba(0, 0, 0, 0.12));
+}
+
+.trend-chip span {
+  color: var(--orange);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.trend-chip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
 .rankings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1092,7 +1122,8 @@ tr.koru-row {
   .hero-metrics,
   .competition-strip,
   .leaderboard-list,
-  .rankings-summary {
+  .rankings-summary,
+  .trends-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1141,7 +1172,8 @@ tr.koru-row {
   .leaderboard-list,
   .ops-grid,
   .rankings-grid,
-  .rankings-summary {
+  .rankings-summary,
+  .trends-strip {
     grid-template-columns: 1fr;
   }
 

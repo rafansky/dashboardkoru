@@ -407,6 +407,8 @@ function renderRankings(analytics) {
     )
     .join("");
 
+  renderTrends(analytics?.trends || {});
+
   const teamElo = analytics?.teamElo || [];
   $("#team-elo-list").innerHTML = teamElo.length
     ? teamElo
@@ -468,6 +470,31 @@ function renderRankings(analytics) {
         )
         .join("")
     : `<div class="empty-state">Sin datos ELO de jugadores.</div>`;
+}
+
+function renderTrends(trends) {
+  const bestRiser = trends.risers?.find((item) => Number(item.eloDelta || 0) > 0);
+  const bestFaller = trends.fallers?.[0];
+  const hotPlayer = trends.hotPlayer;
+  const bestTeam = trends.bestTeam;
+
+  const items = [
+    ["Sube", bestRiser ? `${bestRiser.username} ${signed(bestRiser.eloDelta)}` : "Sin cambios"],
+    ["Baja", bestFaller ? `${bestFaller.username} ${signed(bestFaller.eloDelta)}` : "Sin caidas"],
+    ["Hot", hotPlayer ? `${hotPlayer.username} ${hotPlayer.elo}` : "-"],
+    ["Liga fuerte", bestTeam ? `${bestTeam.platform} ${signed(bestTeam.eloDelta)}` : "-"],
+  ];
+
+  $("#trends-strip").innerHTML = items
+    .map(
+      ([label, value]) => `
+      <article class="trend-chip">
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </article>
+    `
+    )
+    .join("");
 }
 
 function renderNotes() {

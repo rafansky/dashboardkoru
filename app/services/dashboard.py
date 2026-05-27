@@ -671,6 +671,23 @@ def _persist_analytics_snapshot(analytics: dict[str, Any]) -> None:
     if snapshots:
         upsert_elo_snapshots(snapshot_date, snapshots)
 
+    analytics["trends"] = _trends(analytics)
+
+
+def _trends(analytics: dict[str, Any]) -> dict[str, Any]:
+    players = list(analytics.get("playerElo", []))
+    teams = list(analytics.get("teamElo", []))
+    risers = sorted(players, key=lambda item: item.get("eloDelta", 0), reverse=True)[:5]
+    fallers = sorted(players, key=lambda item: item.get("eloDelta", 0))[:5]
+    best_team = max(teams, key=lambda item: item.get("eloDelta", 0), default=None)
+    hot_player = max(players, key=lambda item: (item.get("eloDelta", 0), item.get("elo", 0)), default=None)
+    return {
+        "risers": risers,
+        "fallers": [item for item in fallers if item.get("eloDelta", 0) < 0],
+        "bestTeam": best_team,
+        "hotPlayer": hot_player,
+    }
+
 
 def _normalized_rating(value: float, matches_played: int) -> float:
     if value <= 0:
