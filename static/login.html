@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050607" />
+    <title>KORU Access</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/login.css" />
+  </head>
+  <body>
+    <main class="gate">
+      <canvas id="matrix-canvas" aria-hidden="true"></canvas>
+      <img class="bg-logo" src="/assets/koru-logo.png" alt="" aria-hidden="true" />
+      <div class="noise"></div>
+      <section class="panel" aria-label="Acceso privado">
+        <p class="kicker">PRIVATE NODE</p>
+        <h1>KORU eClub</h1>
+        <p class="subtitle">Zona interna. Acceso solo para staff y plantilla.</p>
+
+        <form id="login-form" class="auth-form">
+          <label for="password">Passphrase</label>
+          <input id="password" name="password" type="password" required autocomplete="current-password" />
+          <button type="submit">UNLOCK DASHBOARD</button>
+          <p class="status" id="status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+    <script src="/static/login.js"></script>
+  </body>
+</html>

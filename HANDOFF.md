@@ -18,6 +18,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
   - notes
   - file uploads
 - Uses local SQLite for notes/files metadata and an `uploads/` folder for stored files.
+- Has a private login gate on `/login` with a session cookie and logout button in the dashboard.
 
 ## Main files
 
@@ -40,6 +41,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - The KORU logo in the hero is now the cropped local asset at `static/assets/koru-logo.png`.
 - The hero backdrop uses a subtle gradient, not a giant cover image.
 - The UI has been intentionally tightened several times to make the page feel higher-resolution and less oversized.
+- The dashboard now requires `KORU_ACCESS_PASSWORD`, and the mini PC service is configured with the password and cookie secret in systemd environment variables.
 
 ## Deployment notes
 

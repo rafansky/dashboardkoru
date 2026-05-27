@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -8,6 +9,10 @@ DB_PATH = DATA_DIR / "koru.db"
 
 DASHBOARD_CACHE_SECONDS = 300
 HTTP_TIMEOUT_SECONDS = 12
+AUTH_COOKIE_NAME = "koru_access"
+AUTH_SESSION_HOURS = int(os.getenv("KORU_AUTH_SESSION_HOURS", "12"))
+AUTH_PASSWORD = os.getenv("KORU_ACCESS_PASSWORD", "")
+AUTH_SECRET = os.getenv("KORU_AUTH_SECRET", "")
 
 KORU = {
     "name": "KORU eClub",

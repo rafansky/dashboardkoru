@@ -1,0 +1,152 @@
+:root {
+  --bg-0: #050607;
+  --bg-1: #0b0d10;
+  --bg-2: #120d09;
+  --line: rgba(249, 112, 45, 0.35);
+  --line-soft: rgba(249, 112, 45, 0.2);
+  --text: #f7f3f0;
+  --muted: #b7a99f;
+  --orange: #f9702d;
+  --orange-soft: #ffbf99;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  font-family: Inter, system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 20% 12%, rgba(249, 112, 45, 0.2), transparent 28%),
+    radial-gradient(circle at 80% 86%, rgba(249, 112, 45, 0.16), transparent 38%),
+    linear-gradient(160deg, var(--bg-0), var(--bg-1), var(--bg-2));
+}
+
+.gate {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: hidden;
+}
+
+#matrix-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+.bg-logo {
+  position: absolute;
+  width: min(62vw, 620px);
+  max-width: 84%;
+  opacity: 0.12;
+  filter: blur(2px) drop-shadow(0 0 48px rgba(249, 112, 45, 0.3));
+  z-index: 0;
+  pointer-events: none;
+}
+
+.noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.2;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 2px,
+    rgba(255, 255, 255, 0.018) 2px 3px
+  );
+}
+
+.panel {
+  width: min(100%, 460px);
+  position: relative;
+  z-index: 2;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(10, 11, 13, 0.93), rgba(12, 9, 7, 0.92));
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.kicker {
+  margin: 0 0 8px;
+  letter-spacing: 0.08em;
+  color: var(--orange);
+  font-family: "Share Tech Mono", monospace;
+  font-size: 0.84rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+  text-shadow: 0 0 28px rgba(249, 112, 45, 0.24);
+}
+
+.subtitle {
+  margin: 10px 0 22px;
+  color: var(--muted);
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+label {
+  font-family: "Share Tech Mono", monospace;
+  color: #f6c4ad;
+  font-size: 0.86rem;
+}
+
+input {
+  min-height: 46px;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: rgba(16, 19, 24, 0.9);
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+}
+
+input:focus {
+  border-color: rgba(249, 112, 45, 0.7);
+  box-shadow: 0 0 0 3px rgba(249, 112, 45, 0.18);
+}
+
+button {
+  min-height: 44px;
+  border: 1px solid rgba(249, 112, 45, 0.65);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ff883f, #f9702d);
+  color: #220f04;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+.status {
+  margin: 4px 0 0;
+  min-height: 20px;
+  font-size: 0.92rem;
+  color: var(--orange-soft);
+}
+
+@media (max-width: 520px) {
+  .panel {
+    padding: 20px;
+  }
+}

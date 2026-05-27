@@ -2,12 +2,16 @@
 
 Dashboard privado para seguir KORU eClub en VPG, VPG Zero y PLG.
 
+Ahora incluye una puerta de acceso privada para entrar a la web.
+
 ## Ejecutar en local
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+export KORU_ACCESS_PASSWORD="pon_aqui_una_clave_larga"
+# opcional: export KORU_AUTH_SECRET="$(openssl rand -hex 32)"
 uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
@@ -17,8 +21,17 @@ En Windows PowerShell:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+$env:KORU_ACCESS_PASSWORD="pon_aqui_una_clave_larga"
+# opcional: $env:KORU_AUTH_SECRET="clave-larga-aleatoria"
 uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 ```
+
+Variables:
+
+- `KORU_ACCESS_PASSWORD` (obligatoria): clave para entrar al panel.
+- `KORU_AUTH_SECRET` (recomendada): secreto para firmar la cookie de sesion.
+- `KORU_AUTH_SESSION_HOURS` (opcional, por defecto `12`): duracion de sesion.
+- `KORU_COOKIE_SECURE` (opcional): `true` en HTTPS para enviar cookie solo por TLS.
 
 ## Ejecutar con Docker
 

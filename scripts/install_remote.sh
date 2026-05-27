@@ -6,6 +6,21 @@ PORT="${PORT:-10101}"
 ARCHIVE="${ARCHIVE:-/tmp/koru-dashboard.tar.gz}"
 SERVICE_NAME="${SERVICE_NAME:-koru-dashboard}"
 SUDO_PASS="${SUDO_PASS:-}"
+KORU_ACCESS_PASSWORD="${KORU_ACCESS_PASSWORD:-}"
+KORU_AUTH_SECRET="${KORU_AUTH_SECRET:-}"
+
+if [ -z "$KORU_ACCESS_PASSWORD" ]; then
+  echo "KORU_ACCESS_PASSWORD es obligatoria para desplegar."
+  exit 1
+fi
+
+if [ -z "$KORU_AUTH_SECRET" ]; then
+  KORU_AUTH_SECRET="$(python3 - <<'PY'
+import secrets
+print(secrets.token_hex(32))
+PY
+)"
+fi
 
 sudo_cmd() {
   if [ -n "$SUDO_PASS" ]; then
@@ -46,6 +61,8 @@ Wants=network-online.target
 Type=simple
 User=$USER
 WorkingDirectory=$APP_DIR
+Environment="KORU_ACCESS_PASSWORD=$KORU_ACCESS_PASSWORD"
+Environment="KORU_AUTH_SECRET=$KORU_AUTH_SECRET"
 ExecStart=$APP_DIR/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT
 Restart=always
 RestartSec=5

@@ -18,6 +18,7 @@ const leaderLabels = {
 document.addEventListener("DOMContentLoaded", () => {
   bindNavigation();
   bindForms();
+  bindSessionControls();
   loadAll();
 });
 
@@ -40,6 +41,10 @@ async function loadAll(force = false) {
     toast(force ? "Datos actualizados" : "Dashboard sincronizado");
   } catch (error) {
     console.error(error);
+    if (error?.status === 401) {
+      window.location.href = "/login";
+      return;
+    }
     toast("No se pudo cargar el dashboard");
   } finally {
     setLoading(false);
@@ -54,6 +59,18 @@ function bindNavigation() {
     });
   });
   $("#refresh-button").addEventListener("click", () => loadAll(true));
+}
+
+function bindSessionControls() {
+  const logoutButton = $("#logout-button");
+  if (!logoutButton) return;
+  logoutButton.addEventListener("click", async () => {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } finally {
+      window.location.href = "/login";
+    }
+  });
 }
 
 function bindForms() {
@@ -89,7 +106,11 @@ function bindForms() {
 
 async function fetchJson(url) {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`${response.status} ${url}`);
+  if (!response.ok) {
+    const error = new Error(`${response.status} ${url}`);
+    error.status = response.status;
+    throw error;
+  }
   return response.json();
 }
 
