@@ -418,6 +418,7 @@ function renderRankings(analytics) {
             <div>
               <strong>${item.platform}</strong>
               <span>${item.name}</span>
+              ${sparkline(item.history)}
             </div>
             <div class="team-elo-meta">
               <small>#${item.rank}</small>
@@ -460,6 +461,7 @@ function renderRankings(analytics) {
             <div class="leader-name">
               <strong>${player.username}</strong>
               <span>${player.matchesPlayed} PJ · G ${player.goals} · A ${player.assists} · R ${formatMetric(player.rating)}</span>
+              ${sparkline(player.history)}
             </div>
             <div class="elo-value">
               <strong class="leader-value">${player.elo}</strong>
@@ -559,6 +561,24 @@ function deltaBadge(value) {
   const className = delta > 0 ? "delta-up" : delta < 0 ? "delta-down" : "delta-flat";
   const label = delta > 0 ? `+${delta}` : String(delta);
   return `<small class="delta-badge ${className}">${label}</small>`;
+}
+
+function sparkline(points = []) {
+  if (!points.length) return `<div class="sparkline muted" aria-hidden="true"></div>`;
+  const values = points.map((point) => Number(point.elo || 0));
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(1, max - min);
+  return `
+    <div class="sparkline" aria-label="Evolucion ELO">
+      ${values
+        .map((value) => {
+          const height = 4 + Math.round(((value - min) / range) * 14);
+          return `<span style="height:${height}px"></span>`;
+        })
+        .join("")}
+    </div>
+  `;
 }
 
 function signed(value) {

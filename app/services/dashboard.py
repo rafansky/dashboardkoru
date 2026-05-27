@@ -16,7 +16,7 @@ from app.settings import (
     VPG_API,
     VPG_ASSET_URL,
 )
-from app.storage import get_previous_elo_snapshot, upsert_elo_snapshots
+from app.storage import get_elo_history, get_previous_elo_snapshot, upsert_elo_snapshots
 
 logger = logging.getLogger(__name__)
 MADRID = ZoneInfo("Europe/Madrid")
@@ -671,7 +671,24 @@ def _persist_analytics_snapshot(analytics: dict[str, Any]) -> None:
     if snapshots:
         upsert_elo_snapshots(snapshot_date, snapshots)
 
+    _attach_elo_history(analytics)
     analytics["trends"] = _trends(analytics)
+
+
+def _attach_elo_history(analytics: dict[str, Any]) -> None:
+    history = get_elo_history(14)
+    for item in analytics.get("teamElo", []):
+        item["history"] = history.get(f"team:{item['key']}", [])
+
+    player_items: dict[str, dict[str, Any]] = {}
+    for player in analytics.get("playerElo", []):
+        player_items[str(player["username"]).lower()] = player
+    for ranking in analytics.get("playerRankings", {}).values():
+        for player in ranking:
+            player_items[str(player["username"]).lower()] = player
+
+    for key, player in player_items.items():
+        player["history"] = history.get(f"player:{key}", [])
 
 
 def _trends(analytics: dict[str, Any]) -> dict[str, Any]:

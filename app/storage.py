@@ -201,3 +201,37 @@ def upsert_elo_snapshots(snapshot_date: str, snapshots: list[dict[str, Any]]) ->
             ],
         )
         conn.commit()
+
+
+def get_elo_history(days: int = 14) -> dict[str, list[dict[str, Any]]]:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        dates = conn.execute(
+            """
+            SELECT DISTINCT snapshot_date
+            FROM elo_snapshots
+            ORDER BY snapshot_date DESC
+            LIMIT ?
+            """,
+            (days,),
+        ).fetchall()
+        selected_dates = [row["snapshot_date"] for row in reversed(dates)]
+        if not selected_dates:
+            return {}
+
+        placeholders = ",".join("?" for _ in selected_dates)
+        rows = conn.execute(
+            f"""
+            SELECT snapshot_date, entity_type, entity_key, elo
+            FROM elo_snapshots
+            WHERE snapshot_date IN ({placeholders})
+            ORDER BY snapshot_date ASC
+            """,
+            selected_dates,
+        ).fetchall()
+
+    history: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        key = f"{row['entity_type']}:{row['entity_key']}"
+        history.setdefault(key, []).append({"date": row["snapshot_date"], "elo": int(row["elo"])})
+    return history

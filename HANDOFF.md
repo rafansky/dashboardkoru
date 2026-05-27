@@ -17,6 +17,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
   - leaderboards for scorers, assists, and ratings
   - notes
   - file uploads
+  - Rankings y ELO with trend chips and 14-day mini history sparklines
 - Uses local SQLite for notes/files metadata and an `uploads/` folder for stored files.
 - Has a private login gate on `/login` with a session cookie and logout button in the dashboard.
 
@@ -44,6 +45,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - The dashboard now requires `KORU_ACCESS_PASSWORD`, and the mini PC service is configured with the password and cookie secret in systemd environment variables.
 - The active dashboard password has been rotated to the latest value and is stored only in the mini PC service environment, not in the repo.
 - Rankings/ELO are generated internally from VPG/PLG data. Player rating is normalized before ELO so total rating values do not inflate the ranking.
+- ELO snapshots are persisted daily in SQLite (`elo_snapshots`). The API attaches `eloDelta`, `trends`, and per-player/per-team `history` arrays so the frontend can render sparklines. With only one snapshot the deltas stay at `0`; they become useful after future daily refreshes.
 
 ## Deployment notes
 
@@ -53,6 +55,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - The service is already installed and running on the mini PC as `koru-dashboard.service`.
 - SSH user on the mini PC is `rafansky`.
 - Router port forwarding is already configured from external `10101` to `192.168.1.133:10101`, so the dashboard is now reachable from outside through that port.
+- Deployment is done from PowerShell with `scripts/deploy_remote.ps1`, passing the SSH user, mini PC password, dashboard password, and `-Port 10101`.
 
 ## Repo / workflow notes
 
@@ -67,3 +70,4 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 3. Add staff login and permissions.
 4. Add season history and archives.
 5. Add richer file/archive storage.
+6. Add player detail pages using the stored ELO history and match stats.
