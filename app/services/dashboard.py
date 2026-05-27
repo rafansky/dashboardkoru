@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -15,6 +16,7 @@ from app.settings import (
     VPG_API,
     VPG_ASSET_URL,
 )
+from app.storage import get_previous_elo_snapshot, upsert_elo_snapshots
 
 logger = logging.getLogger(__name__)
 MADRID = ZoneInfo("Europe/Madrid")
@@ -225,6 +227,8 @@ class DashboardService:
         )[:12]
 
         leaders = _leaderboards(vpg)
+        analytics = _analytics(competitions, recent_all, leaders)
+        _persist_analytics_snapshot(analytics)
         dashboard = {
             "updatedAt": datetime.now(timezone.utc).isoformat(),
             "team": team,
@@ -234,7 +238,7 @@ class DashboardService:
             "recent": recent_all,
             "upcoming": upcoming_all,
             "leaderboards": leaders,
-            "analytics": _analytics(competitions, recent_all, leaders),
+            "analytics": analytics,
             "sources": _sources(),
             "warnings": [],
             "stale": False,
@@ -547,6 +551,7 @@ def _analytics(
                 "platform": comp["platform"],
                 "name": comp["name"],
                 "elo": max(900, int(round(elo))),
+                "eloDelta": 0,
                 "rank": row["rank"],
                 "played": row["played"],
                 "form": recent_form,
@@ -596,6 +601,7 @@ def _analytics(
                 "assists": item["assists"],
                 "rating": round(rating, 2) if rating else 0,
                 "elo": int(round(elo)),
+                "eloDelta": 0,
             }
         )
 
@@ -620,6 +626,50 @@ def _analytics(
             "last5Points": last5_points,
         },
     }
+
+
+def _persist_analytics_snapshot(analytics: dict[str, Any]) -> None:
+    snapshot_date = datetime.now(timezone.utc).date().isoformat()
+    previous = get_previous_elo_snapshot(snapshot_date)
+    snapshots = []
+
+    for item in analytics.get("teamElo", []):
+        key = f"team:{item['key']}"
+        item["eloDelta"] = int(item["elo"]) - previous.get(key, int(item["elo"]))
+        snapshots.append(
+            {
+                "snapshot_date": snapshot_date,
+                "entity_type": "team",
+                "entity_key": item["key"],
+                "label": item["platform"],
+                "elo": item["elo"],
+                "payload": json.dumps(item, ensure_ascii=True),
+            }
+        )
+
+    player_items: dict[str, dict[str, Any]] = {}
+    for player in analytics.get("playerElo", []):
+        player_items[str(player["username"]).lower()] = player
+    for ranking in analytics.get("playerRankings", {}).values():
+        for player in ranking:
+            player_items[str(player["username"]).lower()] = player
+
+    for key, player in player_items.items():
+        snapshot_key = f"player:{key}"
+        player["eloDelta"] = int(player["elo"]) - previous.get(snapshot_key, int(player["elo"]))
+        snapshots.append(
+            {
+                "snapshot_date": snapshot_date,
+                "entity_type": "player",
+                "entity_key": key,
+                "label": player["username"],
+                "elo": player["elo"],
+                "payload": json.dumps(player, ensure_ascii=True),
+            }
+        )
+
+    if snapshots:
+        upsert_elo_snapshots(snapshot_date, snapshots)
 
 
 def _normalized_rating(value: float, matches_played: int) -> float:

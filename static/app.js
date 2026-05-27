@@ -420,6 +420,7 @@ function renderRankings(analytics) {
             <div class="team-elo-meta">
               <small>#${item.rank}</small>
               <strong>${item.elo}</strong>
+              ${deltaBadge(item.eloDelta)}
             </div>
           </article>
         `
@@ -458,7 +459,10 @@ function renderRankings(analytics) {
               <strong>${player.username}</strong>
               <span>${player.matchesPlayed} PJ · G ${player.goals} · A ${player.assists} · R ${formatMetric(player.rating)}</span>
             </div>
-            <strong class="leader-value">${player.elo}</strong>
+            <div class="elo-value">
+              <strong class="leader-value">${player.elo}</strong>
+              ${deltaBadge(player.eloDelta)}
+            </div>
           </article>
         `
         )
@@ -521,6 +525,13 @@ function formatTime(value) {
 function formatMetric(value) {
   const number = Number(value || 0);
   return Number.isInteger(number) ? number : number.toFixed(1);
+}
+
+function deltaBadge(value) {
+  const delta = Number(value || 0);
+  const className = delta > 0 ? "delta-up" : delta < 0 ? "delta-down" : "delta-flat";
+  const label = delta > 0 ? `+${delta}` : String(delta);
+  return `<small class="delta-badge ${className}">${label}</small>`;
 }
 
 function signed(value) {

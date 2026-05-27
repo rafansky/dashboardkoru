@@ -35,6 +35,21 @@ def init_storage() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS elo_snapshots (
+                snapshot_date TEXT NOT NULL,
+                entity_type TEXT NOT NULL,
+                entity_key TEXT NOT NULL,
+                label TEXT NOT NULL,
+                elo INTEGER NOT NULL,
+                payload TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (snapshot_date, entity_type, entity_key)
+            )
+            """
+        )
         conn.commit()
 
 
@@ -127,3 +142,62 @@ async def save_upload(file: UploadFile) -> dict[str, Any]:
         "created_at": created_at,
         "url": f"/uploads/{stored}",
     }
+
+
+def get_previous_elo_snapshot(snapshot_date: str) -> dict[str, int]:
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        previous_date = conn.execute(
+            """
+            SELECT snapshot_date
+            FROM elo_snapshots
+            WHERE snapshot_date < ?
+            ORDER BY snapshot_date DESC
+            LIMIT 1
+            """,
+            (snapshot_date,),
+        ).fetchone()
+        if not previous_date:
+            return {}
+        rows = conn.execute(
+            """
+            SELECT entity_type, entity_key, elo
+            FROM elo_snapshots
+            WHERE snapshot_date = ?
+            """,
+            (previous_date["snapshot_date"],),
+        ).fetchall()
+    return {f"{row['entity_type']}:{row['entity_key']}": int(row["elo"]) for row in rows}
+
+
+def upsert_elo_snapshots(snapshot_date: str, snapshots: list[dict[str, Any]]) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.executemany(
+            """
+            INSERT INTO elo_snapshots (
+                snapshot_date, entity_type, entity_key, label, elo, payload, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(snapshot_date, entity_type, entity_key)
+            DO UPDATE SET
+                label = excluded.label,
+                elo = excluded.elo,
+                payload = excluded.payload,
+                updated_at = excluded.updated_at
+            """,
+            [
+                (
+                    item["snapshot_date"],
+                    item["entity_type"],
+                    item["entity_key"],
+                    item["label"],
+                    int(item["elo"]),
+                    item.get("payload"),
+                    now,
+                    now,
+                )
+                for item in snapshots
+            ],
+        )
+        conn.commit()

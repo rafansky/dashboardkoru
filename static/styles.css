@@ -897,6 +897,37 @@ tr.koru-row {
   grid-template-columns: auto auto minmax(0, 1fr) auto;
 }
 
+.elo-value {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.delta-badge {
+  min-width: 34px;
+  display: inline-grid;
+  place-items: center;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 900;
+}
+
+.delta-up {
+  color: #06170c;
+  background: rgba(55, 214, 122, 0.9);
+}
+
+.delta-down {
+  color: #21070b;
+  background: rgba(255, 88, 101, 0.9);
+}
+
+.delta-flat {
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .ops-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
