@@ -42,6 +42,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - The hero backdrop uses a subtle gradient, not a giant cover image.
 - The UI has been intentionally tightened several times to make the page feel higher-resolution and less oversized.
 - The dashboard now requires `KORU_ACCESS_PASSWORD`, and the mini PC service is configured with the password and cookie secret in systemd environment variables.
+- The active dashboard password has been rotated to the latest value and is stored only in the mini PC service environment, not in the repo.
 
 ## Deployment notes
 

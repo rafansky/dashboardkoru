@@ -55,6 +55,8 @@ La web queda accesible en la LAN en `http://192.168.1.133:10101`.
 
 El port forwarding externo ya está configurado sobre `10101` hacia el mini PC, así que también se puede entrar desde fuera por ese puerto.
 
+La password activa vive solo en el servicio del mini PC como variable de entorno, no queda hardcodeada en el repo.
+
 ## Estructura
 
 - `app/`: API FastAPI, conectores VPG/PLG, SQLite y uploads.
