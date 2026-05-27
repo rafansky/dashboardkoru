@@ -31,6 +31,7 @@
           <a href="#ligas" class="nav-link"><i data-lucide="trophy"></i><span>Ligas</span></a>
           <a href="#partidos" class="nav-link"><i data-lucide="calendar-days"></i><span>Partidos</span></a>
           <a href="#plantilla" class="nav-link"><i data-lucide="users"></i><span>Jugadores</span></a>
+          <a href="#rankings" class="nav-link"><i data-lucide="line-chart"></i><span>Rankings</span></a>
           <a href="#archivo" class="nav-link"><i data-lucide="folder-open"></i><span>Archivo</span></a>
         </nav>
 
@@ -148,6 +149,35 @@
           <div class="leaderboard-layout">
             <div class="leader-tabs" id="leader-tabs"></div>
             <div class="leaderboard-list" id="leaderboard-list"></div>
+          </div>
+        </section>
+
+        <section class="rankings-band" id="rankings">
+          <div class="section-heading">
+            <span class="section-kicker">Power Index</span>
+            <h2>Rankings y ELO</h2>
+          </div>
+          <div class="rankings-summary" id="rankings-summary"></div>
+          <div class="rankings-grid">
+            <div class="panel">
+              <div class="panel-header compact">
+                <div>
+                  <span class="section-kicker">ELO Club</span>
+                  <h3>Competiciones activas</h3>
+                </div>
+              </div>
+              <div class="team-elo-list" id="team-elo-list"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header compact ranking-header">
+                <div>
+                  <span class="section-kicker">ELO Jugadores</span>
+                  <h3>Top rendimiento</h3>
+                </div>
+                <div class="ranking-tabs" id="ranking-tabs"></div>
+              </div>
+              <div class="player-elo-list" id="player-elo-list"></div>
+            </div>
           </div>
         </section>
 

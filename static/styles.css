@@ -782,6 +782,121 @@ tr.koru-row {
   font-size: 1.08rem;
 }
 
+.rankings-band {
+  padding-top: 18px;
+}
+
+.rankings-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.rank-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(16, 18, 23, 0.86);
+}
+
+.rank-card span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.rank-card strong {
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.rankings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.ranking-header {
+  align-items: flex-start;
+}
+
+.ranking-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.ranking-tabs button {
+  min-height: 28px;
+  padding: 0 8px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.ranking-tabs button.active {
+  color: #0b0c10;
+  background: var(--orange);
+  border-color: var(--orange);
+  font-weight: 800;
+}
+
+.team-elo-list,
+.player-elo-list {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  max-height: 340px;
+  overflow: auto;
+}
+
+.team-elo-item,
+.player-elo-item {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.team-elo-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.team-elo-item span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.team-elo-meta {
+  display: grid;
+  justify-items: end;
+}
+
+.team-elo-meta small {
+  color: var(--muted);
+}
+
+.team-elo-meta strong {
+  font-size: 1.05rem;
+}
+
+.player-elo-item {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
 .ops-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -945,7 +1060,8 @@ tr.koru-row {
 
   .hero-metrics,
   .competition-strip,
-  .leaderboard-list {
+  .leaderboard-list,
+  .rankings-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -992,12 +1108,48 @@ tr.koru-row {
 
   .competition-strip,
   .leaderboard-list,
-  .ops-grid {
+  .ops-grid,
+  .rankings-grid,
+  .rankings-summary {
     grid-template-columns: 1fr;
   }
 
   .hero-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: none;
+  }
+
+  .toolbar-band {
+    padding-top: 12px;
+    gap: 8px;
+  }
+
+  .competition-strip {
+    padding-top: 8px;
+  }
+
+  .competition-card {
+    display: none;
+  }
+
+  .competition-card.is-selected {
+    display: grid;
+  }
+
+  .dashboard-grid {
+    padding-top: 10px;
+  }
+
+  .rankings-band {
+    padding-top: 14px;
+  }
+
+  .ranking-header {
+    gap: 8px;
+    flex-direction: column;
+  }
+
+  .ranking-tabs {
+    justify-content: flex-start;
   }
 
   .toolbar-band {

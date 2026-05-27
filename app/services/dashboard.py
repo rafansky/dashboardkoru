@@ -224,6 +224,7 @@ class DashboardService:
             key=lambda item: item["datetime"],
         )[:12]
 
+        leaders = _leaderboards(vpg)
         dashboard = {
             "updatedAt": datetime.now(timezone.utc).isoformat(),
             "team": team,
@@ -232,7 +233,8 @@ class DashboardService:
             "nextMatch": upcoming_all[0] if upcoming_all else None,
             "recent": recent_all,
             "upcoming": upcoming_all,
-            "leaderboards": _leaderboards(vpg),
+            "leaderboards": leaders,
+            "analytics": _analytics(competitions, recent_all, leaders),
             "sources": _sources(),
             "warnings": [],
             "stale": False,
@@ -522,6 +524,136 @@ def _sources() -> list[dict[str, str]]:
         {"label": "VPG Zero Gold", "url": SOURCES["vpg_zero"]},
         {"label": "VPG 4a A", "url": SOURCES["vpg_cuarta"]},
     ]
+
+
+def _analytics(
+    competitions: list[dict[str, Any]],
+    recent_all: list[dict[str, Any]],
+    leaderboards: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    team_elos = []
+    for comp in competitions:
+        row = comp.get("koru")
+        if not row or not row.get("played"):
+            continue
+        played = max(1, int(row["played"]))
+        win_rate = (int(row["wins"]) / played) * 100
+        recent_form = [m.get("result") for m in comp.get("recent", []) if m.get("result")][:5]
+        streak_bonus = sum(14 if r == "W" else 4 if r == "D" else -10 for r in recent_form)
+        elo = 1300 + (int(row["points"]) * 6) + (int(row["goalDiff"]) * 2) + int(win_rate * 1.8) + streak_bonus
+        team_elos.append(
+            {
+                "key": comp["key"],
+                "platform": comp["platform"],
+                "name": comp["name"],
+                "elo": max(900, int(round(elo))),
+                "rank": row["rank"],
+                "played": row["played"],
+                "form": recent_form,
+            }
+        )
+
+    player_map: dict[str, dict[str, Any]] = {}
+    for bucket, field in (("scorers", "goals"), ("assists", "assists"), ("ratings", "rating")):
+        for player in leaderboards.get(bucket, []):
+            key = str(player.get("username") or "").strip().lower()
+            if not key:
+                continue
+            item = player_map.setdefault(
+                key,
+                {
+                    "username": player.get("username"),
+                    "avatarUrl": player.get("avatarUrl"),
+                    "matchesPlayed": int(player.get("matchesPlayed") or 0),
+                    "goals": 0,
+                    "assists": 0,
+                    "rating": 0.0,
+                },
+            )
+            value = float(player.get("value") or 0)
+            if field == "rating":
+                item["rating"] = _normalized_rating(value, int(player.get("matchesPlayed") or item["matchesPlayed"] or 0))
+            else:
+                item[field] = int(value)
+            item["matchesPlayed"] = max(item["matchesPlayed"], int(player.get("matchesPlayed") or 0))
+
+    players = []
+    for item in player_map.values():
+        rating = float(item["rating"] or 0)
+        elo = (
+            1250
+            + (item["goals"] * 14)
+            + (item["assists"] * 11)
+            + int(max(0.0, rating - 6.0) * 85)
+            + min(90, int(item["matchesPlayed"] * 2.5))
+        )
+        players.append(
+            {
+                "username": item["username"],
+                "avatarUrl": item["avatarUrl"],
+                "matchesPlayed": item["matchesPlayed"],
+                "goals": item["goals"],
+                "assists": item["assists"],
+                "rating": round(rating, 2) if rating else 0,
+                "elo": int(round(elo)),
+            }
+        )
+
+    player_rankings = {
+        "overall": sorted(players, key=lambda p: p["elo"], reverse=True)[:20],
+        "goals": sorted(players, key=lambda p: (p["goals"], p["elo"]), reverse=True)[:20],
+        "assists": sorted(players, key=lambda p: (p["assists"], p["elo"]), reverse=True)[:20],
+        "rating": sorted(players, key=lambda p: (p["rating"], p["elo"]), reverse=True)[:20],
+    }
+
+    current_streak = _streak(recent_all)
+    last5_points = _points_last_n(recent_all, 5)
+
+    return {
+        "teamElo": sorted(team_elos, key=lambda item: item["elo"], reverse=True),
+        "playerElo": player_rankings["overall"],
+        "playerRankings": player_rankings,
+        "summary": {
+            "overallTeamElo": int(round(sum(item["elo"] for item in team_elos) / len(team_elos))) if team_elos else 0,
+            "topPlayer": player_rankings["overall"][0] if player_rankings["overall"] else None,
+            "currentStreak": current_streak,
+            "last5Points": last5_points,
+        },
+    }
+
+
+def _normalized_rating(value: float, matches_played: int) -> float:
+    if value <= 0:
+        return 0.0
+    if value <= 10:
+        return value
+    if matches_played > 0:
+        return min(10.0, value / matches_played)
+    return min(10.0, value / 10)
+
+
+def _streak(recent_matches: list[dict[str, Any]]) -> dict[str, Any]:
+    sequence = [m.get("result") for m in recent_matches if m.get("result")]
+    if not sequence:
+        return {"type": "-", "count": 0}
+    first = sequence[0]
+    count = 0
+    for value in sequence:
+        if value != first:
+            break
+        count += 1
+    return {"type": first, "count": count}
+
+
+def _points_last_n(recent_matches: list[dict[str, Any]], n: int) -> int:
+    points = 0
+    for match in recent_matches[:n]:
+        result = match.get("result")
+        if result == "W":
+            points += 3
+        elif result == "D":
+            points += 1
+    return points
 
 
 dashboard_service = DashboardService()

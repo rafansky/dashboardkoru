@@ -2,6 +2,7 @@ const state = {
   dashboard: null,
   selectedCompetition: null,
   selectedLeader: "scorers",
+  selectedRanking: "overall",
   notes: [],
   files: [],
 };
@@ -13,6 +14,13 @@ const leaderLabels = {
   scorers: { label: "Goles", metric: "goles" },
   assists: { label: "Asistencias", metric: "asistencias" },
   ratings: { label: "Rating", metric: "rating" },
+};
+
+const rankingLabels = {
+  overall: "General",
+  goals: "Goles",
+  assists: "Asist.",
+  rating: "Rating",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -125,6 +133,7 @@ function render() {
   renderCompetitionCards(data.competitions);
   renderSelectedCompetition();
   renderLeaders();
+  renderRankings(data.analytics);
   renderNotes();
   renderFiles();
 
@@ -210,6 +219,7 @@ function renderCompetitionTabs(competitions) {
     button.addEventListener("click", () => {
       state.selectedCompetition = button.dataset.competition;
       renderCompetitionTabs(state.dashboard.competitions);
+      renderCompetitionCards(state.dashboard.competitions);
       renderSelectedCompetition();
       refreshIcons();
     });
@@ -223,8 +233,9 @@ function renderCompetitionCards(competitions) {
       const form = competition.form?.length
         ? competition.form.map((result) => `<span class="form-dot result-${result}">${result}</span>`).join("")
         : `<span class="empty-inline">Sin forma</span>`;
+      const selectedClass = competition.key === state.selectedCompetition ? "is-selected" : "";
       return `
-        <article class="competition-card" style="--accent: ${competition.accent}">
+        <article class="competition-card ${selectedClass}" style="--accent: ${competition.accent}">
           <header>
             <div>
               <span class="section-kicker">${competition.platform}</span>
@@ -371,6 +382,88 @@ function renderLeaders() {
         )
         .join("")
     : `<div class="empty-state">Sin datos de jugadores.</div>`;
+}
+
+function renderRankings(analytics) {
+  const summary = analytics?.summary || {};
+  const streak = summary.currentStreak || { type: "-", count: 0 };
+  const topPlayer = summary.topPlayer;
+
+  const summaryItems = [
+    ["ELO Club", summary.overallTeamElo || 0],
+    ["Racha", streak.count ? `${streak.count}${streak.type}` : "-"],
+    ["Pts ult.5", summary.last5Points || 0],
+    ["Top jugador", topPlayer ? `${topPlayer.username} (${topPlayer.elo})` : "-"],
+  ];
+
+  $("#rankings-summary").innerHTML = summaryItems
+    .map(
+      ([label, value]) => `
+      <article class="rank-card">
+        <span>${label}</span>
+        <strong>${value}</strong>
+      </article>
+    `
+    )
+    .join("");
+
+  const teamElo = analytics?.teamElo || [];
+  $("#team-elo-list").innerHTML = teamElo.length
+    ? teamElo
+        .map(
+          (item) => `
+          <article class="team-elo-item">
+            <div>
+              <strong>${item.platform}</strong>
+              <span>${item.name}</span>
+            </div>
+            <div class="team-elo-meta">
+              <small>#${item.rank}</small>
+              <strong>${item.elo}</strong>
+            </div>
+          </article>
+        `
+        )
+        .join("")
+    : `<div class="empty-state">Sin datos ELO de equipo.</div>`;
+
+  $("#ranking-tabs").innerHTML = Object.entries(rankingLabels)
+    .map(
+      ([key, label]) => `
+        <button type="button" class="${state.selectedRanking === key ? "active" : ""}" data-ranking="${key}">
+          ${label}
+        </button>
+      `
+    )
+    .join("");
+
+  $$("#ranking-tabs button").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedRanking = button.dataset.ranking;
+      renderRankings(state.dashboard.analytics);
+      refreshIcons();
+    });
+  });
+
+  const playerElo = analytics?.playerRankings?.[state.selectedRanking] || analytics?.playerElo || [];
+  $("#player-elo-list").innerHTML = playerElo.length
+    ? playerElo
+        .slice(0, 12)
+        .map(
+          (player, index) => `
+          <article class="player-elo-item">
+            <span class="leader-rank">${index + 1}</span>
+            ${image(player.avatarUrl, player.username, "leader-avatar")}
+            <div class="leader-name">
+              <strong>${player.username}</strong>
+              <span>${player.matchesPlayed} PJ · G ${player.goals} · A ${player.assists} · R ${formatMetric(player.rating)}</span>
+            </div>
+            <strong class="leader-value">${player.elo}</strong>
+          </article>
+        `
+        )
+        .join("")
+    : `<div class="empty-state">Sin datos ELO de jugadores.</div>`;
 }
 
 function renderNotes() {
