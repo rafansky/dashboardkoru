@@ -50,24 +50,27 @@ export function isPerspectiveOrientation(pitch) {
   return pitch.orientation === "top-to-bottom" || pitch.orientation === "bottom-to-top";
 }
 
+const PERSPECTIVE_DEPTH_SCALE = 0.88;
+const PERSPECTIVE_FAR_WIDTH = 0.68;
+
 export function projectPerspectivePoint(point, pitch) {
   const oriented = orientPoint(point, pitch);
   if (!isPerspectiveOrientation(pitch)) return oriented;
   const depth = clamp(oriented.y / pitch.width, 0, 1);
-  const scale = 0.56 + depth * 0.44;
+  const scale = PERSPECTIVE_FAR_WIDTH + depth * (1 - PERSPECTIVE_FAR_WIDTH);
   return {
     x: pitch.height / 2 + (oriented.x - pitch.height / 2) * scale,
-    y: oriented.y,
+    y: oriented.y * PERSPECTIVE_DEPTH_SCALE,
   };
 }
 
 export function unprojectPerspectivePoint(point, pitch) {
   if (!isPerspectiveOrientation(pitch)) return unorientPoint(point, pitch);
-  const depth = clamp(point.y / pitch.width, 0, 1);
-  const scale = 0.56 + depth * 0.44;
+  const depth = clamp(point.y / (pitch.width * PERSPECTIVE_DEPTH_SCALE), 0, 1);
+  const scale = PERSPECTIVE_FAR_WIDTH + depth * (1 - PERSPECTIVE_FAR_WIDTH);
   const oriented = {
     x: pitch.height / 2 + (point.x - pitch.height / 2) / scale,
-    y: point.y,
+    y: point.y / PERSPECTIVE_DEPTH_SCALE,
   };
   return unorientPoint(oriented, pitch);
 }
@@ -90,12 +93,14 @@ export function pitchViewport(pitch) {
   ];
   const xs = corners.map((point) => point.x);
   const ys = corners.map((point) => point.y);
-  return {
+  const result = {
     x: Math.min(...xs),
     y: Math.min(...ys),
     width: Math.max(...xs) - Math.min(...xs),
     height: Math.max(...ys) - Math.min(...ys),
   };
+  if (isPerspectiveOrientation(pitch)) result.height *= PERSPECTIVE_DEPTH_SCALE;
+  return result;
 }
 
 export function pitchToScreen(point, bounds, pitch) {

@@ -1,4 +1,4 @@
-import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260825e";
+import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260825f";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -54,8 +54,8 @@ function addPerspectiveSurface(group, pitch) {
   for (let index = 0; index < bands; index += 1) {
     const y1 = (pitch.width * index) / bands;
     const y2 = (pitch.width * (index + 1)) / bands;
-    const scale = (depth) => 0.56 + (depth / pitch.width) * 0.44;
-    const p = (x, y) => ({ x: pitch.height / 2 + (x - pitch.height / 2) * scale(y), y });
+    const scale = (depth) => 0.68 + (depth / pitch.width) * 0.32;
+    const p = (x, y) => ({ x: pitch.height / 2 + (x - pitch.height / 2) * scale(y), y: y * 0.88 });
     group.append(svgElement("polygon", {
       class: "perspective-band",
       ...surface,
