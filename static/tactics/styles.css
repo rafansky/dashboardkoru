@@ -265,7 +265,8 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .tactical-pitch.surface-stripes {
   background-image: repeating-linear-gradient(90deg, #1c6841 0, #1c6841 10%, #23764a 10%, #23764a 20%);
 }
-.tactical-pitch[data-perspective="true"] {
+.tactical-pitch[data-perspective="true"],
+.tactical-pitch.surface-stripes[data-perspective="true"] {
   background: transparent;
   background-image: none;
 }

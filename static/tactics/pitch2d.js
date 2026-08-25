@@ -1,4 +1,4 @@
-import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260825g";
+import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260825h";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -215,6 +215,7 @@ export class Pitch2DRenderer {
     this.container.style.setProperty("--pitch-ratio", `${viewport.width} / ${viewport.height}`);
     this.container.dataset.orientation = pitch.orientation;
     this.container.dataset.perspective = String(perspective);
+    svg.dataset.perspective = String(perspective);
     this.svg = svg;
     this.entityLayer = entityLayer;
   }
