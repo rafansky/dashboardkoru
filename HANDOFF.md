@@ -54,6 +54,8 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - Phase 1 is complete: `/tactics`, Pydantic validation, SQLite CRUD with optimistic versioning, library, real KORU roster feed, SVG pitch, field views/orientations/overlays, command-based property undo/redo, debounced autosave, local recovery draft, collapsible panels and fullscreen.
 - Phase 2 is complete: click/drag players onto the pitch, single/multiple selection, marquee, group move, zoom, pan, touch pinch, responsive mobile workspace, match binding and a persistent manager log split into analysis sessions. Log entries support observations, decisions, adjustments, tasks and outcomes, optional match minute, current scene and selected-player references.
 - Phase 3 is complete: the scene timeline is now functional. Managers can capture the active field state, create or duplicate scenes, rename them, set duration/transition/notes, reorder or delete them, reopen any scene and play an interpolated transition to the next one. Scene positions are only overwritten when `Capturar` is used, so experiments do not replace saved movement states accidentally.
+- The latest tactical board work adds a perspective projection for `top-to-bottom` and `bottom-to-top`: the pitch is wider near the viewer, narrower at the far end, and the projection preserves drag/drop coordinates and upright player labels. The vertical board was widened and the outside area is now a plain editor background; grass stripes are rendered only inside the pitch surface.
+- Latest Git commit: `ead8de4` (`widen near edge of perspective pitch`). The repository is pushed to `origin/main`.
 - Managers can create reusable KORU or rival players with name, dorsal, position and an optional uploaded face. Profiles persist in SQLite (`tactical_players`) and use the existing uploads service. KORU tactical markers are always white with orange trim.
 - Tactical IDs use a UUID fallback because the public deployment currently runs over plain HTTP, where browsers do not expose `crypto.randomUUID()`. Keep the cache-version query on the tactical entry module when changing startup code.
 - The 3D button, drawing tools and playback controls are intentionally disabled until their corresponding phases; they do not simulate functionality.
@@ -68,6 +70,11 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - SSH user on the mini PC is `rafansky`.
 - Router port forwarding is already configured from external `10101` to `192.168.1.133:10101`, so the dashboard is now reachable from outside through that port.
 - Deployment is done from PowerShell with `scripts/deploy_remote.ps1`, passing the SSH user, mini PC password, dashboard password, and `-Port 10101`.
+
+## Next phase
+
+- Phase 4 should turn the tactical board into a complete manager drawing tool: interactive arrows and movement paths, zones/rectangles, freehand or text annotations, distance/angle guides, and a compact style toolbar. These objects should be saved per scene and included in playback/export.
+- After the drawing layer, the next high-value step is a match-history workflow: attach a tactical document to a match, store lineups and decisions, and expose a searchable history of sessions and scenes.
 
 ## Repo / workflow notes
 
