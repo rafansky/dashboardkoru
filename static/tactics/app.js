@@ -5,6 +5,7 @@ import {
   createNewAnalysisSession,
   createNewBoard,
   createPlayerEntity,
+  createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260825b";
 import { Pitch2DInteractions } from "./interactions2d.js";
@@ -101,6 +102,7 @@ function bindControls() {
   });
 
   $$('[data-tool]').forEach((button) => button.addEventListener("click", () => store.setUI({ activeTool: button.dataset.tool })));
+  $$('[data-add-entity]').forEach((button) => button.addEventListener("click", () => addEntity(button.dataset.addEntity)));
   $$('[data-collapse]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.collapse)));
   $$('[data-toggle-panel]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.togglePanel, true)));
 
@@ -334,6 +336,35 @@ function addRosterPlayer(playerKey, position = null) {
   store.setSelection([entity.id]);
   afterDocumentChange();
   if (window.matchMedia("(max-width: 760px)").matches) store.setUI({ leftCollapsed: true });
+}
+
+function addEntity(type) {
+  if (type !== "ball") return;
+  const state = store.getState();
+  const existing = state.board.document.entities.find((entity) => entity.type === "ball");
+  if (existing) {
+    store.setSelection([existing.id]);
+    toast("El balon ya esta en el campo");
+    return;
+  }
+  const ball = {
+    id: createTacticalId(),
+    type: "ball",
+    teamId: null,
+    name: "Balon",
+    number: null,
+    positionLabel: null,
+    position: { x: 52.5, y: 34, z: 0 },
+    rotation: 0,
+    scale: 1,
+    opacity: 1,
+    locked: false,
+    visible: true,
+    metadata: { source: "tactical-tool" },
+  };
+  store.update(["board", "document", "entities"], [...state.board.document.entities, ball], "Añadir balon");
+  store.setSelection([ball.id]);
+  afterDocumentChange();
 }
 
 function commitEntityMove(starts, positions) {

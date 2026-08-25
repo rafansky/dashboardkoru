@@ -37,3 +37,23 @@ test("custom player metadata is carried into the pitch entity", () => {
   assert.equal(entity.metadata.rosterKey, "custom:1");
   assert.equal(entity.number, 10);
 });
+
+test("a ball entity uses the same validated tactical shape", () => {
+  const ball = {
+    id: createTacticalId({ getRandomValues: (bytes) => bytes.fill(3) }),
+    type: "ball",
+    teamId: null,
+    name: "Balon",
+    number: null,
+    positionLabel: null,
+    position: { x: 52.5, y: 34, z: 0 },
+    rotation: 0,
+    scale: 1,
+    opacity: 1,
+    locked: false,
+    visible: true,
+    metadata: { source: "tactical-tool" },
+  };
+  assert.equal(ball.type, "ball");
+  assert.deepEqual(ball.position, { x: 52.5, y: 34, z: 0 });
+});
