@@ -54,12 +54,13 @@ export function isPerspectiveOrientation(pitch) {
 // to read player spacing, with just enough depth to retain the tactical context.
 const PERSPECTIVE_DEPTH_SCALE = 0.72;
 const PERSPECTIVE_FAR_WIDTH = 0.78;
+const PERSPECTIVE_NEAR_WIDTH = 1.1;
 
 export function projectPerspectivePoint(point, pitch) {
   const oriented = orientPoint(point, pitch);
   if (!isPerspectiveOrientation(pitch)) return oriented;
   const depth = clamp(oriented.y / pitch.width, 0, 1);
-  const scale = PERSPECTIVE_FAR_WIDTH + depth * (1 - PERSPECTIVE_FAR_WIDTH);
+  const scale = PERSPECTIVE_FAR_WIDTH + depth * (PERSPECTIVE_NEAR_WIDTH - PERSPECTIVE_FAR_WIDTH);
   return {
     x: pitch.height / 2 + (oriented.x - pitch.height / 2) * scale,
     y: oriented.y * PERSPECTIVE_DEPTH_SCALE,
@@ -69,7 +70,7 @@ export function projectPerspectivePoint(point, pitch) {
 export function unprojectPerspectivePoint(point, pitch) {
   if (!isPerspectiveOrientation(pitch)) return unorientPoint(point, pitch);
   const depth = clamp(point.y / (pitch.width * PERSPECTIVE_DEPTH_SCALE), 0, 1);
-  const scale = PERSPECTIVE_FAR_WIDTH + depth * (1 - PERSPECTIVE_FAR_WIDTH);
+  const scale = PERSPECTIVE_FAR_WIDTH + depth * (PERSPECTIVE_NEAR_WIDTH - PERSPECTIVE_FAR_WIDTH);
   const oriented = {
     x: pitch.height / 2 + (point.x - pitch.height / 2) / scale,
     y: point.y / PERSPECTIVE_DEPTH_SCALE,
@@ -102,6 +103,11 @@ export function pitchViewport(pitch) {
     height: Math.max(...ys) - Math.min(...ys),
   };
   if (isPerspectiveOrientation(pitch)) result.height *= PERSPECTIVE_DEPTH_SCALE;
+  if (isPerspectiveOrientation(pitch)) {
+    const extraWidth = pitch.height * (PERSPECTIVE_NEAR_WIDTH - 1);
+    result.x -= extraWidth / 2;
+    result.width += extraWidth;
+  }
   return result;
 }
 
