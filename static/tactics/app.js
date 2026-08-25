@@ -1,13 +1,16 @@
 import { tacticsApi } from "./api.js";
 import {
   boardPayload,
+  applySceneToEntities,
+  captureSceneEntityStates,
   createAnalysisEntry,
   createNewAnalysisSession,
   createNewBoard,
   createPlayerEntity,
+  createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260825b";
+} from "./model.js?v=20260825d";
 import { Pitch2DInteractions } from "./interactions2d.js";
 import { Pitch2DRenderer } from "./pitch2d.js";
 import { createEditorStore } from "./store.js";
@@ -32,7 +35,9 @@ let saveTimer = null;
 let savePromise = null;
 let lastDocumentRevision = -1;
 let lastSelectionKey = "";
+let lastSceneUiKey = "";
 let previewUrl = null;
+let playbackFrame = null;
 
 new Pitch2DInteractions({
   viewport: $("#pitch-viewport"),
@@ -109,6 +114,24 @@ function bindControls() {
   $("#fit-pitch").addEventListener("click", () => store.setUI({ zoom: 1, pan: { x: 0, y: 0 } }));
   $("#fullscreen-button").addEventListener("click", toggleFullscreen);
 
+  $("#new-scene-button").addEventListener("click", createScene);
+  $("#previous-scene-button").addEventListener("click", () => activateScene(store.getState().playback.sceneIndex - 1));
+  $("#next-scene-button").addEventListener("click", () => activateScene(store.getState().playback.sceneIndex + 1));
+  $("#play-button").addEventListener("click", playNextScene);
+  $("#scene-strip").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-scene-index]");
+    if (button) activateScene(Number(button.dataset.sceneIndex));
+  });
+  $("#scene-name").addEventListener("change", updateSceneDetails);
+  $("#scene-duration").addEventListener("change", updateSceneDetails);
+  $("#scene-transition").addEventListener("change", updateSceneDetails);
+  $("#scene-notes").addEventListener("change", updateSceneDetails);
+  $("#capture-scene-button").addEventListener("click", captureActiveScene);
+  $("#duplicate-scene-button").addEventListener("click", duplicateActiveScene);
+  $("#delete-scene-button").addEventListener("click", deleteActiveScene);
+  $("#scene-back-button").addEventListener("click", () => moveActiveScene(-1));
+  $("#scene-forward-button").addEventListener("click", () => moveActiveScene(1));
+
   $("#new-session-button").addEventListener("click", createSession);
   $("#analysis-session").addEventListener("change", (event) => change(["board", "document", "analysis", "activeSessionId"], event.target.value, "Cambiar sesion"));
   $("#analysis-session-name").addEventListener("change", updateSessionDetails);
@@ -151,6 +174,7 @@ function render(state) {
     renderRoster();
     renderAnalysis();
   }
+  renderSceneUi(state);
   renderer.setSelection(state.selection);
   const selectionKey = state.selection.join("|");
   if (selectionKey !== lastSelectionKey || state.documentRevision === lastDocumentRevision) {
@@ -179,6 +203,7 @@ function render(state) {
   $("#save-state").className = `save-state${state.error ? " error" : state.saving ? " saving" : ""}`;
   $("#pitch-readout").textContent = `${board.document.pitch.width} x ${board.document.pitch.height} m`;
   $("#zoom-readout").textContent = `Zoom ${Math.round(ui.zoom * 100)}%`;
+  $("#timeline-time").textContent = formatTimelineTime(state.playback.time);
   persistRecoveryDraft();
 }
 
@@ -365,6 +390,198 @@ function addEntity(type) {
   store.update(["board", "document", "entities"], [...state.board.document.entities, ball], "Añadir balon");
   store.setSelection([ball.id]);
   afterDocumentChange();
+}
+
+function currentSceneIndex(state = store.getState()) {
+  const total = state.board.document.scenes.length;
+  return Math.max(0, Math.min(state.playback.sceneIndex, Math.max(0, total - 1)));
+}
+
+function currentScene(state = store.getState()) {
+  return state.board.document.scenes[currentSceneIndex(state)];
+}
+
+function renderSceneUi(state) {
+  const scenes = state.board.document.scenes;
+  const index = currentSceneIndex(state);
+  const scene = scenes[index];
+  const key = `${state.documentRevision}:${index}:${state.playback.playing}`;
+  if (key === lastSceneUiKey) return;
+  lastSceneUiKey = key;
+
+  $("#scene-strip").innerHTML = scenes.map((item, itemIndex) => `
+    <button type="button" class="scene-card${itemIndex === index ? " active" : ""}" data-scene-index="${itemIndex}">
+      <span>${String(itemIndex + 1).padStart(2, "0")}</span>
+      <div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.notes || `${formatDuration(item.duration)} · ${transitionLabel(item.transition)}`)}</small></div>
+    </button>`).join("");
+  $("#scene-counter").textContent = `${index + 1} de ${scenes.length}`;
+  $("#scene-total").textContent = String(scenes.length);
+  $("#previous-scene-button").disabled = index === 0 || state.playback.playing;
+  $("#next-scene-button").disabled = index === scenes.length - 1 || state.playback.playing;
+  $("#new-scene-button").disabled = state.playback.playing;
+  $("#play-button").disabled = scenes.length < 2;
+  $("#play-button").innerHTML = `<i data-lucide="${state.playback.playing ? "square" : "play"}"></i>`;
+
+  if (!scene) return;
+  syncValue("#scene-name", scene.name);
+  syncValue("#scene-duration", scene.duration);
+  syncValue("#scene-transition", scene.transition);
+  syncValue("#scene-notes", scene.notes);
+  $("#capture-scene-button").disabled = state.playback.playing;
+  $("#duplicate-scene-button").disabled = state.playback.playing;
+  $("#delete-scene-button").disabled = scenes.length <= 1 || state.playback.playing;
+  $("#scene-back-button").disabled = index === 0 || state.playback.playing;
+  $("#scene-forward-button").disabled = index === scenes.length - 1 || state.playback.playing;
+  refreshIcons();
+}
+
+function activateScene(index) {
+  const state = store.getState();
+  const scenes = state.board.document.scenes;
+  if (index < 0 || index >= scenes.length) return;
+  cancelPlayback();
+  const entities = applySceneToEntities(state.board.document.entities, scenes[index]);
+  store.applyScene(index, entities);
+  toast(`Escena ${index + 1}: ${scenes[index].name}`);
+}
+
+function createScene() {
+  const state = store.getState();
+  const scenes = state.board.document.scenes;
+  const scene = createSceneFromEntities(`Escena ${scenes.length + 1}`, state.board.document.entities);
+  store.update(["board", "document", "scenes"], [...scenes, scene], "Crear escena");
+  store.setPlayback({ sceneIndex: scenes.length, time: 0 });
+  afterDocumentChange();
+  toast("Nueva escena capturada desde el campo actual");
+}
+
+function captureActiveScene() {
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  store.update(["board", "document", "scenes", index, "entityStates"], captureSceneEntityStates(state.board.document.entities), "Capturar escena");
+  afterDocumentChange();
+  toast("Posiciones guardadas en esta escena");
+}
+
+function duplicateActiveScene() {
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const source = state.board.document.scenes[index];
+  const scene = createSceneFromEntities(`${source.name} copia`, state.board.document.entities, source);
+  const scenes = [...state.board.document.scenes];
+  scenes.splice(index + 1, 0, scene);
+  store.update(["board", "document", "scenes"], scenes, "Duplicar escena");
+  store.setPlayback({ sceneIndex: index + 1, time: 0 });
+  afterDocumentChange();
+}
+
+function deleteActiveScene() {
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  if (state.board.document.scenes.length <= 1) return;
+  const scenes = state.board.document.scenes.filter((_, itemIndex) => itemIndex !== index);
+  const nextIndex = Math.max(0, index - 1);
+  store.update(["board", "document", "scenes"], scenes, "Eliminar escena");
+  store.applyScene(nextIndex, applySceneToEntities(state.board.document.entities, scenes[nextIndex]));
+  afterDocumentChange();
+}
+
+function moveActiveScene(direction) {
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const target = index + direction;
+  const scenes = state.board.document.scenes;
+  if (target < 0 || target >= scenes.length) return;
+  const reordered = [...scenes];
+  [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+  store.update(["board", "document", "scenes"], reordered, "Reordenar escena");
+  store.setPlayback({ sceneIndex: target });
+  afterDocumentChange();
+}
+
+function updateSceneDetails() {
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const duration = Math.max(0.5, Math.min(120, Number($("#scene-duration").value) || 3));
+  store.updateMany([
+    { path: ["board", "document", "scenes", index, "name"], value: $("#scene-name").value.trim() || `Escena ${index + 1}` },
+    { path: ["board", "document", "scenes", index, "duration"], value: duration },
+    { path: ["board", "document", "scenes", index, "transition"], value: $("#scene-transition").value },
+    { path: ["board", "document", "scenes", index, "notes"], value: $("#scene-notes").value.trim() },
+  ], "Editar escena");
+  afterDocumentChange();
+}
+
+function playNextScene() {
+  const state = store.getState();
+  if (state.playback.playing) {
+    cancelPlayback();
+    return;
+  }
+  const index = currentSceneIndex(state);
+  const targetIndex = index + 1;
+  if (targetIndex >= state.board.document.scenes.length) {
+    toast("Ya estas en la ultima escena");
+    return;
+  }
+  const targetScene = state.board.document.scenes[targetIndex];
+  const startEntities = structuredClone(state.board.document.entities);
+  const targetEntities = applySceneToEntities(startEntities, targetScene);
+  const duration = Math.max(500, targetScene.duration * 1000 / state.board.document.timeline.speed);
+  const startedAt = performance.now();
+  store.setPlayback({ playing: true, time: 0 });
+
+  const tick = (now) => {
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const eased = easing(progress, targetScene.transition);
+    const positions = Object.fromEntries(targetEntities.map((target, entityIndex) => {
+      const start = startEntities[entityIndex];
+      return [target.id, {
+        x: start.position.x + (target.position.x - start.position.x) * eased,
+        y: start.position.y + (target.position.y - start.position.y) * eased,
+        z: start.position.z + (target.position.z - start.position.z) * eased,
+      }];
+    }));
+    renderer.previewEntityPositions(positions);
+    store.setPlayback({ time: (now - startedAt) / 1000 });
+    if (progress < 1) playbackFrame = requestAnimationFrame(tick);
+    else {
+      playbackFrame = null;
+      store.applyScene(targetIndex, targetEntities);
+    }
+  };
+  playbackFrame = requestAnimationFrame(tick);
+}
+
+function cancelPlayback() {
+  if (playbackFrame !== null) cancelAnimationFrame(playbackFrame);
+  playbackFrame = null;
+  const playback = store.getState().playback;
+  if (playback.playing) {
+    const entities = store.getState().board.document.entities;
+    renderer.previewEntityPositions(Object.fromEntries(entities.map((entity) => [entity.id, entity.position])));
+    store.setPlayback({ playing: false, time: 0 });
+  }
+}
+
+function easing(progress, transition) {
+  if (transition === "linear") return progress;
+  if (transition === "ease-in") return progress * progress;
+  if (transition === "ease-out") return 1 - (1 - progress) ** 2;
+  return progress < 0.5 ? 2 * progress * progress : 1 - ((-2 * progress + 2) ** 2) / 2;
+}
+
+function formatDuration(value) {
+  return `${Number(value || 0).toFixed(value % 1 ? 1 : 0)} s`;
+}
+
+function formatTimelineTime(value) {
+  const seconds = Math.max(0, Number(value) || 0);
+  return `00:${seconds.toFixed(1).padStart(4, "0")}`;
+}
+
+function transitionLabel(value) {
+  return { linear: "Lineal", "ease-in": "Entrada", "ease-out": "Salida", "ease-in-out": "Suave" }[value] || "Suave";
 }
 
 function commitEntityMove(starts, positions) {
@@ -588,6 +805,9 @@ function handleShortcut(event) {
   else if (event.key.toLowerCase() === "f") $("#fit-pitch").click();
   else if (event.key.toLowerCase() === "v") store.setUI({ activeTool: "select" });
   else if (event.key.toLowerCase() === "h") store.setUI({ activeTool: "hand" });
+  else if (event.key === "[") activateScene(store.getState().playback.sceneIndex - 1);
+  else if (event.key === "]") activateScene(store.getState().playback.sceneIndex + 1);
+  else if (event.code === "Space") { event.preventDefault(); playNextScene(); }
 }
 
 async function toggleFullscreen() {

@@ -53,6 +53,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - Tactical boards use a single `TacticalBoardDocument` (`schemaVersion: 2`) for future 2D and 3D renderers. Positions are pitch metres, never pixels. Phase 1 documents migrate automatically.
 - Phase 1 is complete: `/tactics`, Pydantic validation, SQLite CRUD with optimistic versioning, library, real KORU roster feed, SVG pitch, field views/orientations/overlays, command-based property undo/redo, debounced autosave, local recovery draft, collapsible panels and fullscreen.
 - Phase 2 is complete: click/drag players onto the pitch, single/multiple selection, marquee, group move, zoom, pan, touch pinch, responsive mobile workspace, match binding and a persistent manager log split into analysis sessions. Log entries support observations, decisions, adjustments, tasks and outcomes, optional match minute, current scene and selected-player references.
+- Phase 3 is complete: the scene timeline is now functional. Managers can capture the active field state, create or duplicate scenes, rename them, set duration/transition/notes, reorder or delete them, reopen any scene and play an interpolated transition to the next one. Scene positions are only overwritten when `Capturar` is used, so experiments do not replace saved movement states accidentally.
 - Managers can create reusable KORU or rival players with name, dorsal, position and an optional uploaded face. Profiles persist in SQLite (`tactical_players`) and use the existing uploads service. KORU tactical markers are always white with orange trim.
 - Tactical IDs use a UUID fallback because the public deployment currently runs over plain HTTP, where browsers do not expose `crypto.randomUUID()`. Keep the cache-version query on the tactical entry module when changing startup code.
 - The 3D button, drawing tools and playback controls are intentionally disabled until their corresponding phases; they do not simulate functionality.
@@ -76,9 +77,8 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Likely next steps
 
-1. Tactical board Phase 3: arrows, zones, drawing objects, text, measurement and contextual properties.
-2. Tactical board Phase 4: formations, layers, groups, copy/paste and full shortcut system.
-3. Tactical board Phase 5/6: scenes, storyboard, timeline and playback, tied into the manager decision log.
-4. Add a dedicated match dossier view that groups boards, sessions, files and post-match conclusions by `matchId`.
-5. Tactical board Phase 7+: lazy-loaded Three.js renderer backed by the same tactical document.
-6. Add staff roles/permissions before team sharing is implemented.
+1. Tactical board Phase 4: arrows, zones, drawing objects, text, measurement and contextual properties.
+2. Tactical board Phase 5: formations, layers, groups, copy/paste and full shortcut system.
+3. Add a dedicated match dossier view that groups boards, sessions, files and post-match conclusions by `matchId`.
+4. Tactical board Phase 7+: lazy-loaded Three.js renderer backed by the same tactical document.
+5. Add staff roles/permissions before team sharing is implemented.

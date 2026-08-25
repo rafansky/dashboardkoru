@@ -32,3 +32,11 @@ test("multiple targeted changes are committed and reverted together", () => {
   store.undo();
   assert.deepEqual(store.getState().board.document.entities.map((item) => item.position.x), [1, 3]);
 });
+
+test("opening a scene updates the working positions without dirtying the board", () => {
+  const store = createEditorStore({ document: { entities: [{ id: "a", position: { x: 1, y: 2 } }] } });
+  store.applyScene(2, [{ id: "a", position: { x: 50, y: 30 } }]);
+  assert.equal(store.getState().playback.sceneIndex, 2);
+  assert.deepEqual(store.getState().board.document.entities[0].position, { x: 50, y: 30 });
+  assert.equal(store.getState().dirty, false);
+});

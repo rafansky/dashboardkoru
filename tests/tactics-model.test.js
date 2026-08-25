@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDefaultDocument, createPlayerEntity, createTacticalId, migrateDocument, normalizeBoard } from "../static/tactics/model.js";
+import { applySceneToEntities, captureSceneEntityStates, createDefaultDocument, createPlayerEntity, createSceneFromEntities, createTacticalId, migrateDocument, normalizeBoard } from "../static/tactics/model.js";
 
 test("IDs work when randomUUID is unavailable on public HTTP", () => {
   const id = createTacticalId({ getRandomValues: (bytes) => bytes.fill(7) });
@@ -56,4 +56,12 @@ test("a ball entity uses the same validated tactical shape", () => {
   };
   assert.equal(ball.type, "ball");
   assert.deepEqual(ball.position, { x: 52.5, y: 34, z: 0 });
+});
+
+test("a scene captures and restores a complete entity state", () => {
+  const entities = [{ id: "player-1", position: { x: 12, y: 18, z: 0 }, rotation: 90, scale: 1, opacity: 1 }];
+  const scene = createSceneFromEntities("Salida", entities, { duration: 4, transition: "linear", notes: "Abrir amplitud" });
+  assert.deepEqual(scene.entityStates, captureSceneEntityStates(entities));
+  const moved = [{ ...entities[0], position: { x: 60, y: 34, z: 0 } }];
+  assert.deepEqual(applySceneToEntities(moved, scene)[0].position, { x: 12, y: 18, z: 0 });
 });

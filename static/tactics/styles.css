@@ -325,6 +325,12 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .selection-detail strong { overflow: hidden; font-size: 0.67rem; text-overflow: ellipsis; white-space: nowrap; }
 .selection-detail small { color: var(--soft); font-size: 0.58rem; }
 .session-fields, .analysis-meta-fields, .player-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.scene-fields { display: grid; grid-template-columns: 0.72fr minmax(0, 1.28fr); gap: 6px; }
+.scene-fields label { min-width: 0; }
+.scene-actions { display: grid; grid-template-columns: minmax(0, 1fr) 33px 33px 33px 33px; gap: 5px; }
+.scene-actions .secondary-button, .scene-actions .danger-button { min-width: 0; padding: 0; }
+.scene-actions .secondary-button:first-child { padding: 0 8px; }
+.scene-delete-button { width: 33px; }
 .session-fields input, .session-fields select, .analysis-meta-fields input, .analysis-meta-fields select { min-width: 0; }
 .analysis-form { display: grid; gap: 6px; }
 .analysis-list { display: grid; gap: 5px; max-height: 270px; overflow-y: auto; }
@@ -373,12 +379,15 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .playback-controls > span { color: var(--muted); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
 .play-button { width: 34px; height: 34px; border-radius: 50%; background: var(--orange); }
 .scene-strip { min-width: 0; display: flex; gap: 7px; overflow-x: auto; }
-.scene-card { width: 168px; height: 62px; flex: 0 0 auto; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; padding: 7px; border: 1px solid rgba(249, 85, 22, 0.45); border-radius: 7px; background: rgba(249, 85, 22, 0.08); }
+.scene-card { width: 168px; height: 62px; flex: 0 0 auto; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; padding: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; }
+.scene-card:hover { border-color: var(--line-strong); background: var(--surface-3); }
+.scene-card.active { border-color: rgba(249, 85, 22, 0.65); background: rgba(249, 85, 22, 0.11); }
 .scene-card > span { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: var(--orange); font-size: 0.63rem; font-weight: 900; }
 .scene-card > div { min-width: 0; display: grid; gap: 3px; }
 .scene-card strong { overflow: hidden; font-size: 0.67rem; text-overflow: ellipsis; white-space: nowrap; }
 .scene-card small { color: var(--soft); font-size: 0.57rem; }
 .timeline-meta { display: grid; justify-items: end; gap: 2px; color: var(--soft); font-size: 0.58rem; text-transform: uppercase; }
+.timeline-meta .icon-button { width: 28px; height: 28px; }
 .timeline-meta strong { color: var(--text); font-size: 1rem; }
 
 .toast { position: fixed; left: 50%; bottom: 108px; z-index: 50; max-width: min(360px, calc(100vw - 24px)); padding: 9px 13px; border: 1px solid var(--line-strong); border-radius: 7px; background: #1a1d24; color: var(--text); font-size: 0.72rem; font-weight: 700; opacity: 0; transform: translate(-50%, 10px); pointer-events: none; transition: 150ms ease; }

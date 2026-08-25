@@ -26,6 +26,41 @@ function createAnalysisSession(name = "Preparacion") {
   };
 }
 
+export function captureSceneEntityStates(entities) {
+  return entities.map((entity) => ({
+    entityId: entity.id,
+    position: { ...entity.position },
+    rotation: entity.rotation || 0,
+    scale: entity.scale || 1,
+    opacity: entity.opacity ?? 1,
+  }));
+}
+
+export function createSceneFromEntities(name, entities, source = {}) {
+  return {
+    id: createTacticalId(),
+    name,
+    duration: source.duration || 3,
+    transition: source.transition || "ease-in-out",
+    notes: source.notes || "",
+    entityStates: captureSceneEntityStates(entities),
+  };
+}
+
+export function applySceneToEntities(entities, scene) {
+  const states = new Map((scene?.entityStates || []).map((state) => [state.entityId, state]));
+  return entities.map((entity) => {
+    const state = states.get(entity.id);
+    return state ? {
+      ...entity,
+      position: { ...state.position },
+      rotation: state.rotation,
+      scale: state.scale,
+      opacity: state.opacity,
+    } : entity;
+  });
+}
+
 export function createDefaultDocument() {
   const analysisSession = createAnalysisSession();
   return {

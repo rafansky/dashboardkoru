@@ -65,6 +65,8 @@ Incluye un documento tactico JSON versionado y validado, coordenadas reales de c
 
 La plantilla tactica admite jugadores personalizados de KORU o del rival con nombre, dorsal, posicion y cara subida. KORU se representa siempre en blanco y naranja. Cada pizarra puede vincularse a un partido y guardar sesiones historicas con observaciones, decisiones, ajustes, tareas y resultados asociados a minutos, escenas y jugadores seleccionados.
 
+La linea de tiempo permite capturar el estado del campo como escena, duplicarlo, nombrarlo, anotar lo que debe pasar, definir su duracion y reproducir el movimiento hacia la siguiente escena. Las posiciones de una escena solo cambian al pulsar `Capturar`, para poder probar variantes sin perder la jugada guardada.
+
 Pruebas:
 
 ```powershell

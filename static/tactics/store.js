@@ -92,6 +92,23 @@ export function createEditorStore(initialBoard, initialDirty = false) {
       state = { ...state, ui: { ...state.ui, ...patch } };
       notify();
     },
+    setPlayback(patch) {
+      state = { ...state, playback: { ...state.playback, ...patch } };
+      notify();
+    },
+    applyScene(sceneIndex, entities) {
+      state = {
+        ...state,
+        board: {
+          ...state.board,
+          document: { ...state.board.document, entities: structuredClone(entities) },
+        },
+        playback: { ...state.playback, playing: false, time: 0, sceneIndex },
+        selection: [],
+        documentRevision: state.documentRevision + 1,
+      };
+      notify();
+    },
     setSaving(saving, error = null) {
       state = { ...state, saving, error };
       notify();
