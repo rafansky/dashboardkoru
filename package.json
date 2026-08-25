@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:tactics": "node --test tests/tactics-geometry.test.js tests/tactics-store.test.js"
+  }
+}

@@ -57,6 +57,19 @@ El port forwarding externo ya está configurado sobre `10101` hacia el mini PC, 
 
 La password activa vive solo en el servicio del mini PC como variable de entorno, no queda hardcodeada en el repo.
 
+## Pizarra tactica
+
+La primera fase del editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard.
+
+Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo para propiedades, vistas/orientaciones de campo, overlays y layout responsive de editor. El modelo 2D y el futuro renderer 3D comparten las mismas coordenadas y el mismo documento.
+
+Pruebas:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py' -v
+node --test tests\tactics-geometry.test.js tests\tactics-store.test.js
+```
+
 ## Estructura
 
 - `app/`: API FastAPI, conectores VPG/PLG, SQLite y uploads.

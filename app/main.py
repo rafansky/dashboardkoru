@@ -5,7 +5,7 @@ import secrets
 import time
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -18,7 +18,20 @@ from .settings import (
     STATIC_DIR,
     UPLOAD_DIR,
 )
-from .storage import add_note, delete_note, init_storage, list_files, list_notes, save_upload
+from .storage import (
+    add_note,
+    create_tactical_board,
+    delete_note,
+    delete_tactical_board,
+    get_tactical_board,
+    init_storage,
+    list_files,
+    list_notes,
+    list_tactical_boards,
+    save_upload,
+    update_tactical_board,
+)
+from .tactics_models import TacticalBoardCreate, TacticalBoardUpdate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -93,6 +106,11 @@ async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/tactics")
+async def tactics_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "tactics.html")
+
+
 @app.get("/login")
 async def login_page(request: Request):
     if _is_authenticated(request):
@@ -160,3 +178,38 @@ async def files() -> list[dict]:
 @app.post("/api/files")
 async def upload_file(file: UploadFile = File(...)) -> dict:
     return await save_upload(file)
+
+
+@app.get("/api/tactical-boards")
+async def tactical_boards(search: str = Query(default="", max_length=120)) -> list[dict]:
+    return list_tactical_boards(search=search)
+
+
+@app.post("/api/tactical-boards", status_code=201)
+async def create_board(payload: TacticalBoardCreate) -> dict:
+    return create_tactical_board(payload.model_dump(by_alias=True))
+
+
+@app.get("/api/tactical-boards/{board_id}")
+async def tactical_board(board_id: str) -> dict:
+    board = get_tactical_board(board_id)
+    if not board:
+        raise HTTPException(status_code=404, detail="Pizarra no encontrada")
+    return board
+
+
+@app.put("/api/tactical-boards/{board_id}")
+async def save_board(board_id: str, payload: TacticalBoardUpdate) -> dict:
+    board = update_tactical_board(board_id, payload.model_dump(by_alias=True))
+    if board:
+        return board
+    if not get_tactical_board(board_id):
+        raise HTTPException(status_code=404, detail="Pizarra no encontrada")
+    raise HTTPException(status_code=409, detail="La pizarra fue modificada en otra sesion")
+
+
+@app.delete("/api/tactical-boards/{board_id}")
+async def remove_board(board_id: str) -> dict[str, bool]:
+    if not delete_tactical_board(board_id):
+        raise HTTPException(status_code=404, detail="Pizarra no encontrada")
+    return {"deleted": True}
