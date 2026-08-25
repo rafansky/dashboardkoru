@@ -46,6 +46,32 @@ export function unorientPoint(point, pitch) {
   }
 }
 
+export function isPerspectiveOrientation(pitch) {
+  return pitch.orientation === "top-to-bottom" || pitch.orientation === "bottom-to-top";
+}
+
+export function projectPerspectivePoint(point, pitch) {
+  const oriented = orientPoint(point, pitch);
+  if (!isPerspectiveOrientation(pitch)) return oriented;
+  const depth = clamp(oriented.y / pitch.width, 0, 1);
+  const scale = 0.56 + depth * 0.44;
+  return {
+    x: pitch.height / 2 + (oriented.x - pitch.height / 2) * scale,
+    y: oriented.y,
+  };
+}
+
+export function unprojectPerspectivePoint(point, pitch) {
+  if (!isPerspectiveOrientation(pitch)) return unorientPoint(point, pitch);
+  const depth = clamp(point.y / pitch.width, 0, 1);
+  const scale = 0.56 + depth * 0.44;
+  const oriented = {
+    x: pitch.height / 2 + (point.x - pitch.height / 2) / scale,
+    y: point.y,
+  };
+  return unorientPoint(oriented, pitch);
+}
+
 export function pitchViewport(pitch) {
   const ratioX = pitch.width / 105;
   const ratioY = pitch.height / 68;

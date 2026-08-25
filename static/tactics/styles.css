@@ -265,6 +265,10 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .tactical-pitch.surface-stripes {
   background-image: repeating-linear-gradient(90deg, #1c6841 0, #1c6841 10%, #23764a 10%, #23764a 20%);
 }
+.tactical-pitch[data-perspective="true"] {
+  background: transparent;
+  background-image: none;
+}
 .analysis-line { stroke: rgba(250, 204, 21, 0.62); stroke-width: 0.22; stroke-dasharray: 1.4 1; vector-effect: non-scaling-stroke; }
 .analysis-line.lanes { stroke: rgba(18, 214, 223, 0.5); }
 .grid-line { stroke: rgba(255, 255, 255, 0.18); stroke-width: 0.15; stroke-dasharray: 0.5 1; vector-effect: non-scaling-stroke; }

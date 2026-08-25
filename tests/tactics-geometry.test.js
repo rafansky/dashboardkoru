@@ -5,9 +5,11 @@ import {
   clampToPitch,
   distance,
   pitchTo3D,
+  projectPerspectivePoint,
   pitchToScreen,
   screenToPitch,
   threeDToPitch,
+  unprojectPerspectivePoint,
 } from "../static/tactics/geometry.js";
 
 const pitch = { width: 105, height: 68, view: "full", orientation: "left-to-right" };
@@ -28,6 +30,21 @@ test("all orientations round-trip", () => {
     const result = screenToPitch(pitchToScreen(source, bounds, configured), bounds, configured);
     assert.ok(Math.abs(result.x - source.x) < 1e-9, orientation);
     assert.ok(Math.abs(result.y - source.y) < 1e-9, orientation);
+  }
+});
+
+test("perspective vertical views round-trip and narrow at the far end", () => {
+  for (const orientation of ["top-to-bottom", "bottom-to-top"]) {
+    const configured = { ...pitch, orientation };
+    const firstLeft = projectPerspectivePoint({ x: 0, y: 0 }, configured);
+    const firstRight = projectPerspectivePoint({ x: 0, y: 68 }, configured);
+    const secondLeft = projectPerspectivePoint({ x: 105, y: 0 }, configured);
+    const secondRight = projectPerspectivePoint({ x: 105, y: 68 }, configured);
+    const restored = unprojectPerspectivePoint(firstLeft, configured);
+    const firstWidth = Math.abs(firstRight.x - firstLeft.x);
+    const secondWidth = Math.abs(secondRight.x - secondLeft.x);
+    assert.notEqual(firstWidth, secondWidth);
+    assert.ok(Math.abs(restored.x - 0) < 1e-9 && Math.abs(restored.y - 0) < 1e-9, orientation);
   }
 });
 

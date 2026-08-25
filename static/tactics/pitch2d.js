@@ -1,4 +1,4 @@
-import { clampToPitch, orientPoint, pitchViewport, unorientPoint } from "./geometry.js";
+import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260825e";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -20,7 +20,7 @@ function safeAvatarUrl(value) {
   return url.startsWith("/uploads/") || url.startsWith("https://") ? url : null;
 }
 
-function addPitchMarkings(group, width, height) {
+function addFlatPitchMarkings(group, width, height) {
   const line = { fill: "none", stroke: "currentColor", "stroke-width": 0.32, "vector-effect": "non-scaling-stroke" };
   group.append(
     svgElement("rect", { ...line, x: 0.25, y: 0.25, width: width - 0.5, height: height - 0.5 }),
@@ -44,7 +44,81 @@ function addPitchMarkings(group, width, height) {
   );
 }
 
+function pointString(points) {
+  return points.map((point) => `${point.x} ${point.y}`).join(" ");
+}
+
+function addPerspectiveSurface(group, pitch) {
+  const surface = { fill: "#1d6b43", stroke: "none" };
+  const bands = 10;
+  for (let index = 0; index < bands; index += 1) {
+    const y1 = (pitch.width * index) / bands;
+    const y2 = (pitch.width * (index + 1)) / bands;
+    const scale = (depth) => 0.56 + (depth / pitch.width) * 0.44;
+    const p = (x, y) => ({ x: pitch.height / 2 + (x - pitch.height / 2) * scale(y), y });
+    group.append(svgElement("polygon", {
+      class: "perspective-band",
+      ...surface,
+      fill: index % 2 ? "#23764a" : "#1c6841",
+      points: pointString([p(0, y1), p(pitch.height, y1), p(pitch.height, y2), p(0, y2)]),
+    }));
+  }
+}
+
+function addPerspectivePitchMarkings(group, pitch) {
+  const { width, height } = pitch;
+  const line = { fill: "none", stroke: "currentColor", "stroke-width": 0.32, "vector-effect": "non-scaling-stroke" };
+  const project = (point) => projectPerspectivePoint(point, pitch);
+  const appendLine = (points, attributes = line) => group.append(svgElement("polyline", { ...attributes, points: pointString(points.map(project)) }));
+  const appendPolygon = (points, attributes = line) => group.append(svgElement("polygon", { ...attributes, points: pointString(points.map(project)) }));
+  const appendCircle = (cx, cy, radius, attributes = line, start = 0, end = Math.PI * 2) => {
+    const points = [];
+    const steps = Math.max(16, Math.ceil(Math.abs(end - start) * 12));
+    for (let index = 0; index <= steps; index += 1) {
+      const angle = start + ((end - start) * index) / steps;
+      points.push(project({ x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius }));
+    }
+    group.append(svgElement("polyline", { ...attributes, points: pointString(points) }));
+  };
+
+  appendPolygon([{ x: 0.25, y: 0.25 }, { x: width - 0.25, y: 0.25 }, { x: width - 0.25, y: height - 0.25 }, { x: 0.25, y: height - 0.25 }]);
+  appendLine([{ x: width / 2, y: 0 }, { x: width / 2, y: height }]);
+  appendCircle(width / 2, height / 2, 9.15);
+  const spot = (x, y, radius = 0.45) => group.append(svgElement("circle", { cx: project({ x, y }).x, cy: project({ x, y }).y, r: radius, fill: "currentColor" }));
+  spot(width / 2, height / 2);
+  appendPolygon([{ x: 0, y: 13.84 }, { x: 16.5, y: 13.84 }, { x: 16.5, y: 54.16 }, { x: 0, y: 54.16 }]);
+  appendPolygon([{ x: width - 16.5, y: 13.84 }, { x: width, y: 13.84 }, { x: width, y: 54.16 }, { x: width - 16.5, y: 54.16 }]);
+  appendPolygon([{ x: 0, y: 24.84 }, { x: 5.5, y: 24.84 }, { x: 5.5, y: 43.16 }, { x: 0, y: 43.16 }]);
+  appendPolygon([{ x: width - 5.5, y: 24.84 }, { x: width, y: 24.84 }, { x: width, y: 43.16 }, { x: width - 5.5, y: 43.16 }]);
+  spot(11, height / 2, 0.4);
+  spot(width - 11, height / 2, 0.4);
+  appendCircle(16.5, height / 2, 9.15, line, -Math.PI / 2, Math.PI / 2);
+  appendCircle(width - 16.5, height / 2, 9.15, line, Math.PI / 2, Math.PI * 1.5);
+  spot(11, height / 2, 0.4);
+  spot(width - 11, height / 2, 0.4);
+  appendLine([{ x: -2.2, y: 30.68 }, { x: 0, y: 30.68 }, { x: 0, y: 38 }, { x: -2.2, y: 38 }]);
+  appendLine([{ x: width, y: 30.68 }, { x: width + 2.2, y: 30.68 }, { x: width + 2.2, y: 38 }, { x: width, y: 38 }]);
+}
+
 function addOverlays(group, pitch) {
+  if (isPerspectiveOrientation(pitch)) {
+    const project = (point) => projectPerspectivePoint(point, pitch);
+    const append = (points, attributes) => group.append(svgElement("polyline", { ...attributes, points: pointString(points.map(project)) }));
+    if (pitch.overlays.includes("thirds")) {
+      [pitch.width / 3, (pitch.width * 2) / 3].forEach((x) => append([{ x, y: 0 }, { x, y: pitch.height }], { class: "analysis-line" }));
+    }
+    if (pitch.overlays.includes("five-lanes")) {
+      [1, 2, 3, 4].forEach((lane) => {
+        const y = (pitch.height * lane) / 5;
+        append([{ x: 0, y }, { x: pitch.width, y }], { class: "analysis-line lanes" });
+      });
+    }
+    if (pitch.overlays.includes("grid")) {
+      for (let x = 10; x < pitch.width; x += 10) append([{ x, y: 0 }, { x, y: pitch.height }], { class: "grid-line" });
+      for (let y = 10; y < pitch.height; y += 10) append([{ x: 0, y }, { x: pitch.width, y }], { class: "grid-line" });
+    }
+    return;
+  }
   if (pitch.overlays.includes("thirds")) {
     [pitch.width / 3, (pitch.width * 2) / 3].forEach((x) => {
       group.append(svgElement("line", { class: "analysis-line", x1: x, y1: 0, x2: x, y2: pitch.height }));
@@ -67,7 +141,7 @@ function addOverlays(group, pitch) {
 }
 
 function entityTransform(entity, pitch) {
-  const point = orientPoint(entity.position, pitch);
+  const point = projectPerspectivePoint(entity.position, pitch);
   return `translate(${point.x} ${point.y})`;
 }
 
@@ -127,8 +201,12 @@ export class Pitch2DRenderer {
       role: "img",
       "aria-label": "Campo tactico 2D",
     });
-    const pitchWorld = svgElement("g", { class: "pitch-world", transform: orientationTransform(pitch) });
-    addPitchMarkings(pitchWorld, pitch.width, pitch.height);
+    const perspective = isPerspectiveOrientation(pitch);
+    const pitchWorld = svgElement("g", { class: "pitch-world", transform: perspective ? "" : orientationTransform(pitch) });
+    if (perspective) {
+      addPerspectiveSurface(pitchWorld, pitch);
+      addPerspectivePitchMarkings(pitchWorld, pitch);
+    } else addFlatPitchMarkings(pitchWorld, pitch.width, pitch.height);
     addOverlays(pitchWorld, pitch);
     const entityLayer = svgElement("g", { class: "entity-layer" });
     addEntities(entityLayer, document);
@@ -136,6 +214,7 @@ export class Pitch2DRenderer {
     this.container.replaceChildren(svg);
     this.container.style.setProperty("--pitch-ratio", `${viewport.width} / ${viewport.height}`);
     this.container.dataset.orientation = pitch.orientation;
+    this.container.dataset.perspective = String(perspective);
     this.svg = svg;
     this.entityLayer = entityLayer;
   }
@@ -166,7 +245,7 @@ export class Pitch2DRenderer {
     const matrix = this.svg.getScreenCTM();
     if (!matrix) return { x: 0, y: 0, z: 0 };
     const svgPoint = point.matrixTransform(matrix.inverse());
-    return clampToPitch(unorientPoint(svgPoint, this.document.pitch), this.document.pitch);
+    return clampToPitch(unprojectPerspectivePoint(svgPoint, this.document.pitch), this.document.pitch);
   }
 
   entitiesInScreenRect(rect) {
