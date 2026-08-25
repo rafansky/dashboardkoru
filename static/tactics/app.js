@@ -6,7 +6,7 @@ import {
   createNewBoard,
   createPlayerEntity,
   normalizeBoard,
-} from "./model.js";
+} from "./model.js?v=20260825b";
 import { Pitch2DInteractions } from "./interactions2d.js";
 import { Pitch2DRenderer } from "./pitch2d.js";
 import { createEditorStore } from "./store.js";

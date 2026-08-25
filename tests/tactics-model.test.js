@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createDefaultDocument, createPlayerEntity, migrateDocument, normalizeBoard } from "../static/tactics/model.js";
+import { createDefaultDocument, createPlayerEntity, createTacticalId, migrateDocument, normalizeBoard } from "../static/tactics/model.js";
+
+test("IDs work when randomUUID is unavailable on public HTTP", () => {
+  const id = createTacticalId({ getRandomValues: (bytes) => bytes.fill(7) });
+  assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});
 
 test("phase one documents migrate to analysis schema", () => {
   const migrated = migrateDocument({ schemaVersion: 1, pitch: { width: 105, height: 68 } });
