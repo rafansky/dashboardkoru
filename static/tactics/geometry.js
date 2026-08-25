@@ -50,8 +50,10 @@ export function isPerspectiveOrientation(pitch) {
   return pitch.orientation === "top-to-bottom" || pitch.orientation === "bottom-to-top";
 }
 
-const PERSPECTIVE_DEPTH_SCALE = 0.88;
-const PERSPECTIVE_FAR_WIDTH = 0.68;
+// A tactical board benefits from a compact broadcast-like projection: broad enough
+// to read player spacing, with just enough depth to retain the tactical context.
+const PERSPECTIVE_DEPTH_SCALE = 0.72;
+const PERSPECTIVE_FAR_WIDTH = 0.78;
 
 export function projectPerspectivePoint(point, pitch) {
   const oriented = orientPoint(point, pitch);

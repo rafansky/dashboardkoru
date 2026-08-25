@@ -269,6 +269,10 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
   background: transparent;
   background-image: none;
 }
+.pitch-shell[data-perspective="true"] .tactical-pitch {
+  max-width: none;
+  max-height: none;
+}
 .analysis-line { stroke: rgba(250, 204, 21, 0.62); stroke-width: 0.22; stroke-dasharray: 1.4 1; vector-effect: non-scaling-stroke; }
 .analysis-line.lanes { stroke: rgba(18, 214, 223, 0.5); }
 .grid-line { stroke: rgba(255, 255, 255, 0.18); stroke-width: 0.15; stroke-dasharray: 0.5 1; vector-effect: non-scaling-stroke; }
