@@ -14,46 +14,22 @@
     <main class="tactics-app" id="tactics-app">
       <header class="editor-header">
         <div class="header-start">
-          <a class="icon-button" href="/" aria-label="Volver al dashboard" title="Volver al dashboard">
-            <i data-lucide="arrow-left"></i>
-          </a>
+          <a class="icon-button" href="/" aria-label="Volver al dashboard" title="Volver al dashboard"><i data-lucide="arrow-left"></i></a>
           <img src="/assets/koru-mark.svg" alt="KORU" class="editor-mark" />
-          <div class="editor-identity">
-            <span>Pizarra tactica</span>
-            <input id="board-name" maxlength="120" value="Nueva pizarra" aria-label="Nombre de la pizarra" />
-          </div>
+          <div class="editor-identity"><span>Pizarra tactica</span><input id="board-name" maxlength="120" value="Nueva pizarra" aria-label="Nombre de la pizarra" /></div>
         </div>
-
         <div class="header-center" role="toolbar" aria-label="Vista del editor">
-          <button class="icon-button" data-toggle-panel="left" type="button" aria-label="Mostrar u ocultar plantilla" title="Plantilla">
-            <i data-lucide="panel-left"></i>
-          </button>
-          <div class="segmented compact">
-            <button class="active" type="button" aria-pressed="true">2D</button>
-            <button type="button" disabled title="Disponible en la fase 3D">3D</button>
-          </div>
-          <button class="icon-button" id="fit-pitch" type="button" aria-label="Encajar campo" title="Encajar campo">
-            <i data-lucide="maximize"></i>
-          </button>
-          <button class="icon-button" id="fullscreen-button" type="button" aria-label="Pantalla completa" title="Pantalla completa">
-            <i data-lucide="expand"></i>
-          </button>
-          <button class="icon-button" data-toggle-panel="right" type="button" aria-label="Mostrar u ocultar propiedades" title="Propiedades">
-            <i data-lucide="panel-right"></i>
-          </button>
+          <button class="icon-button" data-toggle-panel="left" type="button" aria-label="Mostrar u ocultar plantilla" title="Plantilla"><i data-lucide="panel-left"></i></button>
+          <div class="segmented compact"><button class="active" type="button" aria-pressed="true">2D</button><button type="button" disabled title="Disponible en la fase 3D">3D</button></div>
+          <button class="icon-button" id="fit-pitch" type="button" aria-label="Encajar campo" title="Encajar campo"><i data-lucide="maximize"></i></button>
+          <button class="icon-button" id="fullscreen-button" type="button" aria-label="Pantalla completa" title="Pantalla completa"><i data-lucide="expand"></i></button>
+          <button class="icon-button" data-toggle-panel="right" type="button" aria-label="Mostrar u ocultar propiedades" title="Propiedades"><i data-lucide="panel-right"></i></button>
         </div>
-
         <div class="header-actions">
           <span class="save-state" id="save-state">Sin guardar</span>
-          <button class="icon-button" id="undo-button" type="button" disabled aria-label="Deshacer" title="Deshacer">
-            <i data-lucide="undo-2"></i>
-          </button>
-          <button class="icon-button" id="redo-button" type="button" disabled aria-label="Rehacer" title="Rehacer">
-            <i data-lucide="redo-2"></i>
-          </button>
-          <button class="primary-button" id="save-button" type="button">
-            <i data-lucide="save"></i><span>Guardar</span>
-          </button>
+          <button class="icon-button" id="undo-button" type="button" disabled aria-label="Deshacer" title="Deshacer"><i data-lucide="undo-2"></i></button>
+          <button class="icon-button" id="redo-button" type="button" disabled aria-label="Rehacer" title="Rehacer"><i data-lucide="redo-2"></i></button>
+          <button class="primary-button" id="save-button" type="button"><i data-lucide="save"></i><span>Guardar</span></button>
         </div>
       </header>
 
@@ -61,112 +37,73 @@
         <aside class="side-panel roster-panel" id="roster-panel">
           <div class="panel-heading">
             <div><span>Plantilla</span><strong>Mi equipo</strong></div>
-            <button class="icon-button small" data-collapse="left" type="button" aria-label="Ocultar plantilla" title="Ocultar panel">
-              <i data-lucide="panel-left-close"></i>
-            </button>
+            <div class="heading-actions">
+              <button class="icon-button small" id="create-player-button" type="button" aria-label="Crear jugador" title="Crear jugador"><i data-lucide="user-plus"></i></button>
+              <button class="icon-button small" data-collapse="left" type="button" aria-label="Ocultar plantilla" title="Ocultar panel"><i data-lucide="panel-left-close"></i></button>
+            </div>
           </div>
-          <label class="search-field">
-            <i data-lucide="search"></i>
-            <input id="roster-search" type="search" placeholder="Buscar jugador" aria-label="Buscar jugador" />
-          </label>
-          <div class="team-switch segmented" id="team-switch">
-            <button class="active" type="button" data-team="home">KORU</button>
-            <button type="button" data-team="away">Rival</button>
-          </div>
+          <label class="search-field"><i data-lucide="search"></i><input id="roster-search" type="search" placeholder="Buscar jugador" aria-label="Buscar jugador" /></label>
+          <div class="team-switch segmented" id="team-switch"><button class="active" type="button" data-team="home">KORU</button><button type="button" data-team="away">Rival</button></div>
           <div class="roster-list" id="roster-list"></div>
           <div class="library-divider"></div>
-          <div class="panel-heading library-heading">
-            <div><span>Documentos</span><strong>Biblioteca</strong></div>
-            <button class="icon-button small" id="new-board-button" type="button" aria-label="Nueva pizarra" title="Nueva pizarra">
-              <i data-lucide="plus"></i>
-            </button>
-          </div>
+          <div class="panel-heading library-heading"><div><span>Documentos</span><strong>Biblioteca</strong></div><button class="icon-button small" id="new-board-button" type="button" aria-label="Nueva pizarra" title="Nueva pizarra"><i data-lucide="plus"></i></button></div>
           <div class="board-list" id="board-list"></div>
         </aside>
 
         <section class="editor-stage">
           <nav class="tool-rail" aria-label="Herramientas disponibles">
-            <button class="active" type="button" aria-label="Seleccion" title="Seleccion (V)"><i data-lucide="mouse-pointer-2"></i></button>
-            <button type="button" aria-label="Mano" title="Mano (H)"><i data-lucide="hand"></i></button>
+            <button class="active" data-tool="select" type="button" aria-label="Seleccion" title="Seleccion (V)"><i data-lucide="mouse-pointer-2"></i></button>
+            <button data-tool="hand" type="button" aria-label="Mano" title="Mano (H)"><i data-lucide="hand"></i></button>
             <span></span>
             <button type="button" disabled aria-label="Flechas disponibles en fase 3" title="Disponible en fase 3"><i data-lucide="move-up-right"></i></button>
             <button type="button" disabled aria-label="Zonas disponibles en fase 3" title="Disponible en fase 3"><i data-lucide="square-dashed"></i></button>
             <button type="button" disabled aria-label="Texto disponible en fase 3" title="Disponible en fase 3"><i data-lucide="type"></i></button>
           </nav>
-
-          <div class="pitch-viewport" id="pitch-viewport">
-            <div class="pitch-shell" id="pitch-shell"></div>
-            <div class="stage-hud">
-              <span id="pitch-readout">105 × 68 m</span>
-              <span>Zoom 100%</span>
-            </div>
-          </div>
+          <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span></div></div>
         </section>
 
         <aside class="side-panel properties-panel" id="properties-panel">
-          <div class="panel-heading">
-            <button class="icon-button small" data-collapse="right" type="button" aria-label="Ocultar propiedades" title="Ocultar panel">
-              <i data-lucide="panel-right-close"></i>
-            </button>
-            <div><span>Documento</span><strong>Propiedades</strong></div>
-          </div>
-
+          <div class="panel-heading"><button class="icon-button small" data-collapse="right" type="button" aria-label="Ocultar propiedades" title="Ocultar panel"><i data-lucide="panel-right-close"></i></button><div><span>Documento</span><strong>Propiedades</strong></div></div>
           <div class="property-section">
-            <label>Categoria
-              <select id="board-category">
-                <option>Ataque</option><option>Defensa</option><option>Transicion</option><option>Presion</option>
-                <option>Salida de balon</option><option>Finalizacion</option><option>Corner</option><option>Falta</option>
-                <option>Saque de banda</option><option>Entrenamiento</option><option>Analisis rival</option>
-              </select>
-            </label>
-            <label>Descripcion
-              <textarea id="board-description" rows="3" maxlength="2000" placeholder="Objetivo de la sesion..."></textarea>
-            </label>
+            <label>Partido<select id="board-match"><option value="">Sin vincular</option></select></label>
+            <label>Categoria<select id="board-category"><option>Ataque</option><option>Defensa</option><option>Transicion</option><option>Presion</option><option>Salida de balon</option><option>Finalizacion</option><option>Corner</option><option>Falta</option><option>Saque de banda</option><option>Entrenamiento</option><option>Analisis rival</option></select></label>
+            <label>Descripcion<textarea id="board-description" rows="3" maxlength="2000" placeholder="Objetivo de la sesion..."></textarea></label>
           </div>
-
+          <div class="property-section selection-section" id="selection-section" hidden><div class="section-title"><strong>Seleccion</strong><span id="selection-summary">0 objetos</span></div><div class="selection-detail" id="selection-detail"></div><button class="danger-button" id="delete-selection" type="button"><i data-lucide="trash-2"></i><span>Eliminar del campo</span></button></div>
           <div class="property-section">
             <div class="section-title"><strong>Campo</strong><span>Metros reales</span></div>
-            <label>Vista
-              <select id="pitch-view">
-                <option value="full">Campo completo</option><option value="half">Medio campo</option>
-                <option value="attacking-third">Tercio ofensivo</option><option value="defensive-third">Tercio defensivo</option>
-                <option value="penalty-area">Area</option><option value="corner">Corner</option>
-              </select>
-            </label>
-            <label>Orientacion
-              <select id="pitch-orientation">
-                <option value="left-to-right">Izquierda → derecha</option><option value="right-to-left">Derecha → izquierda</option>
-                <option value="top-to-bottom">Arriba → abajo</option><option value="bottom-to-top">Abajo → arriba</option>
-              </select>
-            </label>
-            <label>Cesped
-              <select id="pitch-surface"><option value="stripes">Franjas</option><option value="plain">Liso</option></select>
-            </label>
+            <label>Vista<select id="pitch-view"><option value="full">Campo completo</option><option value="half">Medio campo</option><option value="attacking-third">Tercio ofensivo</option><option value="defensive-third">Tercio defensivo</option><option value="penalty-area">Area</option><option value="corner">Corner</option></select></label>
+            <label>Orientacion<select id="pitch-orientation"><option value="left-to-right">Izquierda a derecha</option><option value="right-to-left">Derecha a izquierda</option><option value="top-to-bottom">Arriba a abajo</option><option value="bottom-to-top">Abajo a arriba</option></select></label>
+            <label>Cesped<select id="pitch-surface"><option value="stripes">Franjas</option><option value="plain">Liso</option></select></label>
           </div>
-
-          <div class="property-section">
-            <div class="section-title"><strong>Analisis</strong><span>Overlays</span></div>
-            <label class="toggle-row"><input type="checkbox" value="thirds" data-overlay /><span>Tercios</span></label>
-            <label class="toggle-row"><input type="checkbox" value="five-lanes" data-overlay /><span>Cinco carriles</span></label>
-            <label class="toggle-row"><input type="checkbox" value="grid" data-overlay /><span>Cuadricula</span></label>
+          <div class="property-section"><div class="section-title"><strong>Analisis</strong><span>Overlays</span></div><label class="toggle-row"><input type="checkbox" value="thirds" data-overlay /><span>Tercios</span></label><label class="toggle-row"><input type="checkbox" value="five-lanes" data-overlay /><span>Cinco carriles</span></label><label class="toggle-row"><input type="checkbox" value="grid" data-overlay /><span>Cuadricula</span></label></div>
+          <div class="property-section analysis-log-section">
+            <div class="section-title"><strong>Bitacora</strong><button class="icon-button small" id="new-session-button" type="button" title="Nueva sesion" aria-label="Nueva sesion"><i data-lucide="plus"></i></button></div>
+            <label>Sesion<select id="analysis-session"></select></label>
+            <div class="session-fields"><input id="analysis-session-name" maxlength="120" aria-label="Nombre de sesion" /><select id="analysis-session-type" aria-label="Tipo de sesion"><option value="pre-match">Prepartido</option><option value="live">En directo</option><option value="post-match">Postpartido</option><option value="training">Entrenamiento</option><option value="opponent">Analisis rival</option></select></div>
+            <form id="analysis-form" class="analysis-form"><div class="analysis-meta-fields"><select id="analysis-kind" aria-label="Tipo de anotacion"><option value="observation">Observacion</option><option value="decision">Decision</option><option value="adjustment">Ajuste</option><option value="task">Tarea</option><option value="outcome">Resultado</option></select><input id="analysis-minute" type="number" min="0" max="180" placeholder="Min" aria-label="Minuto" /></div><textarea id="analysis-text" rows="3" maxlength="4000" placeholder="Anota lo que se vio o decidio..." required></textarea><button class="secondary-button" type="submit"><i data-lucide="notebook-pen"></i><span>Añadir a la sesion</span></button></form>
+            <div class="analysis-list" id="analysis-list"></div>
           </div>
         </aside>
       </section>
 
-      <footer class="timeline-panel">
-        <div class="playback-controls">
-          <button class="icon-button small" type="button" disabled aria-label="Ir al inicio"><i data-lucide="skip-back"></i></button>
-          <button class="play-button" type="button" disabled aria-label="Reproducir"><i data-lucide="play"></i></button>
-          <span>00:00.0</span>
-        </div>
-        <div class="scene-strip">
-          <article class="scene-card active"><span>01</span><div><strong>Escena base</strong><small>Estado inicial</small></div></article>
-        </div>
-        <div class="timeline-meta"><span>Escenas</span><strong>1</strong></div>
-      </footer>
+      <footer class="timeline-panel"><div class="playback-controls"><button class="icon-button small" type="button" disabled aria-label="Ir al inicio"><i data-lucide="skip-back"></i></button><button class="play-button" type="button" disabled aria-label="Reproducir"><i data-lucide="play"></i></button><span>00:00.0</span></div><div class="scene-strip"><article class="scene-card active"><span>01</span><div><strong>Escena base</strong><small>Estado inicial</small></div></article></div><div class="timeline-meta"><span>Escenas</span><strong>1</strong></div></footer>
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="player-dialog" id="player-dialog">
+      <form id="player-form" method="dialog">
+        <header><div><span>Plantilla tactica</span><strong>Crear jugador</strong></div><button class="icon-button small" id="close-player-dialog" type="button" aria-label="Cerrar" title="Cerrar"><i data-lucide="x"></i></button></header>
+        <div class="player-form-body">
+          <label class="avatar-picker" for="player-avatar"><span class="avatar-preview" id="player-avatar-preview"><i data-lucide="camera"></i></span><span><strong>Cara del PJ</strong><small>PNG, JPG o WEBP</small></span><input id="player-avatar" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+          <label>Nombre<input id="player-name" maxlength="80" autocomplete="off" required /></label>
+          <div class="player-form-grid"><label>Dorsal<input id="player-number" type="number" min="0" max="99" value="10" required /></label><label>Posicion<select id="player-position"><option>POR</option><option>LD</option><option>LI</option><option>DFC</option><option>CAD</option><option>CAI</option><option>MCD</option><option>MC</option><option>MD</option><option>MI</option><option>MCO</option><option>ED</option><option>EI</option><option>SD</option><option>DC</option><option>LIBRE</option></select></label></div>
+          <label>Equipo<select id="player-team"><option value="home">KORU</option><option value="away">Rival</option></select></label>
+          <p class="koru-kit-note"><span></span>KORU usa siempre blanco con naranja.</p>
+        </div>
+        <footer><button class="secondary-button" id="cancel-player-button" type="button">Cancelar</button><button class="primary-button" id="save-player-button" type="submit"><i data-lucide="user-plus"></i><span>Crear jugador</span></button></footer>
+      </form>
+    </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script type="module" src="/static/tactics/app.js"></script>
   </body>

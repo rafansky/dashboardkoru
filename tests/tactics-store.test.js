@@ -21,3 +21,14 @@ test("recovered editor state starts dirty", () => {
   const store = createEditorStore({ name: "Recovered" }, true);
   assert.equal(store.getState().dirty, true);
 });
+
+test("multiple targeted changes are committed and reverted together", () => {
+  const store = createEditorStore({ document: { entities: [{ position: { x: 1, y: 2 } }, { position: { x: 3, y: 4 } }] } });
+  store.updateMany([
+    { path: ["board", "document", "entities", 0, "position"], value: { x: 10, y: 20 } },
+    { path: ["board", "document", "entities", 1, "position"], value: { x: 30, y: 40 } },
+  ], "Move players");
+  assert.deepEqual(store.getState().board.document.entities.map((item) => item.position.x), [10, 30]);
+  store.undo();
+  assert.deepEqual(store.getState().board.document.entities.map((item) => item.position.x), [1, 3]);
+});

@@ -35,7 +35,8 @@ class TacticalDocumentTests(unittest.TestCase):
     def test_document_round_trip_uses_public_aliases(self) -> None:
         document = TacticalBoardDocument.model_validate(self.document())
         serialized = document.model_dump(by_alias=True)
-        self.assertEqual(serialized["schemaVersion"], 1)
+        self.assertEqual(serialized["schemaVersion"], 2)
+        self.assertIn("analysis", serialized)
         self.assertEqual(serialized["entities"][0]["teamId"], "home")
         self.assertEqual(serialized["scenes"][0]["entityStates"][0]["entityId"], "player-1")
 

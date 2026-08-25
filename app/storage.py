@@ -78,6 +78,23 @@ def init_storage() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_tactical_boards_match ON tactical_boards(match_id)"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tactical_players (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                number INTEGER NOT NULL,
+                position TEXT NOT NULL DEFAULT 'LIBRE',
+                team TEXT NOT NULL DEFAULT 'home',
+                avatar_url TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tactical_players_team ON tactical_players(team, number)"
+        )
         conn.commit()
 
 
@@ -373,5 +390,54 @@ def update_tactical_board(board_id: str, payload: dict[str, Any]) -> dict[str, A
 def delete_tactical_board(board_id: str) -> bool:
     with closing(sqlite3.connect(DB_PATH)) as conn:
         cursor = conn.execute("DELETE FROM tactical_boards WHERE id = ?", (board_id,))
+        conn.commit()
+    return cursor.rowcount > 0
+
+
+def list_tactical_players(team: str | None = None) -> list[dict[str, Any]]:
+    query = "SELECT id, name, number, position, team, avatar_url, created_at, updated_at FROM tactical_players"
+    params: tuple[Any, ...] = ()
+    if team in {"home", "away"}:
+        query += " WHERE team = ?"
+        params = (team,)
+    query += " ORDER BY team, number, name"
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(query, params).fetchall()
+    players = []
+    for row in rows:
+        player = _row_to_dict(row)
+        player["avatarUrl"] = player.pop("avatar_url")
+        players.append(player)
+    return players
+
+
+def create_tactical_player(payload: dict[str, Any]) -> dict[str, Any]:
+    player_id = uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute(
+            """
+            INSERT INTO tactical_players (id, name, number, position, team, avatar_url, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                player_id,
+                payload["name"],
+                int(payload["number"]),
+                payload.get("position", "LIBRE"),
+                payload.get("team", "home"),
+                payload.get("avatarUrl"),
+                now,
+                now,
+            ),
+        )
+        conn.commit()
+    return next(player for player in list_tactical_players() if player["id"] == player_id)
+
+
+def delete_tactical_player(player_id: str) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("DELETE FROM tactical_players WHERE id = ?", (player_id,))
         conn.commit()
     return cursor.rowcount > 0

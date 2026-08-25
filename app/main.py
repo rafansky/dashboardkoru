@@ -20,18 +20,21 @@ from .settings import (
 )
 from .storage import (
     add_note,
+    create_tactical_player,
     create_tactical_board,
     delete_note,
     delete_tactical_board,
+    delete_tactical_player,
     get_tactical_board,
     init_storage,
     list_files,
     list_notes,
     list_tactical_boards,
+    list_tactical_players,
     save_upload,
     update_tactical_board,
 )
-from .tactics_models import TacticalBoardCreate, TacticalBoardUpdate
+from .tactics_models import TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -187,7 +190,7 @@ async def tactical_boards(search: str = Query(default="", max_length=120)) -> li
 
 @app.post("/api/tactical-boards", status_code=201)
 async def create_board(payload: TacticalBoardCreate) -> dict:
-    return create_tactical_board(payload.model_dump(by_alias=True))
+    return create_tactical_board(payload.model_dump(mode="json", by_alias=True))
 
 
 @app.get("/api/tactical-boards/{board_id}")
@@ -200,7 +203,7 @@ async def tactical_board(board_id: str) -> dict:
 
 @app.put("/api/tactical-boards/{board_id}")
 async def save_board(board_id: str, payload: TacticalBoardUpdate) -> dict:
-    board = update_tactical_board(board_id, payload.model_dump(by_alias=True))
+    board = update_tactical_board(board_id, payload.model_dump(mode="json", by_alias=True))
     if board:
         return board
     if not get_tactical_board(board_id):
@@ -212,4 +215,21 @@ async def save_board(board_id: str, payload: TacticalBoardUpdate) -> dict:
 async def remove_board(board_id: str) -> dict[str, bool]:
     if not delete_tactical_board(board_id):
         raise HTTPException(status_code=404, detail="Pizarra no encontrada")
+    return {"deleted": True}
+
+
+@app.get("/api/tactical-players")
+async def tactical_players(team: str | None = Query(default=None, pattern="^(home|away)$")) -> list[dict]:
+    return list_tactical_players(team=team)
+
+
+@app.post("/api/tactical-players", status_code=201)
+async def create_squad_player(payload: TacticalSquadPlayerCreate) -> dict:
+    return create_tactical_player(payload.model_dump(mode="json", by_alias=True))
+
+
+@app.delete("/api/tactical-players/{player_id}")
+async def remove_squad_player(player_id: str) -> dict[str, bool]:
+    if not delete_tactical_player(player_id):
+        raise HTTPException(status_code=404, detail="Jugador no encontrado")
     return {"deleted": True}

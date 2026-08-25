@@ -1,8 +1,20 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 export const PITCH_WIDTH = 105;
 export const PITCH_HEIGHT = 68;
 
+function createAnalysisSession(name = "Preparacion") {
+  return {
+    id: crypto.randomUUID(),
+    name,
+    type: "pre-match",
+    createdAt: new Date().toISOString(),
+    matchId: null,
+    entries: [],
+  };
+}
+
 export function createDefaultDocument() {
+  const analysisSession = createAnalysisSession();
   return {
     schemaVersion: SCHEMA_VERSION,
     pitch: {
@@ -14,7 +26,7 @@ export function createDefaultDocument() {
       overlays: ["thirds", "five-lanes"],
     },
     teams: [
-      { id: "home", name: "KORU eClub", primaryColor: "#f95516", secondaryColor: "#f7f8fb" },
+      { id: "home", name: "KORU eClub", primaryColor: "#f7f8fb", secondaryColor: "#f95516" },
       { id: "away", name: "Rival", primaryColor: "#12d6df", secondaryColor: "#101217" },
     ],
     entities: [],
@@ -36,6 +48,10 @@ export function createDefaultDocument() {
       showNames: true,
       anonymizePlayers: false,
       attackDirection: "left-to-right",
+    },
+    analysis: {
+      activeSessionId: analysisSession.id,
+      sessions: [analysisSession],
     },
     metadata: {},
   };
@@ -59,16 +75,94 @@ export function createNewBoard() {
 
 export function normalizeBoard(board) {
   const base = createNewBoard();
+  const document = migrateDocument(board?.document || {});
   return {
     ...base,
     ...board,
     document: {
       ...base.document,
-      ...(board?.document || {}),
-      pitch: { ...base.document.pitch, ...(board?.document?.pitch || {}) },
-      settings: { ...base.document.settings, ...(board?.document?.settings || {}) },
+      ...document,
+      pitch: { ...base.document.pitch, ...(document.pitch || {}) },
+      settings: { ...base.document.settings, ...(document.settings || {}) },
+      teams: normalizeTeams(document.teams || base.document.teams),
+      analysis: normalizeAnalysis(document.analysis),
     },
   };
+}
+
+function normalizeTeams(teams) {
+  const result = structuredClone(teams || []);
+  const home = result.find((team) => team.id === "home");
+  if (home) Object.assign(home, { name: "KORU eClub", primaryColor: "#f7f8fb", secondaryColor: "#f95516" });
+  else result.unshift({ id: "home", name: "KORU eClub", primaryColor: "#f7f8fb", secondaryColor: "#f95516" });
+  if (!result.some((team) => team.id === "away")) result.push({ id: "away", name: "Rival", primaryColor: "#12d6df", secondaryColor: "#101217" });
+  return result;
+}
+
+export function migrateDocument(source) {
+  const document = structuredClone(source || {});
+  const version = Number(document.schemaVersion || 1);
+  if (version > SCHEMA_VERSION) throw new Error("Esta pizarra pertenece a una version mas reciente");
+  if (version === 1) {
+    document.analysis = { activeSessionId: null, sessions: [] };
+    document.schemaVersion = 2;
+  }
+  return document;
+}
+
+function normalizeAnalysis(source) {
+  const analysis = source || { activeSessionId: null, sessions: [] };
+  if (!analysis.sessions?.length) {
+    const session = createAnalysisSession();
+    return { activeSessionId: session.id, sessions: [session] };
+  }
+  const activeExists = analysis.sessions.some((session) => session.id === analysis.activeSessionId);
+  return {
+    activeSessionId: activeExists ? analysis.activeSessionId : analysis.sessions[0].id,
+    sessions: analysis.sessions,
+  };
+}
+
+export function createPlayerEntity(player, teamId, position, number) {
+  const name = String(player.username || player.name || `${teamId === "home" ? "Jugador" : "Rival"} ${number}`);
+  return {
+    id: crypto.randomUUID(),
+    type: "player",
+    teamId,
+    name,
+    number: Math.max(0, Math.min(99, Number(number) || 0)),
+    positionLabel: player.positionLabel || null,
+    position: { x: position.x, y: position.y, z: 0 },
+    rotation: teamId === "home" ? 90 : 270,
+    scale: 1,
+    opacity: 1,
+    locked: false,
+    visible: true,
+    metadata: {
+      rosterKey: player.rosterKey || name.toLowerCase(),
+      avatarUrl: player.avatarUrl || null,
+      source: player.source || (teamId === "home" ? "dashboard" : "manual-opponent"),
+    },
+  };
+}
+
+export function createAnalysisEntry(kind, text, options = {}) {
+  return {
+    id: crypto.randomUUID(),
+    kind,
+    text: text.trim(),
+    author: options.author || "KORU",
+    createdAt: new Date().toISOString(),
+    matchMinute: options.matchMinute ?? null,
+    sceneId: options.sceneId || null,
+    entityIds: options.entityIds || [],
+  };
+}
+
+export function createNewAnalysisSession(index, matchId = null) {
+  const session = createAnalysisSession(`Sesion ${index}`);
+  session.matchId = matchId;
+  return session;
 }
 
 export function boardPayload(board) {

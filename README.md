@@ -59,15 +59,17 @@ La password activa vive solo en el servicio del mini PC como variable de entorno
 
 ## Pizarra tactica
 
-La primera fase del editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard.
+La segunda fase del editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard.
 
-Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo para propiedades, vistas/orientaciones de campo, overlays y layout responsive de editor. El modelo 2D y el futuro renderer 3D comparten las mismas coordenadas y el mismo documento.
+Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.
+
+La plantilla tactica admite jugadores personalizados de KORU o del rival con nombre, dorsal, posicion y cara subida. KORU se representa siempre en blanco y naranja. Cada pizarra puede vincularse a un partido y guardar sesiones historicas con observaciones, decisiones, ajustes, tareas y resultados asociados a minutos, escenas y jugadores seleccionados.
 
 Pruebas:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py' -v
-node --test tests\tactics-geometry.test.js tests\tactics-store.test.js
+npm.cmd run test:tactics
 ```
 
 ## Estructura

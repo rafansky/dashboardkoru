@@ -51,6 +51,8 @@ class TacticalApiTests(unittest.TestCase):
         created = self.client.post("/api/tactical-boards", json=self.payload())
         self.assertEqual(created.status_code, 201)
         board = created.json()
+        self.assertEqual(board["document"]["schemaVersion"], 2)
+        self.assertIn("analysis", board["document"])
 
         listed = self.client.get("/api/tactical-boards")
         self.assertEqual(listed.status_code, 200)
@@ -65,6 +67,28 @@ class TacticalApiTests(unittest.TestCase):
         self.assertEqual(conflict.status_code, 409)
 
         deleted = self.client.delete(f"/api/tactical-boards/{board['id']}")
+        self.assertEqual(deleted.status_code, 200)
+
+    def test_custom_player_crud(self) -> None:
+        created = self.client.post(
+            "/api/tactical-players",
+            json={"name": "Ricky", "number": 10, "position": "MCO", "team": "home", "avatarUrl": "/uploads/ricky.webp"},
+        )
+        self.assertEqual(created.status_code, 201)
+        player = created.json()
+        self.assertEqual(player["number"], 10)
+        self.assertEqual(player["avatarUrl"], "/uploads/ricky.webp")
+
+        listed = self.client.get("/api/tactical-players?team=home")
+        self.assertEqual([item["id"] for item in listed.json()], [player["id"]])
+
+        invalid = self.client.post(
+            "/api/tactical-players",
+            json={"name": "Unsafe", "number": 9, "position": "DC", "team": "home", "avatarUrl": "http://example.com/a.png"},
+        )
+        self.assertEqual(invalid.status_code, 422)
+
+        deleted = self.client.delete(f"/api/tactical-players/{player['id']}")
         self.assertEqual(deleted.status_code, 200)
 
 

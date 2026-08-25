@@ -25,5 +25,13 @@ export const tacticsApi = {
   createBoard: (payload) => request("/api/tactical-boards", jsonOptions("POST", payload)),
   updateBoard: (id, payload) => request(`/api/tactical-boards/${encodeURIComponent(id)}`, jsonOptions("PUT", payload)),
   deleteBoard: (id) => request(`/api/tactical-boards/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  listPlayers: (team = "") => request(`/api/tactical-players${team ? `?team=${encodeURIComponent(team)}` : ""}`),
+  createPlayer: (payload) => request("/api/tactical-players", jsonOptions("POST", payload)),
+  deletePlayer: (id) => request(`/api/tactical-players/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  uploadFile: (file) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request("/api/files", { method: "POST", body });
+  },
   getDashboard: () => request("/api/dashboard"),
 };

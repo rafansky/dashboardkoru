@@ -1,34 +1,69 @@
 import { tacticsApi } from "./api.js";
-import { boardPayload, createNewBoard, normalizeBoard } from "./model.js";
+import {
+  boardPayload,
+  createAnalysisEntry,
+  createNewAnalysisSession,
+  createNewBoard,
+  createPlayerEntity,
+  normalizeBoard,
+} from "./model.js";
+import { Pitch2DInteractions } from "./interactions2d.js";
 import { Pitch2DRenderer } from "./pitch2d.js";
 import { createEditorStore } from "./store.js";
 
-const DRAFT_KEY = "koru:tactics:recovery-draft:v1";
+const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+const KIND_LABELS = { observation: "Observacion", decision: "Decision", adjustment: "Ajuste", task: "Tarea", outcome: "Resultado" };
+const AUTO_POSITIONS = {
+  home: [[8, 34], [24, 12], [22, 31], [22, 48], [34, 58], [43, 20], [44, 43], [60, 10], [61, 34], [60, 57], [79, 34]],
+  away: [[97, 34], [81, 12], [83, 31], [83, 48], [71, 58], [62, 20], [61, 43], [45, 10], [44, 34], [45, 57], [26, 34]],
+};
+
 const recoveryDraft = loadRecoveryDraft();
 const store = createEditorStore(recoveryDraft || createNewBoard(), Boolean(recoveryDraft));
 const renderer = new Pitch2DRenderer($("#pitch-shell"));
 let boards = [];
-let roster = [];
+let dashboardRoster = [];
+let customRoster = [];
+let matches = [];
 let saveTimer = null;
 let savePromise = null;
+let lastDocumentRevision = -1;
+let lastSelectionKey = "";
+let previewUrl = null;
+
+new Pitch2DInteractions({
+  viewport: $("#pitch-viewport"),
+  renderer,
+  marquee: $("#selection-marquee"),
+  getState: store.getState,
+  onSelection: (selection) => store.setSelection(selection),
+  onMove: commitEntityMove,
+  onDropPlayer: (reference, position) => addRosterPlayer(reference.playerKey, position),
+  onViewportChange: (patch) => store.setUI(patch),
+});
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   bindControls();
-  if (window.matchMedia("(max-width: 760px)").matches) {
-    store.setUI({ leftCollapsed: true, rightCollapsed: true });
-  }
+  if (window.matchMedia("(max-width: 760px)").matches) store.setUI({ leftCollapsed: true, rightCollapsed: true });
   store.subscribe(render);
   render(store.getState());
   refreshIcons();
 
   try {
-    const [boardList, dashboard] = await Promise.all([tacticsApi.listBoards(), tacticsApi.getDashboard()]);
+    const [boardList, dashboard, playerList] = await Promise.all([
+      tacticsApi.listBoards(),
+      tacticsApi.getDashboard(),
+      tacticsApi.listPlayers(),
+    ]);
     boards = boardList;
-    roster = dashboard.analytics?.playerElo || dashboard.leaderboards?.scorers || [];
+    customRoster = playerList;
+    dashboardRoster = dashboard.analytics?.playerElo || dashboard.leaderboards?.scorers || [];
+    matches = uniqueMatches([...(dashboard.upcoming || []), ...(dashboard.recent || [])]);
+    renderMatchOptions();
     renderLibrary();
     renderRoster();
 
@@ -46,19 +81,18 @@ function bindControls() {
   $("#pitch-view").addEventListener("change", (event) => change(["board", "document", "pitch", "view"], event.target.value, "Cambiar vista"));
   $("#pitch-orientation").addEventListener("change", (event) => change(["board", "document", "pitch", "orientation"], event.target.value, "Cambiar orientacion"));
   $("#pitch-surface").addEventListener("change", (event) => change(["board", "document", "pitch", "surface"], event.target.value, "Cambiar cesped"));
+  $("#board-match").addEventListener("change", bindBoardToMatch);
 
-  $$('[data-overlay]').forEach((input) => {
-    input.addEventListener("change", () => {
-      const overlays = $$('[data-overlay]:checked').map((item) => item.value);
-      change(["board", "document", "pitch", "overlays"], overlays, "Cambiar overlays");
-    });
-  });
+  $$('[data-overlay]').forEach((input) => input.addEventListener("change", () => {
+    change(["board", "document", "pitch", "overlays"], $$('[data-overlay]:checked').map((item) => item.value), "Cambiar overlays");
+  }));
 
   $("#save-button").addEventListener("click", () => saveBoard(true).catch(() => null));
   $("#undo-button").addEventListener("click", () => store.undo());
   $("#redo-button").addEventListener("click", () => store.redo());
   $("#new-board-button").addEventListener("click", createBoard);
   $("#roster-search").addEventListener("input", renderRoster);
+  $("#delete-selection").addEventListener("click", deleteSelection);
   $("#team-switch").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-team]");
     if (!button) return;
@@ -66,49 +100,72 @@ function bindControls() {
     renderRoster();
   });
 
-  $$('[data-collapse]').forEach((button) => {
-    button.addEventListener("click", () => {
-      const side = button.dataset.collapse;
-      const state = store.getState();
-      store.setUI({ [`${side}Collapsed`]: !state.ui[`${side}Collapsed`] });
-    });
-  });
-  $$('[data-toggle-panel]').forEach((button) => {
-    button.addEventListener("click", () => {
-      const side = button.dataset.togglePanel;
-      const state = store.getState();
-      const patch = { [`${side}Collapsed`]: !state.ui[`${side}Collapsed`] };
-      if (window.matchMedia("(max-width: 760px)").matches) {
-        patch[`${side === "left" ? "right" : "left"}Collapsed`] = true;
-      }
-      store.setUI(patch);
-    });
-  });
+  $$('[data-tool]').forEach((button) => button.addEventListener("click", () => store.setUI({ activeTool: button.dataset.tool })));
+  $$('[data-collapse]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.collapse)));
+  $$('[data-toggle-panel]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.togglePanel, true)));
 
-  $("#fit-pitch").addEventListener("click", () => {
-    $("#pitch-shell").animate([{ transform: "scale(.985)" }, { transform: "scale(1)" }], { duration: 180 });
-  });
+  $("#fit-pitch").addEventListener("click", () => store.setUI({ zoom: 1, pan: { x: 0, y: 0 } }));
   $("#fullscreen-button").addEventListener("click", toggleFullscreen);
+
+  $("#new-session-button").addEventListener("click", createSession);
+  $("#analysis-session").addEventListener("change", (event) => change(["board", "document", "analysis", "activeSessionId"], event.target.value, "Cambiar sesion"));
+  $("#analysis-session-name").addEventListener("change", updateSessionDetails);
+  $("#analysis-session-type").addEventListener("change", updateSessionDetails);
+  $("#analysis-form").addEventListener("submit", addAnalysisEntry);
+  $("#analysis-list").addEventListener("click", removeAnalysisEntry);
+
+  $("#create-player-button").addEventListener("click", openPlayerDialog);
+  $("#close-player-dialog").addEventListener("click", closePlayerDialog);
+  $("#cancel-player-button").addEventListener("click", closePlayerDialog);
+  $("#player-avatar").addEventListener("change", previewAvatar);
+  $("#player-form").addEventListener("submit", saveCustomPlayer);
 
   document.addEventListener("keydown", handleShortcut);
   window.addEventListener("beforeunload", persistRecoveryDraft);
 }
 
+function togglePanel(side, closeOtherOnMobile = false) {
+  const state = store.getState();
+  const patch = { [`${side}Collapsed`]: !state.ui[`${side}Collapsed`] };
+  if (closeOtherOnMobile && window.matchMedia("(max-width: 760px)").matches) patch[`${side === "left" ? "right" : "left"}Collapsed`] = true;
+  store.setUI(patch);
+}
+
 function change(path, value, label) {
   store.update(path, value, label);
+  afterDocumentChange();
+}
+
+function afterDocumentChange() {
   persistRecoveryDraft();
   scheduleAutosave();
 }
 
 function render(state) {
   const { board, ui } = state;
-  renderer.render(board.document);
+  if (state.documentRevision !== lastDocumentRevision) {
+    renderer.render(board.document);
+    lastDocumentRevision = state.documentRevision;
+    renderRoster();
+    renderAnalysis();
+  }
+  renderer.setSelection(state.selection);
+  const selectionKey = state.selection.join("|");
+  if (selectionKey !== lastSelectionKey || state.documentRevision === lastDocumentRevision) {
+    renderSelection();
+    lastSelectionKey = selectionKey;
+  }
+
   document.body.classList.toggle("left-collapsed", ui.leftCollapsed);
   document.body.classList.toggle("right-collapsed", ui.rightCollapsed);
+  $("#pitch-viewport").dataset.tool = ui.activeTool;
+  $("#pitch-shell").style.transform = `translate(${ui.pan.x}px, ${ui.pan.y}px) scale(${ui.zoom})`;
+  $$('[data-tool]').forEach((button) => button.classList.toggle("active", button.dataset.tool === ui.activeTool));
 
   syncValue("#board-name", board.name);
   syncValue("#board-description", board.description);
   syncValue("#board-category", board.category);
+  syncValue("#board-match", board.matchId || "");
   syncValue("#pitch-view", board.document.pitch.view);
   syncValue("#pitch-orientation", board.document.pitch.orientation);
   syncValue("#pitch-surface", board.document.pitch.surface);
@@ -118,13 +175,14 @@ function render(state) {
   $("#redo-button").disabled = !store.canRedo();
   $("#save-state").textContent = state.saving ? "Guardando..." : state.error ? "Error al guardar" : state.dirty ? "Cambios pendientes" : board.id ? "Guardado" : "Sin guardar";
   $("#save-state").className = `save-state${state.error ? " error" : state.saving ? " saving" : ""}`;
-  $("#pitch-readout").textContent = `${board.document.pitch.width} × ${board.document.pitch.height} m`;
+  $("#pitch-readout").textContent = `${board.document.pitch.width} x ${board.document.pitch.height} m`;
+  $("#zoom-readout").textContent = `Zoom ${Math.round(ui.zoom * 100)}%`;
   persistRecoveryDraft();
 }
 
 function syncValue(selector, value) {
   const element = $(selector);
-  if (document.activeElement !== element && element.value !== String(value ?? "")) element.value = value ?? "";
+  if (element && document.activeElement !== element && element.value !== String(value ?? "")) element.value = value ?? "";
 }
 
 function scheduleAutosave() {
@@ -144,9 +202,7 @@ async function saveBoard(showFeedback = false) {
   const payload = boardPayload(state.board);
   const sentSignature = JSON.stringify(payload);
   store.setSaving(true);
-  savePromise = (state.board.id
-    ? tacticsApi.updateBoard(state.board.id, payload)
-    : tacticsApi.createBoard(payload))
+  savePromise = (state.board.id ? tacticsApi.updateBoard(state.board.id, payload) : tacticsApi.createBoard(payload))
     .then(async (saved) => {
       const currentSignature = JSON.stringify(boardPayload(store.getState().board));
       store.applySaveResult(normalizeBoard(saved), currentSignature === sentSignature);
@@ -170,8 +226,7 @@ async function saveBoard(showFeedback = false) {
 
 async function openBoard(id) {
   if (store.getState().dirty) {
-    try { await saveBoard(false); }
-    catch { return; }
+    try { await saveBoard(false); } catch { return; }
   }
   const board = normalizeBoard(await tacticsApi.getBoard(id));
   store.replaceBoard(board);
@@ -183,8 +238,7 @@ async function openBoard(id) {
 
 async function createBoard() {
   if (store.getState().dirty) {
-    try { await saveBoard(false); }
-    catch { return; }
+    try { await saveBoard(false); } catch { return; }
   }
   store.replaceBoard(createNewBoard());
   localStorage.removeItem(DRAFT_KEY);
@@ -201,53 +255,308 @@ async function refreshLibrary() {
 
 function renderLibrary() {
   const activeId = store.getState().board.id;
-  $("#board-list").innerHTML = boards.length
-    ? boards.slice(0, 8).map((board) => `
-      <button type="button" class="board-row ${board.id === activeId ? "active" : ""}" data-board-id="${board.id}">
-        <span class="board-thumb"><i data-lucide="rectangle-horizontal"></i></span>
-        <span><strong>${escapeHtml(board.name)}</strong><small>${escapeHtml(board.category)} · ${formatDate(board.updated_at)}</small></span>
-      </button>`).join("")
-    : `<div class="compact-empty">Todavia no hay pizarras guardadas.</div>`;
+  $("#board-list").innerHTML = boards.length ? boards.slice(0, 8).map((board) => `
+    <button type="button" class="board-row ${board.id === activeId ? "active" : ""}" data-board-id="${board.id}">
+      <span class="board-thumb"><i data-lucide="rectangle-horizontal"></i></span>
+      <span><strong>${escapeHtml(board.name)}</strong><small>${escapeHtml(board.category)} · ${formatDate(board.updated_at)}</small></span>
+    </button>`).join("") : `<div class="compact-empty">Todavia no hay pizarras guardadas.</div>`;
   $$('[data-board-id]').forEach((button) => button.addEventListener("click", () => openBoard(button.dataset.boardId).catch((error) => toast(error.message))));
   refreshIcons();
 }
 
+function rosterPlayers(team) {
+  const dashboard = team === "home" ? dashboardRoster.map((player, index) => ({
+    ...player,
+    name: player.username || player.name,
+    username: player.username || player.name,
+    number: player.number ?? index + 1,
+    positionLabel: player.position || "KORU",
+    rosterKey: `dashboard:${player.username || player.name || index}`,
+    source: "dashboard",
+  })) : [];
+  const custom = customRoster.filter((player) => player.team === team).map((player) => ({
+    ...player,
+    username: player.name,
+    positionLabel: player.position,
+    rosterKey: `custom:${player.id}`,
+    source: "custom",
+  }));
+  return [...custom, ...dashboard];
+}
+
 function renderRoster() {
-  const { ui } = store.getState();
+  const list = $("#roster-list");
+  if (!list) return;
+  const { ui, board } = store.getState();
   $$("#team-switch button").forEach((button) => button.classList.toggle("active", button.dataset.team === ui.activeTeam));
   const term = $("#roster-search").value.trim().toLowerCase();
-  const players = ui.activeTeam === "home"
-    ? roster.filter((player) => !term || String(player.username || "").toLowerCase().includes(term))
-    : [];
-  $("#roster-list").innerHTML = players.length
-    ? players.slice(0, 18).map((player, index) => `
-      <article class="roster-row">
+  const placed = new Set(board.document.entities.map((entity) => entity.metadata?.rosterKey).filter(Boolean));
+  const players = rosterPlayers(ui.activeTeam).filter((player) => !term || String(player.username || "").toLowerCase().includes(term));
+  list.innerHTML = players.length ? players.slice(0, 30).map((player) => {
+    const key = escapeHtml(player.rosterKey);
+    const isPlaced = placed.has(player.rosterKey);
+    return `<div class="roster-item">
+      <button type="button" draggable="true" class="roster-row${isPlaced ? " placed" : ""}" data-player-key="${key}">
         ${player.avatarUrl ? `<img src="${escapeHtml(player.avatarUrl)}" alt="" />` : `<span class="avatar-fallback">${initials(player.username)}</span>`}
-        <span><strong>${escapeHtml(player.username)}</strong><small>Jugador KORU</small></span>
-        <b>${String(index + 1).padStart(2, "0")}</b>
-      </article>`).join("")
-    : `<div class="compact-empty">${ui.activeTeam === "away" ? "El rival se configurara desde cada partido." : "No hay jugadores disponibles."}</div>`;
+        <span><strong>${escapeHtml(player.username)}</strong><small>${escapeHtml(player.positionLabel || (ui.activeTeam === "home" ? "Jugador KORU" : "Rival"))}</small></span>
+        <b>${String(player.number ?? 0).padStart(2, "0")}</b>
+      </button>
+      ${player.source === "custom" ? `<button type="button" class="delete-roster-player" data-delete-player="${player.id}" title="Eliminar jugador" aria-label="Eliminar jugador"><i data-lucide="trash-2"></i></button>` : ""}
+    </div>`;
+  }).join("") : `<div class="compact-empty">Crea el primer jugador de ${ui.activeTeam === "home" ? "KORU" : "este rival"}.</div>`;
+
+  $$('[data-player-key]').forEach((button) => {
+    button.addEventListener("click", () => addRosterPlayer(button.dataset.playerKey));
+    button.addEventListener("dragstart", (event) => event.dataTransfer.setData("application/x-koru-player", JSON.stringify({ playerKey: button.dataset.playerKey })));
+  });
+  $$('[data-delete-player]').forEach((button) => button.addEventListener("click", () => deleteCustomPlayer(button.dataset.deletePlayer)));
+  refreshIcons();
+}
+
+function findRosterPlayer(playerKey) {
+  return [...rosterPlayers("home"), ...rosterPlayers("away")].find((player) => player.rosterKey === playerKey);
+}
+
+function addRosterPlayer(playerKey, position = null) {
+  const player = findRosterPlayer(playerKey);
+  if (!player) return;
+  const state = store.getState();
+  if (state.board.document.entities.some((entity) => entity.metadata?.rosterKey === playerKey)) {
+    toast(`${player.username} ya esta en el campo`);
+    return;
+  }
+  const team = player.team || state.ui.activeTeam;
+  const count = state.board.document.entities.filter((entity) => entity.type === "player" && entity.teamId === team).length;
+  const [x, y] = AUTO_POSITIONS[team][Math.min(count, AUTO_POSITIONS[team].length - 1)];
+  const entity = createPlayerEntity(player, team, position || { x, y, z: 0 }, player.number ?? count + 1);
+  const entities = [...state.board.document.entities, entity];
+  store.update(["board", "document", "entities"], entities, "Añadir jugador");
+  store.setSelection([entity.id]);
+  afterDocumentChange();
+  if (window.matchMedia("(max-width: 760px)").matches) store.setUI({ leftCollapsed: true });
+}
+
+function commitEntityMove(starts, positions) {
+  const entities = store.getState().board.document.entities;
+  const changes = Object.entries(positions).flatMap(([id, position]) => {
+    const index = entities.findIndex((entity) => entity.id === id);
+    if (index < 0 || JSON.stringify(starts[id]) === JSON.stringify(position)) return [];
+    return [{ path: ["board", "document", "entities", index, "position"], value: position }];
+  });
+  if (!changes.length) return;
+  store.updateMany(changes, changes.length > 1 ? "Mover seleccion" : "Mover jugador");
+  afterDocumentChange();
+}
+
+function deleteSelection() {
+  const state = store.getState();
+  const selected = new Set(state.selection);
+  if (!selected.size) return;
+  const document = state.board.document;
+  const sessions = document.analysis.sessions.map((session) => ({
+    ...session,
+    entries: session.entries.map((entry) => ({ ...entry, entityIds: entry.entityIds.filter((id) => !selected.has(id)) })),
+  }));
+  store.updateMany([
+    { path: ["board", "document", "entities"], value: document.entities.filter((entity) => !selected.has(entity.id)) },
+    { path: ["board", "document", "groups"], value: document.groups.map((group) => ({ ...group, entityIds: group.entityIds.filter((id) => !selected.has(id)) })) },
+    { path: ["board", "document", "scenes"], value: document.scenes.map((scene) => ({ ...scene, entityStates: scene.entityStates.filter((item) => !selected.has(item.entityId)) })) },
+    { path: ["board", "document", "analysis", "sessions"], value: sessions },
+  ], "Eliminar seleccion");
+  store.setSelection([]);
+  afterDocumentChange();
+}
+
+function renderSelection() {
+  const state = store.getState();
+  const entities = state.selection.map((id) => state.board.document.entities.find((entity) => entity.id === id)).filter(Boolean);
+  $("#selection-section").hidden = !entities.length;
+  if (!entities.length) return;
+  $("#selection-summary").textContent = `${entities.length} ${entities.length === 1 ? "objeto" : "objetos"}`;
+  $("#selection-detail").innerHTML = entities.length === 1
+    ? `<strong>${escapeHtml(entities[0].name || entities[0].type)}</strong><small>${entities[0].positionLabel || entities[0].type} · X ${entities[0].position.x.toFixed(1)} · Y ${entities[0].position.y.toFixed(1)}</small>`
+    : `<strong>Seleccion multiple</strong><small>${entities.map((entity) => escapeHtml(entity.name || entity.type)).join(", ")}</small>`;
+}
+
+function uniqueMatches(items) {
+  return [...new Map(items.filter((match) => match?.id).map((match) => [match.id, match])).values()];
+}
+
+function renderMatchOptions() {
+  const current = store.getState().board.matchId || "";
+  $("#board-match").innerHTML = `<option value="">Sin vincular</option>${matches.map((match) => `<option value="${escapeHtml(match.id)}">${escapeHtml(match.platform)} · ${escapeHtml(match.opponent || `${match.home} - ${match.away}`)} · ${formatDate(match.datetime)}</option>`).join("")}`;
+  $("#board-match").value = current;
+}
+
+function bindBoardToMatch(event) {
+  const matchId = event.target.value || null;
+  const document = store.getState().board.document;
+  const sessionIndex = document.analysis.sessions.findIndex((session) => session.id === document.analysis.activeSessionId);
+  const changes = [{ path: ["board", "matchId"], value: matchId }];
+  if (sessionIndex >= 0) changes.push({ path: ["board", "document", "analysis", "sessions", sessionIndex, "matchId"], value: matchId });
+  store.updateMany(changes, "Vincular partido");
+  afterDocumentChange();
+}
+
+function activeSession() {
+  const analysis = store.getState().board.document.analysis;
+  return analysis.sessions.find((session) => session.id === analysis.activeSessionId) || analysis.sessions[0];
+}
+
+function renderAnalysis() {
+  const analysis = store.getState().board.document.analysis;
+  const session = activeSession();
+  $("#analysis-session").innerHTML = analysis.sessions.map((item) => `<option value="${item.id}">${escapeHtml(item.name)} · ${item.entries.length}</option>`).join("");
+  if (!session) return;
+  syncValue("#analysis-session", session.id);
+  syncValue("#analysis-session-name", session.name);
+  syncValue("#analysis-session-type", session.type);
+  $("#analysis-list").innerHTML = session.entries.length ? [...session.entries].reverse().map((entry) => `
+    <article class="analysis-entry" data-kind="${entry.kind}">
+      <small>${KIND_LABELS[entry.kind] || entry.kind}${entry.matchMinute !== null && entry.matchMinute !== undefined ? ` · ${entry.matchMinute}'` : ""}${entry.entityIds?.length ? ` · ${entry.entityIds.length} PJ` : ""}</small>
+      <p>${escapeHtml(entry.text)}</p>
+      <button type="button" data-delete-entry="${entry.id}" title="Eliminar anotacion" aria-label="Eliminar anotacion"><i data-lucide="x"></i></button>
+    </article>`).join("") : `<div class="compact-empty">Aun no hay anotaciones en esta sesion.</div>`;
+  refreshIcons();
+}
+
+function createSession() {
+  const state = store.getState();
+  const analysis = state.board.document.analysis;
+  const session = createNewAnalysisSession(analysis.sessions.length + 1, state.board.matchId);
+  store.updateMany([
+    { path: ["board", "document", "analysis", "sessions"], value: [...analysis.sessions, session] },
+    { path: ["board", "document", "analysis", "activeSessionId"], value: session.id },
+  ], "Crear sesion de analisis");
+  afterDocumentChange();
+}
+
+function updateSessionDetails() {
+  const state = store.getState();
+  const analysis = state.board.document.analysis;
+  const index = analysis.sessions.findIndex((session) => session.id === analysis.activeSessionId);
+  if (index < 0) return;
+  store.updateMany([
+    { path: ["board", "document", "analysis", "sessions", index, "name"], value: $("#analysis-session-name").value.trim() || `Sesion ${index + 1}` },
+    { path: ["board", "document", "analysis", "sessions", index, "type"], value: $("#analysis-session-type").value },
+  ], "Editar sesion");
+  afterDocumentChange();
+}
+
+function addAnalysisEntry(event) {
+  event.preventDefault();
+  const text = $("#analysis-text").value.trim();
+  if (!text) return;
+  const state = store.getState();
+  const analysis = state.board.document.analysis;
+  const index = analysis.sessions.findIndex((session) => session.id === analysis.activeSessionId);
+  if (index < 0) return;
+  const minuteValue = $("#analysis-minute").value;
+  const entry = createAnalysisEntry($("#analysis-kind").value, text, {
+    matchMinute: minuteValue === "" ? null : Number(minuteValue),
+    entityIds: state.selection,
+    sceneId: state.board.document.scenes[state.playback.sceneIndex]?.id || null,
+  });
+  const entries = [...analysis.sessions[index].entries, entry];
+  store.update(["board", "document", "analysis", "sessions", index, "entries"], entries, "Añadir anotacion");
+  $("#analysis-text").value = "";
+  $("#analysis-minute").value = "";
+  afterDocumentChange();
+}
+
+function removeAnalysisEntry(event) {
+  const button = event.target.closest("[data-delete-entry]");
+  if (!button) return;
+  const state = store.getState();
+  const analysis = state.board.document.analysis;
+  const index = analysis.sessions.findIndex((session) => session.id === analysis.activeSessionId);
+  if (index < 0) return;
+  store.update(["board", "document", "analysis", "sessions", index, "entries"], analysis.sessions[index].entries.filter((entry) => entry.id !== button.dataset.deleteEntry), "Eliminar anotacion");
+  afterDocumentChange();
+}
+
+function openPlayerDialog() {
+  const team = store.getState().ui.activeTeam;
+  $("#player-form").reset();
+  $("#player-number").value = "10";
+  $("#player-team").value = team;
+  resetAvatarPreview();
+  $("#player-dialog").showModal();
+  $("#player-name").focus();
+}
+
+function closePlayerDialog() {
+  $("#player-dialog").close();
+  resetAvatarPreview();
+}
+
+function previewAvatar(event) {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  const file = event.target.files?.[0];
+  previewUrl = file ? URL.createObjectURL(file) : null;
+  $("#player-avatar-preview").innerHTML = previewUrl ? `<img src="${previewUrl}" alt="Previsualizacion" />` : `<i data-lucide="camera"></i>`;
+  refreshIcons();
+}
+
+function resetAvatarPreview() {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
+  $("#player-avatar-preview").innerHTML = `<i data-lucide="camera"></i>`;
+  refreshIcons();
+}
+
+async function saveCustomPlayer(event) {
+  event.preventDefault();
+  const button = $("#save-player-button");
+  button.disabled = true;
+  try {
+    const file = $("#player-avatar").files?.[0];
+    if (file && file.size > 8 * 1024 * 1024) throw new Error("La imagen no puede superar 8 MB");
+    const uploaded = file ? await tacticsApi.uploadFile(file) : null;
+    const player = await tacticsApi.createPlayer({
+      name: $("#player-name").value.trim(),
+      number: Number($("#player-number").value),
+      position: $("#player-position").value,
+      team: $("#player-team").value,
+      avatarUrl: uploaded?.url || null,
+    });
+    customRoster.push(player);
+    store.setUI({ activeTeam: player.team });
+    closePlayerDialog();
+    renderRoster();
+    toast(`${player.name} añadido a la plantilla`);
+  } catch (error) {
+    toast(error.message || "No se pudo crear el jugador");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function deleteCustomPlayer(id) {
+  try {
+    await tacticsApi.deletePlayer(id);
+    customRoster = customRoster.filter((player) => player.id !== id);
+    renderRoster();
+    toast("Jugador eliminado de la plantilla");
+  } catch (error) {
+    toast(error.message || "No se pudo eliminar el jugador");
+  }
 }
 
 function handleShortcut(event) {
   const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName);
   if (typing) return;
   const command = event.ctrlKey || event.metaKey;
-  if (command && event.key.toLowerCase() === "s") {
-    event.preventDefault();
-    saveBoard(true);
-  } else if (command && event.key.toLowerCase() === "z" && event.shiftKey) {
-    event.preventDefault();
-    store.redo();
-  } else if (command && event.key.toLowerCase() === "z") {
-    event.preventDefault();
-    store.undo();
-  } else if (command && event.key.toLowerCase() === "y") {
-    event.preventDefault();
-    store.redo();
-  } else if (event.key.toLowerCase() === "f") {
-    $("#fit-pitch").click();
-  }
+  if (command && event.key.toLowerCase() === "s") { event.preventDefault(); saveBoard(true); }
+  else if (command && event.key.toLowerCase() === "z" && event.shiftKey) { event.preventDefault(); store.redo(); }
+  else if (command && event.key.toLowerCase() === "z") { event.preventDefault(); store.undo(); }
+  else if (command && event.key.toLowerCase() === "y") { event.preventDefault(); store.redo(); }
+  else if (command && event.key.toLowerCase() === "a") { event.preventDefault(); store.setSelection(store.getState().board.document.entities.map((entity) => entity.id)); }
+  else if (["Delete", "Backspace"].includes(event.key)) { event.preventDefault(); deleteSelection(); }
+  else if (event.key === "Escape") store.setSelection([]);
+  else if (event.key.toLowerCase() === "f") $("#fit-pitch").click();
+  else if (event.key.toLowerCase() === "v") store.setUI({ activeTool: "select" });
+  else if (event.key.toLowerCase() === "h") store.setUI({ activeTool: "hand" });
 }
 
 async function toggleFullscreen() {
@@ -262,7 +571,7 @@ function persistRecoveryDraft() {
 
 function loadRecoveryDraft() {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(DRAFT_KEY) || localStorage.getItem("koru:tactics:recovery-draft:v1");
     return raw ? normalizeBoard(JSON.parse(raw)) : null;
   } catch {
     localStorage.removeItem(DRAFT_KEY);
