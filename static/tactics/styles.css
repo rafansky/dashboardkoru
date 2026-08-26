@@ -388,13 +388,17 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .playback-controls > span { color: var(--muted); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
 .play-button { width: 34px; height: 34px; border-radius: 50%; background: var(--orange); }
 .scene-strip { min-width: 0; display: flex; gap: 7px; overflow-x: auto; }
-.scene-card { width: 168px; height: 62px; flex: 0 0 auto; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; padding: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; }
+.scene-card { width: 168px; height: 62px; flex: 0 0 auto; display: grid; grid-template-columns: 28px minmax(0, 1fr) 22px; align-items: center; gap: 7px; padding: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); text-align: left; cursor: pointer; }
 .scene-card:hover { border-color: var(--line-strong); background: var(--surface-3); }
 .scene-card.active { border-color: rgba(249, 85, 22, 0.65); background: rgba(249, 85, 22, 0.11); }
 .scene-card > span { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: var(--orange); font-size: 0.63rem; font-weight: 900; }
 .scene-card > div { min-width: 0; display: grid; gap: 3px; }
 .scene-card strong { overflow: hidden; font-size: 0.67rem; text-overflow: ellipsis; white-space: nowrap; }
 .scene-card small { color: var(--soft); font-size: 0.57rem; }
+.scene-card-delete { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 4px; color: var(--soft); cursor: pointer; }
+.scene-card-delete:hover { color: var(--red); background: rgba(255, 88, 101, 0.12); }
+.scene-card-delete.disabled { opacity: 0.3; pointer-events: none; }
+.scene-card-delete svg { width: 13px; height: 13px; }
 .timeline-meta { display: grid; justify-items: end; gap: 2px; color: var(--soft); font-size: 0.58rem; text-transform: uppercase; }
 .timeline-meta .icon-button { width: 28px; height: 28px; }
 .timeline-meta strong { color: var(--text); font-size: 1rem; }

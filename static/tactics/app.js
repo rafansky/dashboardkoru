@@ -12,7 +12,7 @@ import {
   normalizeBoard,
 } from "./model.js?v=20260825d";
 import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260825i";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260827a";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -38,6 +38,7 @@ let lastSelectionKey = "";
 let lastSceneUiKey = "";
 let previewUrl = null;
 let playbackFrame = null;
+let playbackToken = 0;
 
 new Pitch2DInteractions({
   viewport: $("#pitch-viewport"),
@@ -119,6 +120,12 @@ function bindControls() {
   $("#next-scene-button").addEventListener("click", () => activateScene(store.getState().playback.sceneIndex + 1));
   $("#play-button").addEventListener("click", playNextScene);
   $("#scene-strip").addEventListener("click", (event) => {
+    const deleteButton = event.target.closest("[data-delete-scene-index]");
+    if (deleteButton) {
+      event.stopPropagation();
+      deleteScene(Number(deleteButton.dataset.deleteSceneIndex));
+      return;
+    }
     const button = event.target.closest("[data-scene-index]");
     if (button) activateScene(Number(button.dataset.sceneIndex));
   });
@@ -413,6 +420,7 @@ function renderSceneUi(state) {
     <button type="button" class="scene-card${itemIndex === index ? " active" : ""}" data-scene-index="${itemIndex}">
       <span>${String(itemIndex + 1).padStart(2, "0")}</span>
       <div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.notes || `${formatDuration(item.duration)} · ${transitionLabel(item.transition)}`)}</small></div>
+      <span class="scene-card-delete${scenes.length <= 1 || state.playback.playing ? " disabled" : ""}" data-delete-scene-index="${itemIndex}" role="button" aria-label="Eliminar escena ${itemIndex + 1}" title="Eliminar escena"><i data-lucide="trash-2"></i></span>
     </button>`).join("");
   $("#scene-counter").textContent = `${index + 1} de ${scenes.length}`;
   $("#scene-total").textContent = String(scenes.length);
@@ -478,12 +486,20 @@ function duplicateActiveScene() {
 function deleteActiveScene() {
   const state = store.getState();
   const index = currentSceneIndex(state);
-  if (state.board.document.scenes.length <= 1) return;
-  const scenes = state.board.document.scenes.filter((_, itemIndex) => itemIndex !== index);
-  const nextIndex = Math.max(0, index - 1);
-  store.update(["board", "document", "scenes"], scenes, "Eliminar escena");
-  store.applyScene(nextIndex, applySceneToEntities(state.board.document.entities, scenes[nextIndex]));
+  deleteScene(index);
+}
+
+function deleteScene(index) {
+  const state = store.getState();
+  const scenes = state.board.document.scenes;
+  if (state.playback.playing || scenes.length <= 1 || index < 0 || index >= scenes.length) return;
+  const remaining = scenes.filter((_, itemIndex) => itemIndex !== index);
+  const nextIndex = Math.min(index, remaining.length - 1);
+  const nextEntities = applySceneToEntities(state.board.document.entities, remaining[nextIndex]);
+  store.update(["board", "document", "scenes"], remaining, "Eliminar escena");
+  store.applyScene(nextIndex, nextEntities);
   afterDocumentChange();
+  toast(`Escena eliminada. Ahora estas en la escena ${nextIndex + 1}`);
 }
 
 function moveActiveScene(direction) {
@@ -519,19 +535,30 @@ function playNextScene() {
     return;
   }
   const index = currentSceneIndex(state);
-  const targetIndex = index + 1;
-  if (targetIndex >= state.board.document.scenes.length) {
+  if (index >= state.board.document.scenes.length - 1) {
     toast("Ya estas en la ultima escena");
     return;
   }
-  const targetScene = state.board.document.scenes[targetIndex];
+  playbackToken += 1;
+  const token = playbackToken;
+  store.setPlayback({ playing: true, time: 0 });
+  playSceneTransition(index, token);
+}
+
+function playSceneTransition(fromIndex, token) {
+  const state = store.getState();
+  const scenes = state.board.document.scenes;
+  const targetIndex = fromIndex + 1;
+  if (token !== playbackToken || targetIndex >= scenes.length) return;
+  const targetScene = scenes[targetIndex];
   const startEntities = structuredClone(state.board.document.entities);
   const targetEntities = applySceneToEntities(startEntities, targetScene);
-  const duration = Math.max(500, targetScene.duration * 1000 / state.board.document.timeline.speed);
+  const speed = Math.max(0.1, state.board.document.timeline.speed || 1);
+  const duration = Math.max(500, Number(targetScene.duration || 3) * 1000 / speed);
   const startedAt = performance.now();
-  store.setPlayback({ playing: true, time: 0 });
 
   const tick = (now) => {
+    if (token !== playbackToken) return;
     const progress = Math.min(1, (now - startedAt) / duration);
     const eased = easing(progress, targetScene.transition);
     const positions = Object.fromEntries(targetEntities.map((target, entityIndex) => {
@@ -547,13 +574,16 @@ function playNextScene() {
     if (progress < 1) playbackFrame = requestAnimationFrame(tick);
     else {
       playbackFrame = null;
-      store.applyScene(targetIndex, targetEntities);
+      const hasNext = targetIndex < scenes.length - 1;
+      store.applyScene(targetIndex, targetEntities, { playing: hasNext, time: 0 });
+      if (hasNext) playbackFrame = requestAnimationFrame(() => playSceneTransition(targetIndex, token));
     }
   };
   playbackFrame = requestAnimationFrame(tick);
 }
 
 function cancelPlayback() {
+  playbackToken += 1;
   if (playbackFrame !== null) cancelAnimationFrame(playbackFrame);
   playbackFrame = null;
   const playback = store.getState().playback;

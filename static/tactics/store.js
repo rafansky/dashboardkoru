@@ -96,14 +96,14 @@ export function createEditorStore(initialBoard, initialDirty = false) {
       state = { ...state, playback: { ...state.playback, ...patch } };
       notify();
     },
-    applyScene(sceneIndex, entities) {
+    applyScene(sceneIndex, entities, playbackPatch = {}) {
       state = {
         ...state,
         board: {
           ...state.board,
           document: { ...state.board.document, entities: structuredClone(entities) },
         },
-        playback: { ...state.playback, playing: false, time: 0, sceneIndex },
+        playback: { ...state.playback, playing: false, time: 0, sceneIndex, ...playbackPatch },
         selection: [],
         documentRevision: state.documentRevision + 1,
       };

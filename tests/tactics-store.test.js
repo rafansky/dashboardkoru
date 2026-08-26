@@ -40,3 +40,12 @@ test("opening a scene updates the working positions without dirtying the board",
   assert.deepEqual(store.getState().board.document.entities[0].position, { x: 50, y: 30 });
   assert.equal(store.getState().dirty, false);
 });
+
+test("applying a scene can keep playback active while chaining", () => {
+  const store = createEditorStore({ document: { entities: [{ id: "a", position: { x: 1, y: 2 } }] } });
+  store.applyScene(1, [{ id: "a", position: { x: 50, y: 30 } }], { playing: true, time: 0 });
+  assert.equal(store.getState().playback.sceneIndex, 1);
+  assert.equal(store.getState().playback.playing, true);
+  store.applyScene(2, [{ id: "a", position: { x: 70, y: 40 } }]);
+  assert.equal(store.getState().playback.playing, false);
+});
