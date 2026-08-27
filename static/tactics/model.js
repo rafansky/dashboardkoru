@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const PITCH_WIDTH = 105;
 export const PITCH_HEIGHT = 68;
 
@@ -44,6 +44,7 @@ export function createSceneFromEntities(name, entities, source = {}) {
     transition: source.transition || "ease-in-out",
     notes: source.notes || "",
     entityStates: captureSceneEntityStates(entities),
+    annotations: structuredClone(source.annotations || []),
   };
 }
 
@@ -81,7 +82,7 @@ export function createDefaultDocument() {
     drawings: [],
     zones: [],
     groups: [],
-    scenes: [{ id: createTacticalId(), name: "Escena base", duration: 3, transition: "ease-in-out", notes: "", entityStates: [] }],
+    scenes: [{ id: createTacticalId(), name: "Escena base", duration: 3, transition: "ease-in-out", notes: "", entityStates: [], annotations: [] }],
     timeline: { mode: "scenes", loop: false, speed: 1 },
     camera: {
       preset: "tactical",
@@ -133,6 +134,7 @@ export function normalizeBoard(board) {
       pitch: { ...base.document.pitch, ...(document.pitch || {}) },
       settings: { ...base.document.settings, ...(document.settings || {}) },
       teams: normalizeTeams(document.teams || base.document.teams),
+      scenes: normalizeScenes(document.scenes || base.document.scenes),
       analysis: normalizeAnalysis(document.analysis),
     },
   };
@@ -155,7 +157,15 @@ export function migrateDocument(source) {
     document.analysis = { activeSessionId: null, sessions: [] };
     document.schemaVersion = 2;
   }
+  if (version <= 2) {
+    document.scenes = (document.scenes || []).map((scene) => ({ ...scene, annotations: scene.annotations || [] }));
+    document.schemaVersion = 3;
+  }
   return document;
+}
+
+function normalizeScenes(scenes) {
+  return structuredClone(scenes || []).map((scene) => ({ ...scene, entityStates: scene.entityStates || [], annotations: scene.annotations || [] }));
 }
 
 function normalizeAnalysis(source) {

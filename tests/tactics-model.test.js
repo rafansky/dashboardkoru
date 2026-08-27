@@ -8,9 +8,9 @@ test("IDs work when randomUUID is unavailable on public HTTP", () => {
   assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 });
 
-test("phase one documents migrate to analysis schema", () => {
+test("legacy documents migrate to the current tactical schema", () => {
   const migrated = migrateDocument({ schemaVersion: 1, pitch: { width: 105, height: 68 } });
-  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.schemaVersion, 3);
   assert.deepEqual(migrated.analysis, { activeSessionId: null, sessions: [] });
   const board = normalizeBoard({ document: migrated });
   assert.equal(board.document.analysis.sessions.length, 1);
@@ -60,8 +60,10 @@ test("a ball entity uses the same validated tactical shape", () => {
 
 test("a scene captures and restores a complete entity state", () => {
   const entities = [{ id: "player-1", position: { x: 12, y: 18, z: 0 }, rotation: 90, scale: 1, opacity: 1 }];
-  const scene = createSceneFromEntities("Salida", entities, { duration: 4, transition: "linear", notes: "Abrir amplitud" });
+  const annotations = [{ id: "arrow-1", type: "arrow", start: { x: 10, y: 10 }, end: { x: 20, y: 10 } }];
+  const scene = createSceneFromEntities("Salida", entities, { duration: 4, transition: "linear", notes: "Abrir amplitud", annotations });
   assert.deepEqual(scene.entityStates, captureSceneEntityStates(entities));
+  assert.deepEqual(scene.annotations, annotations);
   const moved = [{ ...entities[0], position: { x: 60, y: 34, z: 0 } }];
   assert.deepEqual(applySceneToEntities(moved, scene)[0].position, { x: 12, y: 18, z: 0 });
 });

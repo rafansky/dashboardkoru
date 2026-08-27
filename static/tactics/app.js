@@ -10,9 +10,9 @@ import {
   createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260825d";
+} from "./model.js?v=20260827b";
 import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260827a";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260827b";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -49,6 +49,8 @@ new Pitch2DInteractions({
   onMove: commitEntityMove,
   onDropPlayer: (reference, position) => addRosterPlayer(reference.playerKey, position),
   onViewportChange: (patch) => store.setUI(patch),
+  onDraw: addTacticalAnnotation,
+  onText: addTextAnnotation,
 });
 
 document.addEventListener("DOMContentLoaded", init);
@@ -175,9 +177,10 @@ function afterDocumentChange() {
 
 function render(state) {
   const { board, ui } = state;
-  if (state.documentRevision !== lastDocumentRevision) {
-    renderer.render(board.document);
-    lastDocumentRevision = state.documentRevision;
+  const renderKey = `${state.documentRevision}:${currentSceneIndex(state)}`;
+  if (renderKey !== lastDocumentRevision) {
+    renderer.render(board.document, currentScene(state)?.annotations || []);
+    lastDocumentRevision = renderKey;
     renderRoster();
     renderAnalysis();
   }
@@ -469,6 +472,34 @@ function captureActiveScene() {
   store.update(["board", "document", "scenes", index, "entityStates"], captureSceneEntityStates(state.board.document.entities), "Capturar escena");
   afterDocumentChange();
   toast("Posiciones guardadas en esta escena");
+}
+
+function addTacticalAnnotation(type, start, end) {
+  if (Math.hypot(end.x - start.x, end.y - start.y) < 1) return;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const annotation = {
+    id: createTacticalId(),
+    type,
+    start: { x: start.x, y: start.y },
+    end: { x: end.x, y: end.y },
+    color: type === "arrow" ? "#f95516" : "#12d6df",
+  };
+  const annotations = [...(state.board.document.scenes[index].annotations || []), annotation];
+  store.update(["board", "document", "scenes", index, "annotations"], annotations, type === "arrow" ? "Dibujar flecha" : "Dibujar zona");
+  afterDocumentChange();
+  toast(type === "arrow" ? "Flecha anadida a esta escena" : "Zona anadida a esta escena");
+}
+
+function addTextAnnotation(position) {
+  const text = window.prompt("Texto tactico");
+  if (!text?.trim()) return;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const annotation = { id: createTacticalId(), type: "text", position: { x: position.x, y: position.y }, text: text.trim(), color: "#f7f8fb" };
+  const annotations = [...(state.board.document.scenes[index].annotations || []), annotation];
+  store.update(["board", "document", "scenes", index, "annotations"], annotations, "Anadir texto tactico");
+  afterDocumentChange();
 }
 
 function duplicateActiveScene() {

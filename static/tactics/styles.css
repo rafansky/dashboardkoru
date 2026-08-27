@@ -277,6 +277,10 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .analysis-line { stroke: rgba(250, 204, 21, 0.62); stroke-width: 0.22; stroke-dasharray: 1.4 1; vector-effect: non-scaling-stroke; }
 .analysis-line.lanes { stroke: rgba(18, 214, 223, 0.5); }
 .grid-line { stroke: rgba(255, 255, 255, 0.18); stroke-width: 0.15; stroke-dasharray: 0.5 1; vector-effect: non-scaling-stroke; }
+.tactical-annotation { pointer-events: none; vector-effect: non-scaling-stroke; }
+.tactical-arrow { stroke-width: 0.65; stroke-linecap: round; }
+.tactical-zone { fill-opacity: 0.18; stroke-width: 0.35; stroke-dasharray: 1.2 0.8; }
+.tactical-text { font-size: 2.3px; font-weight: 900; paint-order: stroke; stroke: rgba(7, 9, 12, 0.86); stroke-width: 0.7px; stroke-linejoin: round; }
 .pitch-entity text { fill: #fff; font-size: 1.8px; font-weight: 900; pointer-events: none; }
 .pitch-entity { cursor: grab; }
 .pitch-entity:active { cursor: grabbing; }
