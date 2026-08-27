@@ -188,8 +188,8 @@ function addAnnotations(group, annotations, pitch) {
   const point = (value) => projectPerspectivePoint(value, pitch);
   const arrowId = "tactical-arrowhead";
   const defs = svgElement("defs");
-  const marker = svgElement("marker", { id: arrowId, markerWidth: 4, markerHeight: 4, refX: 3.2, refY: 2, orient: "auto", markerUnits: "strokeWidth" });
-  marker.append(svgElement("path", { d: "M 0 0 L 4 2 L 0 4 Z", fill: "#f95516" }));
+  const marker = svgElement("marker", { id: arrowId, markerWidth: 5.5, markerHeight: 5.5, refX: 4.9, refY: 2.75, orient: "auto", markerUnits: "strokeWidth" });
+  marker.append(svgElement("path", { d: "M 0 0 L 5.5 2.75 L 0 5.5 Z", fill: "#f95516" }));
   defs.append(marker);
   group.append(defs);
 
