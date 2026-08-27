@@ -10,9 +10,9 @@ import {
   createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260827b";
+} from "./model.js?v=20260827c";
 import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260827b";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260827c";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -140,6 +140,8 @@ function bindControls() {
   $("#delete-scene-button").addEventListener("click", deleteActiveScene);
   $("#scene-back-button").addEventListener("click", () => moveActiveScene(-1));
   $("#scene-forward-button").addEventListener("click", () => moveActiveScene(1));
+  $("#annotation-list").addEventListener("change", updateAnnotationColor);
+  $("#annotation-list").addEventListener("click", handleAnnotationAction);
 
   $("#new-session-button").addEventListener("click", createSession);
   $("#analysis-session").addEventListener("change", (event) => change(["board", "document", "analysis", "activeSessionId"], event.target.value, "Cambiar sesion"));
@@ -185,6 +187,7 @@ function render(state) {
     renderAnalysis();
   }
   renderSceneUi(state);
+  renderAnnotationList(state);
   renderer.setSelection(state.selection);
   const selectionKey = state.selection.join("|");
   if (selectionKey !== lastSelectionKey || state.documentRevision === lastDocumentRevision) {
@@ -499,6 +502,47 @@ function addTextAnnotation(position) {
   const annotation = { id: createTacticalId(), type: "text", position: { x: position.x, y: position.y }, text: text.trim(), color: "#f7f8fb" };
   const annotations = [...(state.board.document.scenes[index].annotations || []), annotation];
   store.update(["board", "document", "scenes", index, "annotations"], annotations, "Anadir texto tactico");
+  afterDocumentChange();
+}
+
+function renderAnnotationList(state) {
+  const annotations = currentScene(state)?.annotations || [];
+  $("#annotation-count").textContent = String(annotations.length);
+  $("#annotation-list").innerHTML = annotations.length ? annotations.map((annotation, index) => {
+    const label = annotation.type === "arrow" ? `Flecha ${index + 1}` : annotation.type === "zone" ? `Zona ${index + 1}` : annotation.text || `Texto ${index + 1}`;
+    const icon = annotation.type === "arrow" ? "move-up-right" : annotation.type === "zone" ? "square-dashed" : "type";
+    return `<div class="annotation-row"><i data-lucide="${icon}"></i><strong>${escapeHtml(label)}</strong><input type="color" value="${escapeHtml(annotation.color || "#f95516")}" data-annotation-color="${annotation.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" class="annotation-edit" data-edit-annotation="${annotation.id}" title="Editar texto" aria-label="Editar texto"${annotation.type === "text" ? "" : " hidden"}><i data-lucide="pencil"></i></button><button type="button" class="annotation-delete" data-delete-annotation="${annotation.id}" title="Eliminar anotacion" aria-label="Eliminar anotacion"><i data-lucide="trash-2"></i></button></div>`;
+  }).join("") : `<div class="compact-empty">Usa las herramientas de la izquierda para anotar esta escena.</div>`;
+  refreshIcons();
+}
+
+function updateAnnotationColor(event) {
+  const input = event.target.closest("[data-annotation-color]");
+  if (!input) return;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const annotations = state.board.document.scenes[index].annotations.map((annotation) => annotation.id === input.dataset.annotationColor ? { ...annotation, color: input.value } : annotation);
+  store.update(["board", "document", "scenes", index, "annotations"], annotations, "Cambiar color de anotacion");
+  afterDocumentChange();
+}
+
+function handleAnnotationAction(event) {
+  const deleteButton = event.target.closest("[data-delete-annotation]");
+  const editButton = event.target.closest("[data-edit-annotation]");
+  if (!deleteButton && !editButton) return;
+  const id = (deleteButton || editButton).dataset.deleteAnnotation || (deleteButton || editButton).dataset.editAnnotation;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const current = state.board.document.scenes[index].annotations || [];
+  if (deleteButton) {
+    store.update(["board", "document", "scenes", index, "annotations"], current.filter((annotation) => annotation.id !== id), "Eliminar anotacion");
+    afterDocumentChange();
+    return;
+  }
+  const annotation = current.find((item) => item.id === id);
+  const text = window.prompt("Texto tactico", annotation?.text || "");
+  if (!annotation || !text?.trim()) return;
+  store.update(["board", "document", "scenes", index, "annotations"], current.map((item) => item.id === id ? { ...item, text: text.trim() } : item), "Editar texto tactico");
   afterDocumentChange();
 }
 

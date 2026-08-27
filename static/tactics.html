@@ -85,6 +85,10 @@
             <label>Nota<textarea id="scene-notes" rows="3" maxlength="4000" placeholder="Que debe ocurrir en este momento..."></textarea></label>
             <div class="scene-actions"><button class="secondary-button" id="capture-scene-button" type="button"><i data-lucide="camera"></i><span>Capturar</span></button><button class="secondary-button" id="duplicate-scene-button" type="button" title="Duplicar escena" aria-label="Duplicar escena"><i data-lucide="copy"></i></button><button class="secondary-button" id="scene-back-button" type="button" title="Mover escena atras" aria-label="Mover escena atras"><i data-lucide="chevron-left"></i></button><button class="secondary-button" id="scene-forward-button" type="button" title="Mover escena adelante" aria-label="Mover escena adelante"><i data-lucide="chevron-right"></i></button><button class="danger-button scene-delete-button" id="delete-scene-button" type="button" title="Eliminar escena" aria-label="Eliminar escena"><i data-lucide="trash-2"></i></button></div>
           </div>
+          <div class="property-section annotation-section">
+            <div class="section-title"><strong>Anotaciones</strong><span id="annotation-count">0</span></div>
+            <div class="annotation-list" id="annotation-list"></div>
+          </div>
           <div class="property-section analysis-log-section">
             <div class="section-title"><strong>Bitacora</strong><button class="icon-button small" id="new-session-button" type="button" title="Nueva sesion" aria-label="Nueva sesion"><i data-lucide="plus"></i></button></div>
             <label>Sesion<select id="analysis-session"></select></label>
@@ -113,6 +117,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260827b"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260827c"></script>
   </body>
 </html>

@@ -344,6 +344,15 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .scene-actions .secondary-button, .scene-actions .danger-button { min-width: 0; padding: 0; }
 .scene-actions .secondary-button:first-child { padding: 0 8px; }
 .scene-delete-button { width: 33px; }
+.annotation-list { display: grid; gap: 5px; }
+.annotation-row { display: grid; grid-template-columns: 15px minmax(0, 1fr) 24px 24px 24px; align-items: center; gap: 5px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: #0c0e13; }
+.annotation-row > i { width: 14px; height: 14px; color: var(--soft); }
+.annotation-row strong { overflow: hidden; font-size: 0.62rem; text-overflow: ellipsis; white-space: nowrap; }
+.annotation-row input[type="color"] { width: 24px; min-height: 24px; height: 24px; padding: 1px; border-radius: 4px; cursor: pointer; }
+.annotation-row button { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 4px; background: transparent; color: var(--soft); cursor: pointer; }
+.annotation-row button:hover { background: var(--surface-3); color: var(--text); }
+.annotation-row .annotation-delete:hover { color: var(--red); background: rgba(255, 88, 101, 0.12); }
+.annotation-row button svg { width: 13px; height: 13px; }
 .session-fields input, .session-fields select, .analysis-meta-fields input, .analysis-meta-fields select { min-width: 0; }
 .analysis-form { display: grid; gap: 6px; }
 .analysis-list { display: grid; gap: 5px; max-height: 270px; overflow-y: auto; }

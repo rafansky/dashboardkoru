@@ -1,4 +1,4 @@
-import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260827b";
+import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260827c";
 
 const NS = "http://www.w3.org/2000/svg";
 
