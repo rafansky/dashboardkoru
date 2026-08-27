@@ -1,4 +1,4 @@
-import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260827d";
+import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260827e";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -195,7 +195,7 @@ function addAnnotations(group, annotations, pitch) {
 
   annotations.forEach((annotation) => {
     const color = annotation.color || "#f95516";
-    const item = svgElement("g", { class: `tactical-annotation-item annotation-${annotation.type}`, "data-annotation-id": annotation.id, tabindex: 0, role: "button", "aria-label": annotation.type === "arrow" ? "Flecha tactica" : annotation.type === "zone" ? "Zona tactica" : "Texto tactico" });
+    const item = svgElement("g", { class: `tactical-annotation-item annotation-${annotation.type}`, "data-annotation-id": annotation.id, "aria-label": annotation.type === "arrow" ? "Flecha tactica" : "Zona tactica" });
     if (annotation.type === "arrow") {
       const start = point(annotation.start);
       const end = point(annotation.end);
