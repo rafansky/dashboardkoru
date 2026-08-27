@@ -1,4 +1,4 @@
-import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260827c";
+import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260827d";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -195,23 +195,25 @@ function addAnnotations(group, annotations, pitch) {
 
   annotations.forEach((annotation) => {
     const color = annotation.color || "#f95516";
+    const item = svgElement("g", { class: `tactical-annotation-item annotation-${annotation.type}`, "data-annotation-id": annotation.id, tabindex: 0, role: "button", "aria-label": annotation.type === "arrow" ? "Flecha tactica" : annotation.type === "zone" ? "Zona tactica" : "Texto tactico" });
     if (annotation.type === "arrow") {
       const start = point(annotation.start);
       const end = point(annotation.end);
-      group.append(svgElement("line", { class: "tactical-annotation tactical-arrow", x1: start.x, y1: start.y, x2: end.x, y2: end.y, stroke: color, "marker-end": `url(#${arrowId})` }));
+      item.append(svgElement("line", { class: "tactical-annotation tactical-arrow", x1: start.x, y1: start.y, x2: end.x, y2: end.y, stroke: color, "marker-end": `url(#${arrowId})` }));
     } else if (annotation.type === "zone") {
       const start = point(annotation.start);
       const end = point(annotation.end);
       const corners = perspective
         ? [annotation.start, { x: annotation.start.x, y: annotation.end.y }, annotation.end, { x: annotation.end.x, y: annotation.start.y }].map(point)
         : [{ x: start.x, y: start.y }, { x: start.x, y: end.y }, { x: end.x, y: end.y }, { x: end.x, y: start.y }];
-      group.append(svgElement("polygon", { class: "tactical-annotation tactical-zone", points: pointString(corners), fill: color, stroke: color }));
+      item.append(svgElement("polygon", { class: "tactical-annotation tactical-zone", points: pointString(corners), fill: color, stroke: color }));
     } else if (annotation.type === "text") {
       const position = point(annotation.position);
       const label = svgElement("text", { class: "tactical-annotation tactical-text", x: position.x, y: position.y, fill: color, "text-anchor": "middle" });
       label.textContent = annotation.text || "Nota";
-      group.append(label);
+      item.append(label);
     }
+    group.append(item);
   });
 }
 
@@ -255,10 +257,13 @@ export class Pitch2DRenderer {
   }
 
   setSelection(ids) {
-    if (!this.entityLayer) return;
+    if (!this.entityLayer || !this.svg) return;
     const selected = new Set(ids);
     this.entityLayer.querySelectorAll("[data-entity-id]").forEach((element) => {
       element.classList.toggle("selected", selected.has(element.dataset.entityId));
+    });
+    this.svg.querySelectorAll("[data-annotation-id]").forEach((element) => {
+      element.classList.toggle("selected", selected.has(element.dataset.annotationId));
     });
   }
 

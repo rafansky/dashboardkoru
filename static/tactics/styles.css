@@ -277,7 +277,13 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .analysis-line { stroke: rgba(250, 204, 21, 0.62); stroke-width: 0.22; stroke-dasharray: 1.4 1; vector-effect: non-scaling-stroke; }
 .analysis-line.lanes { stroke: rgba(18, 214, 223, 0.5); }
 .grid-line { stroke: rgba(255, 255, 255, 0.18); stroke-width: 0.15; stroke-dasharray: 0.5 1; vector-effect: non-scaling-stroke; }
-.tactical-annotation { pointer-events: none; vector-effect: non-scaling-stroke; }
+.tactical-annotation { vector-effect: non-scaling-stroke; }
+.tactical-annotation-item { cursor: move; }
+.tactical-annotation-item .tactical-arrow { pointer-events: stroke; }
+.tactical-annotation-item .tactical-zone, .tactical-annotation-item .tactical-text { pointer-events: visiblePainted; }
+.tactical-annotation-item.selected .tactical-arrow { stroke: var(--cyan); filter: drop-shadow(0 0 1px rgba(18, 214, 223, 0.95)); }
+.tactical-annotation-item.selected .tactical-zone { stroke: var(--cyan); fill-opacity: 0.3; }
+.tactical-annotation-item.selected .tactical-text { fill: var(--cyan); }
 .tactical-arrow { stroke-width: 1.15; stroke-linecap: round; }
 .tactical-zone { fill-opacity: 0.18; stroke-width: 0.35; stroke-dasharray: 1.2 0.8; }
 .tactical-text { font-size: 2.3px; font-weight: 900; paint-order: stroke; stroke: rgba(7, 9, 12, 0.86); stroke-width: 0.7px; stroke-linejoin: round; }
@@ -346,6 +352,7 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .scene-delete-button { width: 33px; }
 .annotation-list { display: grid; gap: 5px; }
 .annotation-row { display: grid; grid-template-columns: 15px minmax(0, 1fr) 24px 24px 24px; align-items: center; gap: 5px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: #0c0e13; }
+.annotation-row.active { border-color: rgba(18, 214, 223, 0.65); background: rgba(18, 214, 223, 0.08); }
 .annotation-row > i { width: 14px; height: 14px; color: var(--soft); }
 .annotation-row strong { overflow: hidden; font-size: 0.62rem; text-overflow: ellipsis; white-space: nowrap; }
 .annotation-row input[type="color"] { width: 24px; min-height: 24px; height: 24px; padding: 1px; border-radius: 4px; cursor: pointer; }

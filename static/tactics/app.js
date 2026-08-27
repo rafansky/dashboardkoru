@@ -10,9 +10,9 @@ import {
   createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260827c";
+} from "./model.js?v=20260827d";
 import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260827c";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260827d";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -51,6 +51,7 @@ new Pitch2DInteractions({
   onViewportChange: (patch) => store.setUI(patch),
   onDraw: addTacticalAnnotation,
   onText: addTextAnnotation,
+  onAnnotationMove: moveTacticalAnnotation,
 });
 
 document.addEventListener("DOMContentLoaded", init);
@@ -505,13 +506,29 @@ function addTextAnnotation(position) {
   afterDocumentChange();
 }
 
+function moveTacticalAnnotation(id, start, end) {
+  const delta = { x: end.x - start.x, y: end.y - start.y };
+  if (Math.hypot(delta.x, delta.y) < 0.1) return;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const pitch = state.board.document.pitch;
+  const movePoint = (point) => ({ x: Math.max(0, Math.min(pitch.width, point.x + delta.x)), y: Math.max(0, Math.min(pitch.height, point.y + delta.y)) });
+  const annotations = state.board.document.scenes[index].annotations.map((annotation) => {
+    if (annotation.id !== id) return annotation;
+    if (annotation.type === "text") return { ...annotation, position: movePoint(annotation.position) };
+    return { ...annotation, start: movePoint(annotation.start), end: movePoint(annotation.end) };
+  });
+  store.update(["board", "document", "scenes", index, "annotations"], annotations, "Mover anotacion");
+  afterDocumentChange();
+}
+
 function renderAnnotationList(state) {
   const annotations = currentScene(state)?.annotations || [];
   $("#annotation-count").textContent = String(annotations.length);
   $("#annotation-list").innerHTML = annotations.length ? annotations.map((annotation, index) => {
     const label = annotation.type === "arrow" ? `Flecha ${index + 1}` : annotation.type === "zone" ? `Zona ${index + 1}` : annotation.text || `Texto ${index + 1}`;
     const icon = annotation.type === "arrow" ? "move-up-right" : annotation.type === "zone" ? "square-dashed" : "type";
-    return `<div class="annotation-row"><i data-lucide="${icon}"></i><strong>${escapeHtml(label)}</strong><input type="color" value="${escapeHtml(annotation.color || "#f95516")}" data-annotation-color="${annotation.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" class="annotation-edit" data-edit-annotation="${annotation.id}" title="Editar texto" aria-label="Editar texto"${annotation.type === "text" ? "" : " hidden"}><i data-lucide="pencil"></i></button><button type="button" class="annotation-delete" data-delete-annotation="${annotation.id}" title="Eliminar anotacion" aria-label="Eliminar anotacion"><i data-lucide="trash-2"></i></button></div>`;
+    return `<div class="annotation-row${state.selection.includes(annotation.id) ? " active" : ""}" data-annotation-row="${annotation.id}"><i data-lucide="${icon}"></i><strong>${escapeHtml(label)}</strong><input type="color" value="${escapeHtml(annotation.color || "#f95516")}" data-annotation-color="${annotation.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" class="annotation-edit" data-edit-annotation="${annotation.id}" title="Editar texto" aria-label="Editar texto"${annotation.type === "text" ? "" : " hidden"}><i data-lucide="pencil"></i></button><button type="button" class="annotation-delete" data-delete-annotation="${annotation.id}" title="Eliminar anotacion" aria-label="Eliminar anotacion"><i data-lucide="trash-2"></i></button></div>`;
   }).join("") : `<div class="compact-empty">Usa las herramientas de la izquierda para anotar esta escena.</div>`;
   refreshIcons();
 }
@@ -706,6 +723,14 @@ function deleteSelection() {
   const selected = new Set(state.selection);
   if (!selected.size) return;
   const document = state.board.document;
+  const sceneIndex = currentSceneIndex(state);
+  const selectedAnnotations = new Set((document.scenes[sceneIndex].annotations || []).filter((annotation) => selected.has(annotation.id)).map((annotation) => annotation.id));
+  if (selectedAnnotations.size) {
+    store.update(["board", "document", "scenes", sceneIndex, "annotations"], document.scenes[sceneIndex].annotations.filter((annotation) => !selectedAnnotations.has(annotation.id)), "Eliminar anotacion");
+    store.setSelection([]);
+    afterDocumentChange();
+    return;
+  }
   const sessions = document.analysis.sessions.map((session) => ({
     ...session,
     entries: session.entries.map((entry) => ({ ...entry, entityIds: entry.entityIds.filter((id) => !selected.has(id)) })),
@@ -723,7 +748,13 @@ function deleteSelection() {
 function renderSelection() {
   const state = store.getState();
   const entities = state.selection.map((id) => state.board.document.entities.find((entity) => entity.id === id)).filter(Boolean);
-  $("#selection-section").hidden = !entities.length;
+  const annotation = (currentScene(state)?.annotations || []).find((item) => state.selection.includes(item.id));
+  $("#selection-section").hidden = !entities.length && !annotation;
+  if (annotation) {
+    $("#selection-summary").textContent = "Anotacion";
+    $("#selection-detail").innerHTML = `<strong>${annotation.type === "arrow" ? "Flecha" : annotation.type === "zone" ? "Zona" : escapeHtml(annotation.text || "Texto")}</strong><small>Arrastra sobre el campo para moverla.</small>`;
+    return;
+  }
   if (!entities.length) return;
   $("#selection-summary").textContent = `${entities.length} ${entities.length === 1 ? "objeto" : "objetos"}`;
   $("#selection-detail").innerHTML = entities.length === 1
