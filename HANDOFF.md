@@ -126,3 +126,12 @@ Fecha: 2026-08-29
 - Persistencia: tabla `tactical_play_templates`. API `GET /api/tactical-play-templates`, `GET/DELETE /api/tactical-play-templates/{id}`, `POST /api/tactical-play-templates`.
 - Una jugada conserva documento táctico (jugadores, campo, flechas, anotaciones y escenas), pero al guardarse se limpian análisis y metadatos. Al usarla genera una nueva pizarra sin `matchId` y con bitácora nueva, dejando la maestra intacta.
 - Siguiente fase sugerida: formaciones rápidas base (`4-2-3-1`, `4-3-3`, `3-5-2`, etc.) que se puedan completar con una alineación guardada.
+# Relevo - Fase 8B: Formaciones rápidas
+
+Fecha: 2026-08-30
+
+- Ultimo commit previsto: `add quick formation presets`.
+- La barra izquierda incluye **Formación rápida**: `4-2-3-1`, `4-3-3`, `4-4-2`, `3-5-2` y `5-2-1-2`.
+- Aplicar una formación sustituye solo los jugadores KORU por puestos vacíos (`POR`, `DFC`, etc.), conserva rival/elementos/anotaciones y actualiza todas las escenas.
+- Si se carga una alineación mientras hay puestos de formación, sus jugadores ocupan esos puntos por coincidencia de posición, completando los restantes en orden. Sin puestos de formación, conserva las coordenadas guardadas por la alineación.
+- Siguiente fase sugerida: capas de visibilidad para mostrar/ocultar equipos, nombres, balón y anotaciones durante una explicación.

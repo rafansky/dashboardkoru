@@ -24,6 +24,13 @@ const AUTO_POSITIONS = {
   home: [[8, 34], [24, 12], [22, 31], [22, 48], [34, 58], [43, 20], [44, 43], [60, 10], [61, 34], [60, 57], [79, 34]],
   away: [[97, 34], [81, 12], [83, 31], [83, 48], [71, 58], [62, 20], [61, 43], [45, 10], [44, 34], [45, 57], [26, 34]],
 };
+const FORMATION_PRESETS = {
+  "4-2-3-1": [["POR", 8, 34], ["LD", 23, 10], ["DFC", 20, 26], ["DFC", 20, 42], ["LI", 23, 58], ["MCD", 38, 25], ["MCD", 38, 43], ["ED", 56, 10], ["MCO", 58, 34], ["EI", 56, 58], ["DC", 78, 34]],
+  "4-3-3": [["POR", 8, 34], ["LD", 23, 10], ["DFC", 20, 26], ["DFC", 20, 42], ["LI", 23, 58], ["MC", 40, 18], ["MCD", 37, 34], ["MC", 40, 50], ["ED", 66, 10], ["DC", 72, 34], ["EI", 66, 58]],
+  "4-4-2": [["POR", 8, 34], ["LD", 23, 10], ["DFC", 20, 26], ["DFC", 20, 42], ["LI", 23, 58], ["MD", 43, 10], ["MC", 42, 26], ["MC", 42, 42], ["MI", 43, 58], ["DC", 70, 23], ["DC", 70, 45]],
+  "3-5-2": [["POR", 8, 34], ["DFC", 21, 18], ["DFC", 18, 34], ["DFC", 21, 50], ["CAD", 42, 8], ["MC", 40, 23], ["MCD", 38, 34], ["MC", 40, 45], ["CAI", 42, 60], ["DC", 70, 23], ["DC", 70, 45]],
+  "5-2-1-2": [["POR", 8, 34], ["CAD", 24, 6], ["DFC", 19, 21], ["DFC", 17, 34], ["DFC", 19, 47], ["CAI", 24, 62], ["MC", 40, 25], ["MC", 40, 43], ["MCO", 56, 34], ["DC", 72, 23], ["DC", 72, 45]],
+};
 
 const recoveryDraft = loadRecoveryDraft();
 const store = createEditorStore(recoveryDraft || createNewBoard(), Boolean(recoveryDraft));
@@ -191,6 +198,7 @@ function bindControls() {
   $("#load-lineup-template-button").addEventListener("click", loadSelectedLineupTemplate);
   $("#delete-lineup-template-button").addEventListener("click", deleteSelectedLineupTemplate);
   $("#lineup-template-form").addEventListener("submit", saveLineupTemplate);
+  $("#apply-formation-button").addEventListener("click", applySelectedFormation);
   $("#save-play-template-button").addEventListener("click", openPlayTemplateDialog);
   $("#play-template-filter").addEventListener("change", renderPlayTemplateLibrary);
   $("#play-template-list").addEventListener("click", handlePlayTemplateAction);
@@ -578,9 +586,11 @@ function loadSelectedLineupTemplate() {
   const template = lineupTemplates.find((item) => item.id === $("#lineup-template-select").value);
   if (!template) return;
   const state = store.getState();
-  const existingHomeIds = new Set(state.board.document.entities.filter((entity) => entity.type === "player" && entity.teamId === "home").map((entity) => entity.id));
+  const existingHomePlayers = state.board.document.entities.filter((entity) => entity.type === "player" && entity.teamId === "home");
+  const existingHomeIds = new Set(existingHomePlayers.map((entity) => entity.id));
   const remainingEntities = state.board.document.entities.filter((entity) => !existingHomeIds.has(entity.id));
-  const players = template.players.map((player) => createPlayerEntity({
+  const positions = formationPositionsForLineup(template.players, existingHomePlayers);
+  const players = template.players.map((player, index) => createPlayerEntity({
     username: player.name,
     name: player.name,
     number: player.number,
@@ -588,7 +598,7 @@ function loadSelectedLineupTemplate() {
     rosterKey: player.rosterKey,
     avatarUrl: player.avatarUrl,
     source: "lineup-template",
-  }, "home", player.position, player.number));
+  }, "home", positions[index], player.number));
   const scenes = state.board.document.scenes.map((scene) => ({
     ...scene,
     entityStates: [...scene.entityStates.filter((item) => !existingHomeIds.has(item.entityId)), ...captureSceneEntityStates(players)],
@@ -601,6 +611,17 @@ function loadSelectedLineupTemplate() {
   afterDocumentChange();
   syncLineupWithTemplate(template, players);
   toast(`${template.name}${template.formation ? ` (${template.formation})` : ""} cargada`);
+}
+
+function formationPositionsForLineup(templatePlayers, currentHomePlayers) {
+  const slots = currentHomePlayers.filter((player) => player.metadata?.formationSlot);
+  if (slots.length !== templatePlayers.length) return templatePlayers.map((player) => player.position);
+  const available = [...slots];
+  return templatePlayers.map((player) => {
+    const matchingIndex = available.findIndex((slot) => slot.positionLabel === player.positionLabel);
+    const slot = available.splice(matchingIndex >= 0 ? matchingIndex : 0, 1)[0];
+    return slot ? { ...slot.position } : player.position;
+  });
 }
 
 function syncLineupWithTemplate(template, players) {
@@ -626,6 +647,46 @@ async function deleteSelectedLineupTemplate() {
   } catch (error) {
     toast(error.message || "No se pudo eliminar la alineacion");
   }
+}
+
+function applySelectedFormation() {
+  const formation = $("#formation-select").value;
+  const slots = FORMATION_PRESETS[formation];
+  if (!slots) return;
+  const state = store.getState();
+  const currentHomePlayers = state.board.document.entities.filter((entity) => entity.type === "player" && entity.teamId === "home");
+  if (currentHomePlayers.length && !window.confirm(`Aplicar ${formation} sustituira los ${currentHomePlayers.length} jugadores KORU del campo por posiciones vacias.`)) return;
+
+  const attackRight = state.board.document.settings.attackDirection !== "right-to-left";
+  const placeholders = slots.map(([role, x, y], index) => ({
+    id: createTacticalId(),
+    type: "player",
+    teamId: "home",
+    name: role,
+    number: null,
+    positionLabel: role,
+    position: { x: attackRight ? x : 105 - x, y, z: 0 },
+    rotation: attackRight ? 90 : 270,
+    scale: 1,
+    opacity: 0.82,
+    locked: false,
+    visible: true,
+    metadata: { formationSlot: true, formation, slotIndex: index },
+  }));
+  const oldIds = new Set(currentHomePlayers.map((player) => player.id));
+  const entities = [...state.board.document.entities.filter((entity) => !oldIds.has(entity.id)), ...placeholders];
+  const scenes = state.board.document.scenes.map((scene) => ({
+    ...scene,
+    entityStates: [...scene.entityStates.filter((item) => !oldIds.has(item.entityId)), ...captureSceneEntityStates(placeholders)],
+  }));
+  store.updateMany([
+    { path: ["board", "document", "entities"], value: entities },
+    { path: ["board", "document", "scenes"], value: scenes },
+    { path: ["board", "document", "metadata"], value: { ...state.board.document.metadata, formation } },
+  ], `Aplicar formacion ${formation}`);
+  store.setSelection(placeholders.map((item) => item.id));
+  afterDocumentChange();
+  toast(`${formation} aplicada. Carga una alineacion para asignar jugadores.`);
 }
 
 function findRosterPlayer(playerKey) {

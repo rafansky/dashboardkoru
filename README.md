@@ -71,6 +71,10 @@ Al vincular una pizarra con un partido aparece **Convocatoria** en las propiedad
 
 Guarda cualquier pizarra como jugada reutilizable con nombre, categoría y descripción. La plantilla conserva campo, jugadores, movimientos, anotaciones y escenas, pero no el partido ni la bitácora. Desde la barra izquierda puedes filtrarla y crear una pizarra nueva desde una jugada sin alterar su original.
 
+### Formaciones rápidas
+
+El selector **Formación rápida** añade los puestos vacíos de KORU para `4-2-3-1`, `4-3-3`, `4-4-2`, `3-5-2` y `5-2-1-2`. Después carga una alineación guardada para ocupar esos puestos: se asigna por posición cuando existe coincidencia y conserva rival, balón, anotaciones y escenas.
+
 La segunda fase del editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard.
 
 Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.

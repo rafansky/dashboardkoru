@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829g" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830a" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -48,6 +48,10 @@
           <section class="lineup-templates" id="lineup-templates">
             <div class="section-title"><strong>Alineaciones</strong><button class="icon-button small" id="save-lineup-template-button" type="button" aria-label="Guardar alineacion actual" title="Guardar alineacion"><i data-lucide="bookmark-plus"></i></button></div>
             <div class="lineup-template-picker"><select id="lineup-template-select" aria-label="Alineacion guardada"><option value="">Sin plantilla</option></select><button class="icon-button small" id="load-lineup-template-button" type="button" aria-label="Cargar alineacion" title="Cargar alineacion" disabled><i data-lucide="upload"></i></button><button class="icon-button small" id="delete-lineup-template-button" type="button" aria-label="Eliminar alineacion" title="Eliminar alineacion" disabled><i data-lucide="trash-2"></i></button></div>
+          </section>
+          <section class="formation-presets" id="formation-presets">
+            <div class="section-title"><strong>Formación rápida</strong></div>
+            <div class="formation-picker"><select id="formation-select" aria-label="Formación base"><option value="4-2-3-1">4-2-3-1</option><option value="4-3-3">4-3-3</option><option value="4-4-2">4-4-2</option><option value="3-5-2">3-5-2</option><option value="5-2-1-2">5-2-1-2</option></select><button class="icon-button small" id="apply-formation-button" type="button" aria-label="Aplicar formación" title="Aplicar formación"><i data-lucide="layout-template"></i></button></div>
           </section>
           <div class="roster-list" id="roster-list"></div>
           <div class="library-divider"></div>
@@ -172,6 +176,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260829g"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260830a"></script>
   </body>
 </html>
