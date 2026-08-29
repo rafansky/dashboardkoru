@@ -117,3 +117,12 @@ Fecha: 2026-08-29
 - `GET /api/match-history` incluye `callups` y `callupCount`, listo para mostrar disponibilidad en la futura mejora del historial.
 - Al cargar una alineacion reutilizable en una pizarra vinculada se rellena la convocatoria textual del informe con el once; el manager debe pulsar **Guardar informe** para persistirlo.
 - Siguiente fase sugerida: calendario/convocatoria central con filtros de respuesta y una vista resumen por partido en `/match-history`.
+# Relevo - Fase 8A: Biblioteca táctica
+
+Fecha: 2026-08-29
+
+- Ultimo commit previsto: `add tactical play library`.
+- Biblioteca táctica persistente en la barra izquierda: guardar la pizarra actual como jugada, filtrar por categoría, crear una copia limpia desde ella y borrar plantillas.
+- Persistencia: tabla `tactical_play_templates`. API `GET /api/tactical-play-templates`, `GET/DELETE /api/tactical-play-templates/{id}`, `POST /api/tactical-play-templates`.
+- Una jugada conserva documento táctico (jugadores, campo, flechas, anotaciones y escenas), pero al guardarse se limpian análisis y metadatos. Al usarla genera una nueva pizarra sin `matchId` y con bitácora nueva, dejando la maestra intacta.
+- Siguiente fase sugerida: formaciones rápidas base (`4-2-3-1`, `4-3-3`, `3-5-2`, etc.) que se puedan completar con una alineación guardada.

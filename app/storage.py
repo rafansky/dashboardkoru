@@ -110,6 +110,20 @@ def init_storage() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tactical_lineup_templates_updated ON tactical_lineup_templates(updated_at DESC)")
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS tactical_play_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL DEFAULT 'Ataque',
+                description TEXT NOT NULL DEFAULT '',
+                document_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tactical_play_templates_updated ON tactical_play_templates(updated_at DESC)")
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS match_reports (
                 match_id TEXT PRIMARY KEY,
                 opponent TEXT NOT NULL DEFAULT '',
@@ -877,5 +891,50 @@ def create_tactical_lineup_template(payload: dict[str, Any]) -> dict[str, Any]:
 def delete_tactical_lineup_template(template_id: str) -> bool:
     with closing(sqlite3.connect(DB_PATH)) as conn:
         cursor = conn.execute("DELETE FROM tactical_lineup_templates WHERE id = ?", (template_id,))
+        conn.commit()
+    return cursor.rowcount > 0
+
+
+def _tactical_play_template_from_row(row: sqlite3.Row, include_document: bool = True) -> dict[str, Any]:
+    template = _row_to_dict(row)
+    if include_document:
+        template["document"] = json.loads(template.pop("document_json"))
+    else:
+        template.pop("document_json", None)
+    return template
+
+
+def list_tactical_play_templates() -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM tactical_play_templates ORDER BY updated_at DESC").fetchall()
+    return [_tactical_play_template_from_row(row, include_document=False) for row in rows]
+
+
+def get_tactical_play_template(template_id: str) -> dict[str, Any] | None:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM tactical_play_templates WHERE id = ?", (template_id,)).fetchone()
+    return _tactical_play_template_from_row(row) if row else None
+
+
+def create_tactical_play_template(payload: dict[str, Any]) -> dict[str, Any]:
+    template_id = uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute(
+            """
+            INSERT INTO tactical_play_templates (id, name, category, description, document_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (template_id, payload["name"], payload.get("category", "Ataque"), payload.get("description", ""), json.dumps(payload["document"], ensure_ascii=False, separators=(",", ":")), now, now),
+        )
+        conn.commit()
+    return get_tactical_play_template(template_id)  # type: ignore[return-value]
+
+
+def delete_tactical_play_template(template_id: str) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("DELETE FROM tactical_play_templates WHERE id = ?", (template_id,))
         conn.commit()
     return cursor.rowcount > 0

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829f" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829g" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -50,6 +50,12 @@
             <div class="lineup-template-picker"><select id="lineup-template-select" aria-label="Alineacion guardada"><option value="">Sin plantilla</option></select><button class="icon-button small" id="load-lineup-template-button" type="button" aria-label="Cargar alineacion" title="Cargar alineacion" disabled><i data-lucide="upload"></i></button><button class="icon-button small" id="delete-lineup-template-button" type="button" aria-label="Eliminar alineacion" title="Eliminar alineacion" disabled><i data-lucide="trash-2"></i></button></div>
           </section>
           <div class="roster-list" id="roster-list"></div>
+          <div class="library-divider"></div>
+          <section class="play-library" id="play-library">
+            <div class="panel-heading library-heading"><div><span>Plantillas</span><strong>Biblioteca táctica</strong></div><button class="icon-button small" id="save-play-template-button" type="button" aria-label="Guardar pizarra en biblioteca" title="Guardar en biblioteca"><i data-lucide="book-plus"></i></button></div>
+            <select id="play-template-filter" aria-label="Filtrar biblioteca"><option value="">Todas las categorías</option><option>Ataque</option><option>Defensa</option><option>Transicion</option><option>Presion</option><option>Salida de balon</option><option>Finalizacion</option><option>Corner</option><option>Falta</option><option>Saque de banda</option><option>Entrenamiento</option><option>Analisis rival</option></select>
+            <div class="play-template-list" id="play-template-list"></div>
+          </section>
           <div class="library-divider"></div>
           <div class="panel-heading library-heading"><div><span>Documentos</span><strong>Biblioteca</strong></div><button class="icon-button small" id="new-board-button" type="button" aria-label="Nueva pizarra" title="Nueva pizarra"><i data-lucide="plus"></i></button></div>
           <div class="board-list" id="board-list"></div>
@@ -145,6 +151,13 @@
         <footer><button class="secondary-button" value="cancel" type="submit">Cancelar</button><button class="primary-button" id="confirm-lineup-template-button" value="default" type="submit"><i data-lucide="bookmark-plus"></i><span>Guardar</span></button></footer>
       </form>
     </dialog>
+    <dialog class="player-dialog lineup-template-dialog" id="play-template-dialog">
+      <form method="dialog" id="play-template-form">
+        <header><div><span>Biblioteca táctica</span><strong>Guardar jugada</strong></div><button class="icon-button small" value="cancel" type="submit" aria-label="Cerrar" title="Cerrar"><i data-lucide="x"></i></button></header>
+        <div class="player-form-body"><label>Nombre<input id="play-template-name" required maxlength="120" placeholder="Salida 3+2 contra presión" /></label><div class="player-form-grid"><label>Categoría<select id="play-template-category"><option>Ataque</option><option>Defensa</option><option>Transicion</option><option>Presion</option><option>Salida de balon</option><option>Finalizacion</option><option>Corner</option><option>Falta</option><option>Saque de banda</option><option>Entrenamiento</option><option>Analisis rival</option></select></label><label>Escenas<input id="play-template-scenes" disabled /></label></div><label>Descripción<textarea id="play-template-description" rows="3" maxlength="1000" placeholder="Cuándo usarla y qué debe conseguir el equipo..."></textarea></label></div>
+        <footer><button class="secondary-button" value="cancel" type="submit">Cancelar</button><button class="primary-button" id="confirm-play-template-button" value="default" type="submit"><i data-lucide="book-plus"></i><span>Guardar</span></button></footer>
+      </form>
+    </dialog>
     <dialog class="player-dialog" id="player-dialog">
       <form id="player-form" method="dialog">
         <header><div><span>Plantilla tactica</span><strong>Crear jugador</strong></div><button class="icon-button small" id="close-player-dialog" type="button" aria-label="Cerrar" title="Cerrar"><i data-lucide="x"></i></button></header>
@@ -159,6 +172,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260829f"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260829g"></script>
   </body>
 </html>

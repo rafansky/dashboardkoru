@@ -325,6 +325,13 @@ class TacticalLineupTemplateCreate(TacticalModel):
     players: list[TacticalLineupTemplatePlayer] = Field(min_length=1, max_length=25)
 
 
+class TacticalPlayTemplateCreate(TacticalModel):
+    name: str = Field(min_length=1, max_length=120)
+    category: str = Field(default="Ataque", max_length=60)
+    description: str = Field(default="", max_length=1000)
+    document: TacticalBoardDocument
+
+
 TACTICAL_POSITIONS = Literal["POR", "LD", "LI", "DFC", "CAD", "CAI", "MCD", "MC", "MD", "MI", "MCO", "ED", "EI", "SD", "DC", "LIBRE"]
 
 

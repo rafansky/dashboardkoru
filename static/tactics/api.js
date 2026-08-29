@@ -40,6 +40,10 @@ export const tacticsApi = {
   listLineupTemplates: () => request("/api/tactical-lineup-templates"),
   createLineupTemplate: (payload) => request("/api/tactical-lineup-templates", jsonOptions("POST", payload)),
   deleteLineupTemplate: (id) => request(`/api/tactical-lineup-templates/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  listPlayTemplates: () => request("/api/tactical-play-templates"),
+  getPlayTemplate: (id) => request(`/api/tactical-play-templates/${encodeURIComponent(id)}`),
+  createPlayTemplate: (payload) => request("/api/tactical-play-templates", jsonOptions("POST", payload)),
+  deletePlayTemplate: (id) => request(`/api/tactical-play-templates/${encodeURIComponent(id)}`, { method: "DELETE" }),
   uploadFile: (file) => {
     const body = new FormData();
     body.append("file", file);

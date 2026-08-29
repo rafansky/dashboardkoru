@@ -32,6 +32,7 @@ let boards = [];
 let dashboardRoster = [];
 let customRoster = [];
 let lineupTemplates = [];
+let playTemplates = [];
 let matches = [];
 let saveTimer = null;
 let savePromise = null;
@@ -71,20 +72,23 @@ async function init() {
   refreshIcons();
 
   try {
-    const [boardList, dashboard, playerList, templates] = await Promise.all([
+    const [boardList, dashboard, playerList, templates, plays] = await Promise.all([
       tacticsApi.listBoards(),
       tacticsApi.getDashboard(),
       tacticsApi.listPlayers(),
       tacticsApi.listLineupTemplates(),
+      tacticsApi.listPlayTemplates(),
     ]);
     boards = boardList;
     customRoster = playerList;
     lineupTemplates = templates;
+    playTemplates = plays;
     dashboardRoster = dashboard.analytics?.playerElo || dashboard.leaderboards?.scorers || [];
     matches = uniqueMatches([...(dashboard.upcoming || []), ...(dashboard.recent || [])]);
     renderMatchOptions();
     renderLibrary();
     renderLineupTemplates();
+    renderPlayTemplateLibrary();
     renderRoster();
     await loadMatchReport(store.getState().board.matchId);
 
@@ -187,6 +191,10 @@ function bindControls() {
   $("#load-lineup-template-button").addEventListener("click", loadSelectedLineupTemplate);
   $("#delete-lineup-template-button").addEventListener("click", deleteSelectedLineupTemplate);
   $("#lineup-template-form").addEventListener("submit", saveLineupTemplate);
+  $("#save-play-template-button").addEventListener("click", openPlayTemplateDialog);
+  $("#play-template-filter").addEventListener("change", renderPlayTemplateLibrary);
+  $("#play-template-list").addEventListener("click", handlePlayTemplateAction);
+  $("#play-template-form").addEventListener("submit", savePlayTemplate);
 
   document.addEventListener("keydown", handleShortcut);
   window.addEventListener("beforeunload", persistRecoveryDraft);
@@ -337,6 +345,118 @@ function renderLibrary() {
     </button>`).join("") : `<div class="compact-empty">Todavia no hay pizarras guardadas.</div>`;
   $$('[data-board-id]').forEach((button) => button.addEventListener("click", () => openBoard(button.dataset.boardId).catch((error) => toast(error.message))));
   refreshIcons();
+}
+
+function renderPlayTemplateLibrary() {
+  const filter = $("#play-template-filter").value;
+  const templates = playTemplates.filter((template) => !filter || template.category === filter);
+  $("#play-template-list").innerHTML = templates.length ? templates.map((template) => `
+    <article class="play-template-row">
+      <div><strong>${escapeHtml(template.name)}</strong><small>${escapeHtml(template.category)}${template.description ? ` · ${escapeHtml(template.description)}` : ""}</small></div>
+      <button type="button" data-use-play-template="${template.id}" title="Crear pizarra desde plantilla" aria-label="Usar ${escapeHtml(template.name)}"><i data-lucide="copy-plus"></i></button>
+      <button type="button" data-delete-play-template="${template.id}" title="Eliminar de biblioteca" aria-label="Eliminar ${escapeHtml(template.name)}"><i data-lucide="trash-2"></i></button>
+    </article>`).join("") : `<div class="compact-empty">No hay jugadas en esta categoría.</div>`;
+  refreshIcons();
+}
+
+function openPlayTemplateDialog() {
+  const board = store.getState().board;
+  $("#play-template-form").reset();
+  $("#play-template-name").value = board.name === "Nueva pizarra" ? "" : board.name;
+  $("#play-template-category").value = board.category || "Ataque";
+  $("#play-template-description").value = board.description || "";
+  $("#play-template-scenes").value = String(board.document.scenes.length);
+  $("#play-template-dialog").showModal();
+  $("#play-template-name").focus();
+  refreshIcons();
+}
+
+function playTemplateDocument() {
+  const board = store.getState().board;
+  const cleanAnalysis = createNewBoard().document.analysis;
+  return {
+    ...structuredClone(board.document),
+    analysis: cleanAnalysis,
+    metadata: {},
+  };
+}
+
+async function savePlayTemplate(event) {
+  event.preventDefault();
+  if (event.submitter?.value === "cancel") {
+    $("#play-template-dialog").close();
+    return;
+  }
+  const payload = {
+    name: $("#play-template-name").value.trim(),
+    category: $("#play-template-category").value,
+    description: $("#play-template-description").value.trim(),
+    document: playTemplateDocument(),
+  };
+  if (!payload.name) return;
+  const button = $("#confirm-play-template-button");
+  button.disabled = true;
+  try {
+    const template = await tacticsApi.createPlayTemplate(payload);
+    playTemplates.unshift({ ...template, document: undefined });
+    $("#play-template-dialog").close();
+    renderPlayTemplateLibrary();
+    toast(`${template.name} guardada en biblioteca`);
+  } catch (error) {
+    toast(error.message || "No se pudo guardar la jugada");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function handlePlayTemplateAction(event) {
+  const useButton = event.target.closest("[data-use-play-template]");
+  if (useButton) {
+    await createBoardFromPlayTemplate(useButton.dataset.usePlayTemplate);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-play-template]");
+  if (!deleteButton) return;
+  const template = playTemplates.find((item) => item.id === deleteButton.dataset.deletePlayTemplate);
+  if (!template || !window.confirm(`Eliminar la jugada "${template.name}" de la biblioteca?`)) return;
+  try {
+    await tacticsApi.deletePlayTemplate(template.id);
+    playTemplates = playTemplates.filter((item) => item.id !== template.id);
+    renderPlayTemplateLibrary();
+    toast("Jugada eliminada de la biblioteca");
+  } catch (error) {
+    toast(error.message || "No se pudo eliminar la jugada");
+  }
+}
+
+async function createBoardFromPlayTemplate(templateId) {
+  if (store.getState().dirty) {
+    try { await saveBoard(false); } catch { return; }
+  }
+  try {
+    const template = await tacticsApi.getPlayTemplate(templateId);
+    const base = createNewBoard();
+    const board = normalizeBoard({
+      ...base,
+      name: `${template.name} - copia`,
+      description: template.description || "",
+      category: template.category,
+      document: {
+        ...structuredClone(template.document),
+        analysis: base.document.analysis,
+        metadata: { sourceTemplateId: template.id },
+      },
+    });
+    const saved = await tacticsApi.createBoard(boardPayload(board));
+    store.replaceBoard(normalizeBoard(saved));
+    await loadMatchReport(null);
+    await refreshLibrary();
+    history.replaceState(null, "", `/tactics?board=${encodeURIComponent(saved.id)}`);
+    localStorage.removeItem(DRAFT_KEY);
+    toast(`Nueva pizarra creada desde ${template.name}`);
+  } catch (error) {
+    toast(error.message || "No se pudo usar la jugada");
+  }
 }
 
 function rosterPlayers(team) {

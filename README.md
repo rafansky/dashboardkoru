@@ -67,6 +67,10 @@ En el panel izquierdo, bajo los equipos, el bloque **Alineaciones** permite guar
 
 Al vincular una pizarra con un partido aparece **Convocatoria** en las propiedades. Registra por jugador `Disponible`, `Duda`, `No disponible` o `Convocado`, con una nota opcional. Cada respuesta queda guardada en ese partido y el listado de alineaciones puede rellenar la convocatoria del informe; pulsa **Guardar informe** para hacerla definitiva.
 
+### Biblioteca táctica
+
+Guarda cualquier pizarra como jugada reutilizable con nombre, categoría y descripción. La plantilla conserva campo, jugadores, movimientos, anotaciones y escenas, pero no el partido ni la bitácora. Desde la barra izquierda puedes filtrarla y crear una pizarra nueva desde una jugada sin alterar su original.
+
 La segunda fase del editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard.
 
 Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.

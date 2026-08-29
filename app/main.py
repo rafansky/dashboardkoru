@@ -23,6 +23,7 @@ from .storage import (
     attach_file_to_match_report,
     create_tactical_player,
     create_tactical_lineup_template,
+    create_tactical_play_template,
     create_tactical_board,
     create_match_event,
     delete_match_callup,
@@ -32,7 +33,9 @@ from .storage import (
     delete_tactical_board,
     delete_tactical_player,
     delete_tactical_lineup_template,
+    delete_tactical_play_template,
     get_tactical_board,
+    get_tactical_play_template,
     get_match_report,
     get_match_plan,
     init_storage,
@@ -45,6 +48,7 @@ from .storage import (
     list_tactical_boards,
     list_tactical_players,
     list_tactical_lineup_templates,
+    list_tactical_play_templates,
     list_match_reports,
     save_upload,
     upsert_match_report,
@@ -52,7 +56,7 @@ from .storage import (
     upsert_match_plan,
     update_tactical_board,
 )
-from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalSquadPlayerCreate
+from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalPlayTemplateCreate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -366,4 +370,29 @@ async def create_lineup_template(payload: TacticalLineupTemplateCreate) -> dict:
 async def remove_lineup_template(template_id: str) -> dict[str, bool]:
     if not delete_tactical_lineup_template(template_id):
         raise HTTPException(status_code=404, detail="Alineacion no encontrada")
+    return {"deleted": True}
+
+
+@app.get("/api/tactical-play-templates")
+async def tactical_play_templates() -> list[dict]:
+    return list_tactical_play_templates()
+
+
+@app.get("/api/tactical-play-templates/{template_id}")
+async def tactical_play_template(template_id: str) -> dict:
+    template = get_tactical_play_template(template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Jugada no encontrada")
+    return template
+
+
+@app.post("/api/tactical-play-templates", status_code=201)
+async def create_play_template(payload: TacticalPlayTemplateCreate) -> dict:
+    return create_tactical_play_template(payload.model_dump(mode="json", by_alias=True))
+
+
+@app.delete("/api/tactical-play-templates/{template_id}")
+async def remove_play_template(template_id: str) -> dict[str, bool]:
+    if not delete_tactical_play_template(template_id):
+        raise HTTPException(status_code=404, detail="Jugada no encontrada")
     return {"deleted": True}
