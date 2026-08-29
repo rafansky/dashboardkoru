@@ -10,9 +10,9 @@ import {
   createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260829a";
+} from "./model.js?v=20260829b";
 import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260829a";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260829b";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -138,6 +138,7 @@ function bindControls() {
   $("#scene-transition").addEventListener("change", updateSceneDetails);
   $("#scene-notes").addEventListener("change", updateSceneDetails);
   $("#capture-scene-button").addEventListener("click", captureActiveScene);
+  $("#export-scene-button").addEventListener("click", () => exportScenePng().catch((error) => toast(error.message || "No se pudo exportar la escena")));
   $("#duplicate-scene-button").addEventListener("click", duplicateActiveScene);
   $("#delete-scene-button").addEventListener("click", deleteActiveScene);
   $("#scene-back-button").addEventListener("click", () => moveActiveScene(-1));
@@ -444,6 +445,7 @@ function renderSceneUi(state) {
   syncValue("#scene-transition", scene.transition);
   syncValue("#scene-notes", scene.notes);
   $("#capture-scene-button").disabled = state.playback.playing;
+  $("#export-scene-button").disabled = state.playback.playing;
   $("#duplicate-scene-button").disabled = state.playback.playing;
   $("#delete-scene-button").disabled = scenes.length <= 1 || state.playback.playing;
   $("#scene-back-button").disabled = index === 0 || state.playback.playing;
@@ -477,6 +479,78 @@ function captureActiveScene() {
   store.update(["board", "document", "scenes", index, "entityStates"], captureSceneEntityStates(state.board.document.entities), "Capturar escena");
   afterDocumentChange();
   toast("Posiciones guardadas en esta escena");
+}
+
+async function exportScenePng() {
+  const source = renderer.svg;
+  if (!source) throw new Error("No hay campo para exportar");
+  const selectedElements = [...source.querySelectorAll(".selected")];
+  selectedElements.forEach((element) => element.classList.remove("selected"));
+  const clone = source.cloneNode(true);
+  inlineSvgStyles(source, clone);
+  selectedElements.forEach((element) => element.classList.add("selected"));
+  clone.querySelectorAll(".annotation-handle-layer").forEach((element) => element.remove());
+
+  const viewBox = source.viewBox.baseVal;
+  const width = 1920;
+  const height = Math.max(720, Math.round(width * viewBox.height / viewBox.width));
+  clone.setAttribute("width", String(width));
+  clone.setAttribute("height", String(height));
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const image = new Image();
+  const filename = exportFilename();
+  try {
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("No se pudo preparar la imagen"));
+      image.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#0b0d11";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    const png = await new Promise((resolve, reject) => canvas.toBlob((output) => output ? resolve(output) : reject(new Error("No se pudo crear el PNG")), "image/png"));
+    downloadBlob(png, `${filename}.png`);
+    toast("Escena exportada como PNG");
+  } catch (error) {
+    downloadBlob(blob, `${filename}.svg`);
+    toast("La escena se ha descargado como SVG");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function inlineSvgStyles(source, clone) {
+  const properties = ["fill", "fill-opacity", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "font-family", "font-size", "font-weight", "paint-order", "stroke-linejoin", "opacity", "visibility", "display"];
+  const sourceNodes = [source, ...source.querySelectorAll("*")];
+  const cloneNodes = [clone, ...clone.querySelectorAll("*")];
+  sourceNodes.forEach((node, index) => {
+    const target = cloneNodes[index];
+    if (!target) return;
+    const styles = getComputedStyle(node);
+    const declaration = properties.map((property) => `${property}:${styles.getPropertyValue(property)}`).join(";");
+    target.setAttribute("style", declaration);
+  });
+}
+
+function exportFilename() {
+  const board = store.getState().board;
+  const scene = currentScene();
+  const clean = (value) => String(value || "escena").trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+  return `${clean(board.name)}-${clean(scene?.name) || "escena"}`;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function addTacticalAnnotation(type, start, end) {

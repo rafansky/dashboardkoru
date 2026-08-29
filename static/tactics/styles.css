@@ -348,7 +348,7 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .session-fields, .analysis-meta-fields, .player-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
 .scene-fields { display: grid; grid-template-columns: 0.72fr minmax(0, 1.28fr); gap: 6px; }
 .scene-fields label { min-width: 0; }
-.scene-actions { display: grid; grid-template-columns: minmax(0, 1fr) 33px 33px 33px 33px; gap: 5px; }
+.scene-actions { display: grid; grid-template-columns: minmax(0, 1fr) repeat(5, 33px); gap: 5px; }
 .scene-actions .secondary-button, .scene-actions .danger-button { min-width: 0; padding: 0; }
 .scene-actions .secondary-button:first-child { padding: 0 8px; }
 .scene-delete-button { width: 33px; }

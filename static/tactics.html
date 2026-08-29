@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829a" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829b" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -83,7 +83,7 @@
             <label>Nombre<input id="scene-name" maxlength="80" placeholder="Nombre de escena" /></label>
             <div class="scene-fields"><label>Duracion<input id="scene-duration" type="number" min="0.5" max="120" step="0.5" /></label><label>Transicion<select id="scene-transition"><option value="ease-in-out">Suave</option><option value="linear">Lineal</option><option value="ease-in">Entrada</option><option value="ease-out">Salida</option></select></label></div>
             <label>Nota<textarea id="scene-notes" rows="3" maxlength="4000" placeholder="Que debe ocurrir en este momento..."></textarea></label>
-            <div class="scene-actions"><button class="secondary-button" id="capture-scene-button" type="button"><i data-lucide="camera"></i><span>Capturar</span></button><button class="secondary-button" id="duplicate-scene-button" type="button" title="Duplicar escena" aria-label="Duplicar escena"><i data-lucide="copy"></i></button><button class="secondary-button" id="scene-back-button" type="button" title="Mover escena atras" aria-label="Mover escena atras"><i data-lucide="chevron-left"></i></button><button class="secondary-button" id="scene-forward-button" type="button" title="Mover escena adelante" aria-label="Mover escena adelante"><i data-lucide="chevron-right"></i></button><button class="danger-button scene-delete-button" id="delete-scene-button" type="button" title="Eliminar escena" aria-label="Eliminar escena"><i data-lucide="trash-2"></i></button></div>
+            <div class="scene-actions"><button class="secondary-button" id="capture-scene-button" type="button"><i data-lucide="camera"></i><span>Capturar</span></button><button class="secondary-button" id="export-scene-button" type="button" title="Exportar PNG" aria-label="Exportar PNG"><i data-lucide="download"></i></button><button class="secondary-button" id="duplicate-scene-button" type="button" title="Duplicar escena" aria-label="Duplicar escena"><i data-lucide="copy"></i></button><button class="secondary-button" id="scene-back-button" type="button" title="Mover escena atras" aria-label="Mover escena atras"><i data-lucide="chevron-left"></i></button><button class="secondary-button" id="scene-forward-button" type="button" title="Mover escena adelante" aria-label="Mover escena adelante"><i data-lucide="chevron-right"></i></button><button class="danger-button scene-delete-button" id="delete-scene-button" type="button" title="Eliminar escena" aria-label="Eliminar escena"><i data-lucide="trash-2"></i></button></div>
           </div>
           <div class="property-section annotation-section">
             <div class="section-title"><strong>Anotaciones</strong><span id="annotation-count">0</span></div>
@@ -117,6 +117,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260829a"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260829b"></script>
   </body>
 </html>
