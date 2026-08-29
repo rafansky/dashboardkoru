@@ -75,7 +75,7 @@ Guarda cualquier pizarra como jugada reutilizable con nombre, categoría y descr
 
 El selector **Formación rápida** añade los puestos vacíos de KORU para `4-2-3-1`, `4-3-3`, `4-4-2`, `3-5-2` y `5-2-1-2`. Después carga una alineación guardada para ocupar esos puestos: se asigna por posición cuando existe coincidencia y conserva rival, balón, anotaciones y escenas.
 
-La segunda fase del editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard.
+El editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard. Incluye las fases 1 a 8B: editor 2D, escenas y reproduccion, anotaciones, expedientes de partido, trabajo en directo, plantillas de alineacion, convocatorias, biblioteca tactica y formaciones rapidas.
 
 Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.
 
@@ -98,7 +98,10 @@ Pruebas:
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py' -v
 npm.cmd run test:tactics
+npm.cmd run test:tactics:e2e
 ```
+
+La prueba E2E necesita la aplicacion ejecutandose. Por defecto usa `http://127.0.0.1:10102`; se puede cambiar con `KORU_E2E_BASE_URL` y `KORU_E2E_PASSWORD`.
 
 ## Estructura
 

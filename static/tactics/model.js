@@ -70,7 +70,7 @@ export function createDefaultDocument() {
       width: PITCH_WIDTH,
       height: PITCH_HEIGHT,
       view: "full",
-      orientation: "left-to-right",
+      orientation: "top-to-bottom",
       surface: "stripes",
       overlays: ["thirds", "five-lanes"],
     },
@@ -134,7 +134,7 @@ export function normalizeBoard(board) {
       pitch: { ...base.document.pitch, ...(document.pitch || {}) },
       settings: { ...base.document.settings, ...(document.settings || {}) },
       teams: normalizeTeams(document.teams || base.document.teams),
-      scenes: normalizeScenes(document.scenes || base.document.scenes),
+      scenes: normalizeScenes(document.scenes, document.entities || []),
       analysis: normalizeAnalysis(document.analysis),
     },
   };
@@ -164,8 +164,9 @@ export function migrateDocument(source) {
   return document;
 }
 
-function normalizeScenes(scenes) {
-  return structuredClone(scenes || []).map((scene) => ({ ...scene, entityStates: scene.entityStates || [], annotations: scene.annotations || [] }));
+function normalizeScenes(scenes, entities = []) {
+  const normalized = structuredClone(scenes || []).map((scene) => ({ ...scene, entityStates: scene.entityStates || [], annotations: scene.annotations || [] }));
+  return normalized.length ? normalized : [createSceneFromEntities("Escena base", entities)];
 }
 
 function normalizeAnalysis(source) {

@@ -10,7 +10,7 @@ import {
   createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260829c";
+} from "./model.js?v=20260830b";
 import { Pitch2DInteractions } from "./interactions2d.js";
 import { Pitch2DRenderer } from "./pitch2d.js?v=20260829c";
 import { createEditorStore } from "./store.js";
@@ -44,7 +44,7 @@ let matches = [];
 let saveTimer = null;
 let savePromise = null;
 let lastDocumentRevision = -1;
-let lastSelectionKey = "";
+let lastSelectionRenderKey = "";
 let lastSceneUiKey = "";
 let previewUrl = null;
 let playbackFrame = null;
@@ -237,10 +237,10 @@ function render(state) {
   renderSceneUi(state);
   renderAnnotationList(state);
   renderer.setSelection(state.selection);
-  const selectionKey = state.selection.join("|");
-  if (selectionKey !== lastSelectionKey || state.documentRevision === lastDocumentRevision) {
+  const selectionRenderKey = `${state.documentRevision}:${state.selection.join("|")}`;
+  if (selectionRenderKey !== lastSelectionRenderKey) {
     renderSelection();
-    lastSelectionKey = selectionKey;
+    lastSelectionRenderKey = selectionRenderKey;
   }
 
   document.body.classList.toggle("left-collapsed", ui.leftCollapsed);
@@ -968,7 +968,11 @@ function handleAnnotationAction(event) {
   const deleteButton = event.target.closest("[data-delete-annotation]");
   const editButton = event.target.closest("[data-edit-annotation]");
   const duplicateButton = event.target.closest("[data-duplicate-annotation]");
-  if (!deleteButton && !editButton && !duplicateButton) return;
+  const row = event.target.closest("[data-annotation-row]");
+  if (!deleteButton && !editButton && !duplicateButton) {
+    if (row && !event.target.closest("input")) store.setSelection([row.dataset.annotationRow]);
+    return;
+  }
   const action = deleteButton || editButton || duplicateButton;
   const id = action.dataset.deleteAnnotation || action.dataset.editAnnotation || action.dataset.duplicateAnnotation;
   const state = store.getState();
@@ -988,6 +992,7 @@ function handleAnnotationAction(event) {
   }
   if (deleteButton) {
     store.update(["board", "document", "scenes", index, "annotations"], current.filter((annotation) => annotation.id !== id), "Eliminar anotacion");
+    if (state.selection.includes(id)) store.setSelection([]);
     afterDocumentChange();
     return;
   }

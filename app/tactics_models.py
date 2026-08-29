@@ -221,7 +221,10 @@ class TacticalBoardDocument(TacticalModel):
         if len(entity_ids) != len(set(entity_ids)):
             raise ValueError("Los IDs de entidades deben ser unicos")
 
-        team_ids = {team.id for team in self.teams}
+        team_id_list = [team.id for team in self.teams]
+        if len(team_id_list) != len(set(team_id_list)):
+            raise ValueError("Los IDs de equipos deben ser unicos")
+        team_ids = set(team_id_list)
         for entity in self.entities:
             if entity.position.x > self.pitch.width or entity.position.y > self.pitch.height:
                 raise ValueError(f"La entidad {entity.id} esta fuera del campo")
@@ -232,9 +235,21 @@ class TacticalBoardDocument(TacticalModel):
         for group in self.groups:
             if not set(group.entity_ids).issubset(known_entities):
                 raise ValueError(f"El grupo {group.id} contiene entidades inexistentes")
+        scene_ids = [scene.id for scene in self.scenes]
+        if len(scene_ids) != len(set(scene_ids)):
+            raise ValueError("Los IDs de escenas deben ser unicos")
         for scene in self.scenes:
-            if not {state.entity_id for state in scene.entity_states}.issubset(known_entities):
+            scene_entity_ids = [state.entity_id for state in scene.entity_states]
+            if len(scene_entity_ids) != len(set(scene_entity_ids)):
+                raise ValueError(f"La escena {scene.id} contiene estados duplicados")
+            if not set(scene_entity_ids).issubset(known_entities):
                 raise ValueError(f"La escena {scene.id} contiene entidades inexistentes")
+            for state in scene.entity_states:
+                if state.position.x > self.pitch.width or state.position.y > self.pitch.height:
+                    raise ValueError(f"La escena {scene.id} contiene una posicion fuera del campo")
+            annotation_ids = [annotation.id for annotation in scene.annotations]
+            if len(annotation_ids) != len(set(annotation_ids)):
+                raise ValueError(f"La escena {scene.id} contiene anotaciones duplicadas")
             for annotation in scene.annotations:
                 points = [annotation.start, annotation.end, annotation.position]
                 for point in (item for item in points if item is not None):

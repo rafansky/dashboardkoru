@@ -2,6 +2,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:tactics": "node --test tests/tactics-geometry.test.js tests/tactics-store.test.js tests/tactics-model.test.js"
+    "test:tactics": "node --test tests/tactics-geometry.test.js tests/tactics-store.test.js tests/tactics-model.test.js",
+    "test:tactics:e2e": "playwright test tests/tactics-e2e.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

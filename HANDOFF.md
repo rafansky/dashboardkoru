@@ -18,7 +18,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
   - notes
   - file uploads
   - Rankings y ELO with trend chips and 14-day mini history sparklines
-  - tactical board editor and manager analysis workspace at `/tactics` (Phase 2)
+  - tactical board editor and manager analysis workspace at `/tactics` (through Phase 8B)
 - Uses local SQLite for notes/files metadata and an `uploads/` folder for stored files.
 - Has a private login gate on `/login` with a session cookie and logout button in the dashboard.
 
@@ -69,7 +69,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - Phase 6B is complete: quick live match logging is available in a pizarra linked to a match. `match_events` stores goal, conceded goal, substitution, card, tactical adjustment or note with optional minute. API: `GET/POST/DELETE /api/match-reports/{match_id}/events`; the pizarra has six one-click event actions plus optional minute/note and safe deletion, while `/match-history` renders the event timeline inside each dossier.
 - Managers can create reusable KORU or rival players with name, dorsal, position and an optional uploaded face. Profiles persist in SQLite (`tactical_players`) and use the existing uploads service. KORU tactical markers are always white with orange trim.
 - Tactical IDs use a UUID fallback because the public deployment currently runs over plain HTTP, where browsers do not expose `crypto.randomUUID()`. Keep the cache-version query on the tactical entry module when changing startup code.
-- The 3D button, drawing tools and playback controls are intentionally disabled until their corresponding phases; they do not simulate functionality.
+- The drawing tools and scene playback are functional. Only the 3D button remains intentionally disabled until its renderer phase.
 - Tests use standard-library `unittest` and Node's native test runner. Run the commands documented in `README.md`.
 
 ## Deployment notes
@@ -84,7 +84,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Next phase
 
-- Next high-value manager phase: reusable tactical formations and lineup templates, then staff roles/permissions before sharing beyond the core group.
+- Phase 9: layers and presentation controls for showing/hiding KORU, rival, ball, names and annotations while explaining a play.
 
 ## Repo / workflow notes
 
@@ -94,9 +94,22 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Likely next steps
 
-1. Tactical board Phase 6C: reusable formations and lineup templates for pre-match setup.
-2. Tactical board Phase 7+: lazy-loaded Three.js renderer backed by the same tactical document.
-3. Add staff roles/permissions before team sharing is implemented.
+1. Tactical board Phase 9: layers and presentation controls.
+2. Tactical board Phase 10+: advanced movement paths, presentation mode and graphical lineups.
+3. Add staff roles/permissions before team sharing is implemented; keep 3D/video work for later phases.
+
+## Relevo - Auditoria integral posterior a Fase 8B
+
+Fecha: 2026-08-30
+
+- Se corrigio el refresco del inspector: ahora los datos del elemento seleccionado se actualizan cuando cambia el documento aunque la seleccion siga siendo la misma.
+- Las anotaciones se pueden seleccionar pulsando su nombre en la lista; al borrarlas se limpia tambien la seleccion.
+- Una pizarra antigua o incompleta sin escenas se recupera en el cliente con una `Escena base` utilizable.
+- El backend rechaza estados de escena duplicados, coordenadas de escena fuera del campo y anotaciones duplicadas.
+- Las pizarras nuevas usan por defecto la perspectiva vertical `top-to-bottom`, que aprovecha mejor el movil y coincide con la vista solicitada por KORU. Las pizarras existentes no cambian.
+- FastAPI se actualizo a `0.136.1` para mantener compatibilidad con Pydantic 2.13 y eliminar los avisos masivos de esquema.
+- Se incorporo Playwright con pruebas E2E de escritorio, movil, paneles y seleccion de anotaciones. Ejecutar `npm run test:tactics:e2e` con un servidor local y `KORU_E2E_BASE_URL`/`KORU_E2E_PASSWORD` si no se usan los valores de desarrollo.
+- `node_modules`, resultados y reportes de Playwright estan excluidos de Git y del archivo de despliegue.
 # Relevo - Fase 7A: Alineaciones reutilizables
 
 Fecha: 2026-08-29

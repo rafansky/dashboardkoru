@@ -53,6 +53,41 @@ class TacticalDocumentTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             TacticalBoardDocument.model_validate(payload)
 
+    def test_duplicate_and_out_of_bounds_scene_states_are_rejected(self) -> None:
+        payload = self.document()
+        payload["scenes"][0]["entityStates"].append(
+            {"entityId": "player-1", "position": {"x": 45, "y": 34}}
+        )
+        with self.assertRaises(ValidationError):
+            TacticalBoardDocument.model_validate(payload)
+
+    def test_duplicate_team_scene_and_annotation_ids_are_rejected(self) -> None:
+        payload = self.document()
+        payload["teams"].append(dict(payload["teams"][0]))
+        with self.assertRaises(ValidationError):
+            TacticalBoardDocument.model_validate(payload)
+
+        payload = self.document()
+        payload["scenes"].append(dict(payload["scenes"][0]))
+        with self.assertRaises(ValidationError):
+            TacticalBoardDocument.model_validate(payload)
+
+        payload = self.document()
+        annotation = {
+            "id": "arrow-1",
+            "type": "arrow",
+            "start": {"x": 20, "y": 20},
+            "end": {"x": 40, "y": 30},
+        }
+        payload["scenes"][0]["annotations"] = [annotation, dict(annotation)]
+        with self.assertRaises(ValidationError):
+            TacticalBoardDocument.model_validate(payload)
+
+        payload = self.document()
+        payload["scenes"][0]["entityStates"][0]["position"]["x"] = 106
+        with self.assertRaises(ValidationError):
+            TacticalBoardDocument.model_validate(payload)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,6 +35,9 @@ try {
   }
   tar `
     --exclude ./.venv `
+    --exclude ./node_modules `
+    --exclude ./test-results `
+    --exclude ./playwright-report `
     --exclude ./screenshots `
     --exclude './data/*.db' `
     --exclude './uploads/*' `

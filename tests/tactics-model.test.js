@@ -16,8 +16,22 @@ test("legacy documents migrate to the current tactical schema", () => {
   assert.equal(board.document.analysis.sessions.length, 1);
 });
 
+test("documents without scenes recover with a usable base scene", () => {
+  const board = normalizeBoard({
+    document: {
+      schemaVersion: 3,
+      entities: [{ id: "player-1", position: { x: 12, y: 18, z: 0 }, rotation: 0, scale: 1, opacity: 1 }],
+      scenes: [],
+    },
+  });
+  assert.equal(board.document.scenes.length, 1);
+  assert.equal(board.document.scenes[0].name, "Escena base");
+  assert.equal(board.document.scenes[0].entityStates[0].entityId, "player-1");
+});
+
 test("KORU tactical colors remain white and orange", () => {
   const document = createDefaultDocument();
+  assert.equal(document.pitch.orientation, "top-to-bottom");
   assert.deepEqual(document.teams[0], {
     id: "home",
     name: "KORU eClub",
