@@ -286,7 +286,7 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .tactical-annotation-item.selected .tactical-text { fill: var(--cyan); }
 .annotation-handle { fill: #f7f8fb; stroke: var(--orange); stroke-width: 0.42; vector-effect: non-scaling-stroke; cursor: nwse-resize; }
 .annotation-handle:hover { fill: var(--orange); stroke: #fff; }
-.tactical-arrow { stroke-width: 1.15; stroke-linecap: round; }
+.tactical-arrow { stroke-width: 3.4; stroke-linecap: round; }
 .tactical-zone { fill-opacity: 0.18; stroke-width: 0.35; stroke-dasharray: 1.2 0.8; }
 .tactical-text { font-size: 2.3px; font-weight: 900; paint-order: stroke; stroke: rgba(7, 9, 12, 0.86); stroke-width: 0.7px; stroke-linejoin: round; }
 .pitch-entity text { fill: #fff; font-size: 1.8px; font-weight: 900; pointer-events: none; }

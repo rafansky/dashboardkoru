@@ -110,6 +110,7 @@ Fecha: 2026-08-30
 - FastAPI se actualizo a `0.136.1` para mantener compatibilidad con Pydantic 2.13 y eliminar los avisos masivos de esquema.
 - Se incorporo Playwright con pruebas E2E de escritorio, movil, paneles y seleccion de anotaciones. Ejecutar `npm run test:tactics:e2e` con un servidor local y `KORU_E2E_BASE_URL`/`KORU_E2E_PASSWORD` si no se usan los valores de desarrollo.
 - `node_modules`, resultados y reportes de Playwright estan excluidos de Git y del archivo de despliegue.
+- Ajuste posterior de anotaciones: flechas y zonas muestran previsualizacion en tiempo real al moverlas o redimensionarlas. Las flechas usan trazo `3.4px`, punta mayor con el color propio de cada flecha y tiradores mas pequenos para no ocultarla. La prueba E2E verifica que las coordenadas SVG cambian antes de soltar el raton.
 # Relevo - Fase 7A: Alineaciones reutilizables
 
 Fecha: 2026-08-29

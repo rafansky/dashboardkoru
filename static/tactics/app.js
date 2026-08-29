@@ -11,8 +11,8 @@ import {
   createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260830b";
-import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260829c";
+import { Pitch2DInteractions } from "./interactions2d.js?v=20260830c";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260830c";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";

@@ -186,17 +186,17 @@ function addAnnotations(group, annotations, pitch) {
   if (!annotations?.length) return;
   const perspective = isPerspectiveOrientation(pitch);
   const point = (value) => projectPerspectivePoint(value, pitch);
-  const arrowId = "tactical-arrowhead";
   const defs = svgElement("defs");
-  const marker = svgElement("marker", { id: arrowId, markerWidth: 5.5, markerHeight: 5.5, refX: 4.9, refY: 2.75, orient: "auto", markerUnits: "strokeWidth" });
-  marker.append(svgElement("path", { d: "M 0 0 L 5.5 2.75 L 0 5.5 Z", fill: "#f95516" }));
-  defs.append(marker);
   group.append(defs);
 
   annotations.forEach((annotation) => {
     const color = annotation.color || "#f95516";
     const item = svgElement("g", { class: `tactical-annotation-item annotation-${annotation.type}`, "data-annotation-id": annotation.id, "aria-label": annotation.type === "arrow" ? "Flecha tactica" : "Zona tactica" });
     if (annotation.type === "arrow") {
+      const arrowId = `tactical-arrowhead-${String(annotation.id).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+      const marker = svgElement("marker", { id: arrowId, markerWidth: 5.4, markerHeight: 5.4, refX: 4.8, refY: 2.7, orient: "auto", markerUnits: "strokeWidth" });
+      marker.append(svgElement("path", { d: "M 0 0 L 5.4 2.7 L 0 5.4 Z", fill: color }));
+      defs.append(marker);
       const start = point(annotation.start);
       const end = point(annotation.end);
       item.append(svgElement("line", { class: "tactical-annotation tactical-arrow", x1: start.x, y1: start.y, x2: end.x, y2: end.y, stroke: color, "marker-end": `url(#${arrowId})` }));
@@ -229,7 +229,7 @@ function addAnnotationHandles(group, annotations, selectedIds, pitch) {
         class: "annotation-handle",
         cx: position.x,
         cy: position.y,
-        r: 1.15,
+        r: 0.82,
         "data-annotation-id": annotation.id,
         "data-annotation-handle": key,
         role: "slider",
@@ -238,6 +238,18 @@ function addAnnotationHandles(group, annotations, selectedIds, pitch) {
     });
   });
   group.append(handles);
+}
+
+function moveAnnotationPreview(annotation, start, end, pitch) {
+  const delta = { x: end.x - start.x, y: end.y - start.y };
+  const movePoint = (point) => clampToPitch({ x: point.x + delta.x, y: point.y + delta.y, z: point.z || 0 }, pitch);
+  if (annotation.type === "text") return { ...annotation, position: movePoint(annotation.position) };
+  return { ...annotation, start: movePoint(annotation.start), end: movePoint(annotation.end) };
+}
+
+function resizeAnnotationPreview(annotation, handle, position, pitch) {
+  if (annotation.type === "text") return annotation;
+  return { ...annotation, [handle === "start" ? "start" : "end"]: clampToPitch(position, pitch) };
 }
 
 export class Pitch2DRenderer {
@@ -306,6 +318,32 @@ export class Pitch2DRenderer {
       if (!element || !entity) return;
       element.setAttribute("transform", entityTransform({ ...entity, position }, this.document.pitch));
     });
+  }
+
+  previewAnnotationMove(id, start, end) {
+    const annotation = this.annotations.find((item) => item.id === id);
+    if (!annotation || !this.document) return;
+    this.previewAnnotation(moveAnnotationPreview(annotation, start, end, this.document.pitch));
+  }
+
+  previewAnnotationResize(id, handle, position) {
+    const annotation = this.annotations.find((item) => item.id === id);
+    if (!annotation || !this.document) return;
+    this.previewAnnotation(resizeAnnotationPreview(annotation, handle, position, this.document.pitch));
+  }
+
+  previewAnnotation(annotation) {
+    if (!this.annotationLayer || !this.document) return;
+    const existing = this.annotationLayer.querySelector(`[data-annotation-id="${CSS.escape(annotation.id)}"]`);
+    if (!existing) return;
+    const previewLayer = svgElement("g");
+    addAnnotations(previewLayer, [annotation], this.document.pitch);
+    const replacement = previewLayer.querySelector("[data-annotation-id]");
+    if (!replacement) return;
+    replacement.classList.toggle("selected", existing.classList.contains("selected"));
+    existing.replaceWith(replacement);
+    this.annotationLayer.querySelector(".annotation-handle-layer")?.remove();
+    addAnnotationHandles(this.annotationLayer, [annotation], new Set([annotation.id]), this.document.pitch);
   }
 
   clientToPitch(clientX, clientY) {

@@ -148,8 +148,10 @@ export class Pitch2DInteractions {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
     } else if (this.mode.type === "annotation-drag") {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
+      this.renderer.previewAnnotationMove(this.mode.id, this.mode.startPitch, this.mode.endPitch);
     } else if (this.mode.type === "annotation-resize") {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
+      this.renderer.previewAnnotationResize(this.mode.id, this.mode.handle, this.mode.endPitch);
     } else if (this.mode.type === "marquee") {
       const bounds = this.viewport.getBoundingClientRect();
       this.updateMarquee(this.mode.start, { x: event.clientX - bounds.left, y: event.clientY - bounds.top });
