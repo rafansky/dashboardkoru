@@ -302,6 +302,14 @@ class MatchEventCreate(TacticalModel):
     note: str = Field(default="", max_length=500)
 
 
+class MatchCallupUpsert(TacticalModel):
+    roster_key: str = Field(alias="rosterKey", min_length=1, max_length=180)
+    name: str = Field(min_length=1, max_length=80)
+    number: int = Field(default=0, ge=0, le=99)
+    status: Literal["available", "doubtful", "unavailable", "called"] = "available"
+    note: str = Field(default="", max_length=500)
+
+
 class TacticalLineupTemplatePlayer(TacticalModel):
     roster_key: str = Field(alias="rosterKey", min_length=1, max_length=180)
     name: str = Field(min_length=1, max_length=80)

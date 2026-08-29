@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829e" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829f" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -88,6 +88,15 @@
               <button class="secondary-button" id="save-report-button" type="button"><i data-lucide="clipboard-check"></i><span>Guardar informe</span></button>
             </div>
           </section>
+          <section class="property-section callup-section" id="callup-section">
+            <div class="section-title"><strong>Convocatoria</strong><span id="callup-count">0</span></div>
+            <div class="compact-empty" id="callup-empty">Vincula un partido para gestionar disponibilidad.</div>
+            <div class="callup-fields" id="callup-fields" hidden>
+              <div class="callup-entry"><select id="callup-player" aria-label="Jugador"></select><select id="callup-status" aria-label="Estado"><option value="available">Disponible</option><option value="doubtful">Duda</option><option value="unavailable">No disponible</option><option value="called">Convocado</option></select></div>
+              <div class="callup-entry"><input id="callup-note" maxlength="500" placeholder="Nota opcional" aria-label="Nota de disponibilidad" /><button class="secondary-button" id="save-callup-button" type="button" title="Guardar disponibilidad" aria-label="Guardar disponibilidad"><i data-lucide="user-check"></i></button></div>
+              <div class="callup-list" id="callup-list"></div>
+            </div>
+          </section>
           <section class="property-section live-events-section" id="live-events-section">
             <div class="section-title"><strong>Registro en directo</strong><span id="live-events-count">0</span></div>
             <div class="live-events-fields" id="live-events-fields" hidden>
@@ -150,6 +159,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260829e"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260829f"></script>
   </body>
 </html>

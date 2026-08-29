@@ -25,6 +25,7 @@ from .storage import (
     create_tactical_lineup_template,
     create_tactical_board,
     create_match_event,
+    delete_match_callup,
     delete_note,
     delete_match_event,
     detach_file_from_match_report,
@@ -39,6 +40,7 @@ from .storage import (
     list_match_history,
     list_match_report_files,
     list_match_events,
+    list_match_callups,
     list_notes,
     list_tactical_boards,
     list_tactical_players,
@@ -46,10 +48,11 @@ from .storage import (
     list_match_reports,
     save_upload,
     upsert_match_report,
+    upsert_match_callup,
     upsert_match_plan,
     update_tactical_board,
 )
-from .tactics_models import MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalSquadPlayerCreate
+from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -290,6 +293,23 @@ async def add_match_event(match_id: str, payload: MatchEventCreate) -> dict:
 async def remove_match_event(match_id: str, event_id: int) -> dict[str, bool]:
     if not delete_match_event(match_id, event_id):
         raise HTTPException(status_code=404, detail="Evento no encontrado")
+    return {"deleted": True}
+
+
+@app.get("/api/match-reports/{match_id}/callups")
+async def match_callups(match_id: str) -> list[dict]:
+    return list_match_callups(match_id)
+
+
+@app.put("/api/match-reports/{match_id}/callups")
+async def save_match_callup(match_id: str, payload: MatchCallupUpsert) -> dict:
+    return upsert_match_callup(match_id, payload.model_dump(mode="json", by_alias=True))
+
+
+@app.delete("/api/match-reports/{match_id}/callups/{roster_key}")
+async def remove_match_callup(match_id: str, roster_key: str) -> dict[str, bool]:
+    if not delete_match_callup(match_id, roster_key):
+        raise HTTPException(status_code=404, detail="Convocado no encontrado")
     return {"deleted": True}
 
 

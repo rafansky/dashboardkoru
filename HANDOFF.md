@@ -107,3 +107,13 @@ Fecha: 2026-08-29
 - Cada plantilla conserva nombre, sistema, dorsal, avatar, `rosterKey` y posicion de los jugadores. Al cargar se reemplazan solo los jugadores del equipo local y se actualizan los estados de todas las escenas; no se tocan rival, balon, anotaciones, analisis ni dibujo.
 - Validacion incluida en `tests/test_tactics_api.py::test_lineup_template_crud`.
 - Siguiente fase sugerida: convocatoria por partido y disponibilidad de jugadores, reutilizando las alineaciones guardadas y enlazandolas al informe de partido.
+# Relevo - Fase 7B: Convocatoria y disponibilidad
+
+Fecha: 2026-08-29
+
+- Ultimo commit previsto: `add match callup availability`.
+- Una pizarra vinculada muestra **Convocatoria**: permite registrar disponibilidad por jugador KORU (`available`, `doubtful`, `unavailable`, `called`) y una nota opcional.
+- Persistencia: `match_callups`, con clave primaria `(match_id, roster_key)`. API `GET/PUT/DELETE /api/match-reports/{match_id}/callups`.
+- `GET /api/match-history` incluye `callups` y `callupCount`, listo para mostrar disponibilidad en la futura mejora del historial.
+- Al cargar una alineacion reutilizable en una pizarra vinculada se rellena la convocatoria textual del informe con el once; el manager debe pulsar **Guardar informe** para persistirlo.
+- Siguiente fase sugerida: calendario/convocatoria central con filtros de respuesta y una vista resumen por partido en `/match-history`.

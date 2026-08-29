@@ -145,6 +145,18 @@ class TacticalApiTests(unittest.TestCase):
         self.assertEqual(history_with_event.json()[0]["eventCount"], 1)
         self.assertEqual(self.client.delete(f"/api/match-reports/{payload['matchId']}/events/{event.json()['id']}").status_code, 200)
 
+        callup = self.client.put(
+            f"/api/match-reports/{payload['matchId']}/callups",
+            json={"rosterKey": "custom:ricky", "name": "Ricky", "number": 10, "status": "called", "note": "Llega a las 21:15."},
+        )
+        self.assertEqual(callup.status_code, 200)
+        self.assertEqual(callup.json()["status"], "called")
+        callups = self.client.get(f"/api/match-reports/{payload['matchId']}/callups")
+        self.assertEqual(callups.json()[0]["rosterKey"], "custom:ricky")
+        history_with_callup = self.client.get("/api/match-history")
+        self.assertEqual(history_with_callup.json()[0]["callupCount"], 1)
+        self.assertEqual(self.client.delete(f"/api/match-reports/{payload['matchId']}/callups/custom%3Aricky").status_code, 200)
+
     def test_custom_player_crud(self) -> None:
         created = self.client.post(
             "/api/tactical-players",

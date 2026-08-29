@@ -44,6 +44,7 @@ let playbackToken = 0;
 let matchReport = null;
 let loadedReportMatchId = "";
 let matchEvents = [];
+let matchCallups = [];
 
 new Pitch2DInteractions({
   viewport: $("#pitch-viewport"),
@@ -103,6 +104,11 @@ function bindControls() {
   $("#pitch-surface").addEventListener("change", (event) => change(["board", "document", "pitch", "surface"], event.target.value, "Cambiar cesped"));
   $("#board-match").addEventListener("change", bindBoardToMatch);
   $("#save-report-button").addEventListener("click", () => saveMatchReport().catch((error) => toast(error.message || "No se pudo guardar el informe")));
+  $("#save-callup-button").addEventListener("click", () => saveMatchCallup().catch((error) => toast(error.message || "No se pudo guardar la disponibilidad")));
+  $("#callup-list").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-callup]");
+    if (button) deleteMatchCallup(button.dataset.deleteCallup).catch((error) => toast(error.message || "No se pudo quitar el jugador"));
+  });
   $("#live-event-actions").addEventListener("click", (event) => {
     const button = event.target.closest("[data-live-event]");
     if (button) addLiveEvent(button.dataset.liveEvent).catch((error) => toast(error.message || "No se pudo registrar el evento"));
@@ -473,7 +479,18 @@ function loadSelectedLineupTemplate() {
   ], `Cargar alineacion ${template.name}`);
   store.setSelection(players.map((player) => player.id));
   afterDocumentChange();
+  syncLineupWithTemplate(template, players);
   toast(`${template.name}${template.formation ? ` (${template.formation})` : ""} cargada`);
+}
+
+function syncLineupWithTemplate(template, players) {
+  const matchId = store.getState().board.matchId;
+  if (!matchId) return;
+  const lineup = players.map((player) => player.name);
+  matchReport = { ...(matchReport?.matchId === matchId ? matchReport : emptyMatchReport(matchId)), lineup };
+  syncValue("#report-lineup", lineup.join("\n"));
+  renderMatchReport();
+  toast(`${template.name}: convocatoria del informe preparada; guarda el informe para confirmarla`);
 }
 
 async function deleteSelectedLineupTemplate() {
@@ -1046,10 +1063,12 @@ async function loadMatchReport(matchId) {
   if (!matchId) {
     matchReport = null;
     matchEvents = [];
+    matchCallups = [];
     renderMatchReport();
     return;
   }
   matchReport = emptyMatchReport(matchId);
+  matchCallups = [];
   renderMatchReport();
   try {
     const report = await tacticsApi.getMatchReport(matchId);
@@ -1069,6 +1088,15 @@ async function loadMatchReport(matchId) {
   } catch (error) {
     toast(error.message || "No se pudo cargar el registro en directo");
   }
+  try {
+    const callups = await tacticsApi.listMatchCallups(matchId);
+    if (loadedReportMatchId === matchId) {
+      matchCallups = callups;
+      renderMatchReport();
+    }
+  } catch (error) {
+    toast(error.message || "No se pudo cargar la convocatoria");
+  }
 }
 
 function renderMatchReport() {
@@ -1076,10 +1104,13 @@ function renderMatchReport() {
   const visible = Boolean(matchId);
   $("#match-report-empty").hidden = visible;
   $("#match-report-fields").hidden = !visible;
+  $("#callup-empty").hidden = visible;
+  $("#callup-fields").hidden = !visible;
   $("#live-events-fields").hidden = !visible;
   $("#live-events-count").textContent = String(matchEvents.length);
   if (!visible) {
     $("#match-report-meta").textContent = "Sin vincular";
+    $("#callup-count").textContent = "0";
     return;
   }
   const report = matchReport?.matchId === matchId ? matchReport : emptyMatchReport(matchId);
@@ -1092,7 +1123,45 @@ function renderMatchReport() {
   syncValue("#report-takeaways", report.takeaways || "");
   syncValue("#report-tags", (report.tags || []).join(", "));
   $("#live-events-list").innerHTML = matchEvents.length ? matchEvents.slice(0, 8).map((item) => `<article class="live-event-row" data-type="${escapeHtml(item.type)}"><span>${item.minute === null || item.minute === undefined ? "--" : `${item.minute}'`}</span><strong>${LIVE_EVENT_LABELS[item.type] || item.type}</strong><small>${escapeHtml(item.note || "")}</small><button type="button" data-delete-live-event="${item.id}" title="Borrar evento" aria-label="Borrar evento"><i data-lucide="x"></i></button></article>`).join("") : `<div class="compact-empty">Sin eventos registrados.</div>`;
+  renderMatchCallups();
   refreshIcons();
+}
+
+function renderMatchCallups() {
+  const select = $("#callup-player");
+  const selected = select.value;
+  const players = [...new Map(rosterPlayers("home").map((player) => [player.rosterKey, player])).values()];
+  select.innerHTML = players.length ? players.map((player) => `<option value="${escapeHtml(player.rosterKey)}">${escapeHtml(player.username)} · ${String(player.number ?? 0).padStart(2, "0")}</option>`).join("") : `<option value="">Sin jugadores KORU</option>`;
+  select.value = players.some((player) => player.rosterKey === selected) ? selected : (players[0]?.rosterKey || "");
+  $("#save-callup-button").disabled = !players.length;
+  $("#callup-count").textContent = String(matchCallups.length);
+  const labels = { available: "Disponible", doubtful: "Duda", unavailable: "No disponible", called: "Convocado" };
+  $("#callup-list").innerHTML = matchCallups.length ? matchCallups.map((item) => `<article class="callup-row" data-status="${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(labels[item.status] || item.status)}${item.note ? ` · ${escapeHtml(item.note)}` : ""}</small></div><small>${String(item.number ?? 0).padStart(2, "0")}</small><button type="button" data-delete-callup="${escapeHtml(item.rosterKey)}" title="Quitar de convocatoria" aria-label="Quitar de convocatoria"><i data-lucide="x"></i></button></article>`).join("") : `<div class="compact-empty">Aun no hay respuestas.</div>`;
+}
+
+async function saveMatchCallup() {
+  const matchId = store.getState().board.matchId;
+  const player = findRosterPlayer($("#callup-player").value);
+  if (!matchId || !player) return toast("Vincula un partido y elige un jugador");
+  const callup = await tacticsApi.upsertMatchCallup(matchId, {
+    rosterKey: player.rosterKey,
+    name: player.username,
+    number: Number(player.number || 0),
+    status: $("#callup-status").value,
+    note: $("#callup-note").value.trim(),
+  });
+  matchCallups = [callup, ...matchCallups.filter((item) => item.rosterKey !== callup.rosterKey)];
+  $("#callup-note").value = "";
+  renderMatchReport();
+  toast(`${callup.name}: disponibilidad guardada`);
+}
+
+async function deleteMatchCallup(rosterKey) {
+  const matchId = store.getState().board.matchId;
+  if (!matchId) return;
+  await tacticsApi.deleteMatchCallup(matchId, rosterKey);
+  matchCallups = matchCallups.filter((item) => item.rosterKey !== rosterKey);
+  renderMatchReport();
 }
 
 function optionalScore(selector) {

@@ -169,6 +169,22 @@ def init_storage() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_match_events_match ON match_events(match_id, created_at DESC)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS match_callups (
+                match_id TEXT NOT NULL,
+                roster_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                number INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'available',
+                note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY (match_id, roster_key)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_match_callups_match ON match_callups(match_id, updated_at DESC)")
         conn.commit()
 
 
@@ -614,6 +630,49 @@ def delete_match_event(match_id: str, event_id: int) -> bool:
     return cursor.rowcount > 0
 
 
+def _match_callup_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    callup = _row_to_dict(row)
+    callup["matchId"] = callup.pop("match_id")
+    callup["rosterKey"] = callup.pop("roster_key")
+    return callup
+
+
+def list_match_callups(match_id: str) -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM match_callups WHERE match_id = ? ORDER BY CASE status WHEN 'called' THEN 0 WHEN 'available' THEN 1 WHEN 'doubtful' THEN 2 ELSE 3 END, number, name",
+            (match_id,),
+        ).fetchall()
+    return [_match_callup_from_row(row) for row in rows]
+
+
+def upsert_match_callup(match_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute(
+            """
+            INSERT INTO match_callups (match_id, roster_key, name, number, status, note, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(match_id, roster_key) DO UPDATE SET
+                name = excluded.name, number = excluded.number, status = excluded.status,
+                note = excluded.note, updated_at = excluded.updated_at
+            """,
+            (match_id, payload["rosterKey"], payload["name"], payload.get("number", 0), payload["status"], payload.get("note", ""), now, now),
+        )
+        conn.commit()
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM match_callups WHERE match_id = ? AND roster_key = ?", (match_id, payload["rosterKey"])).fetchone()
+    return _match_callup_from_row(row)  # type: ignore[arg-type]
+
+
+def delete_match_callup(match_id: str, roster_key: str) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("DELETE FROM match_callups WHERE match_id = ? AND roster_key = ?", (match_id, roster_key))
+        conn.commit()
+    return cursor.rowcount > 0
+
+
 def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
     """Return manager dossiers assembled from reports and linked tactical boards."""
     capped_limit = max(1, min(limit, 200))
@@ -702,6 +761,8 @@ def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
         dossier["matchPlan"] = get_match_plan(match_id)
         dossier["events"] = list_match_events(match_id)
         dossier["eventCount"] = len(dossier["events"])
+        dossier["callups"] = list_match_callups(match_id)
+        dossier["callupCount"] = len(dossier["callups"])
 
     return sorted(
         dossiers.values(),
