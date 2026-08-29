@@ -31,6 +31,7 @@ const renderer = new Pitch2DRenderer($("#pitch-shell"));
 let boards = [];
 let dashboardRoster = [];
 let customRoster = [];
+let lineupTemplates = [];
 let matches = [];
 let saveTimer = null;
 let savePromise = null;
@@ -69,17 +70,20 @@ async function init() {
   refreshIcons();
 
   try {
-    const [boardList, dashboard, playerList] = await Promise.all([
+    const [boardList, dashboard, playerList, templates] = await Promise.all([
       tacticsApi.listBoards(),
       tacticsApi.getDashboard(),
       tacticsApi.listPlayers(),
+      tacticsApi.listLineupTemplates(),
     ]);
     boards = boardList;
     customRoster = playerList;
+    lineupTemplates = templates;
     dashboardRoster = dashboard.analytics?.playerElo || dashboard.leaderboards?.scorers || [];
     matches = uniqueMatches([...(dashboard.upcoming || []), ...(dashboard.recent || [])]);
     renderMatchOptions();
     renderLibrary();
+    renderLineupTemplates();
     renderRoster();
     await loadMatchReport(store.getState().board.matchId);
 
@@ -172,6 +176,11 @@ function bindControls() {
   $("#cancel-player-button").addEventListener("click", closePlayerDialog);
   $("#player-avatar").addEventListener("change", previewAvatar);
   $("#player-form").addEventListener("submit", saveCustomPlayer);
+  $("#save-lineup-template-button").addEventListener("click", openLineupTemplateDialog);
+  $("#lineup-template-select").addEventListener("change", renderLineupTemplates);
+  $("#load-lineup-template-button").addEventListener("click", loadSelectedLineupTemplate);
+  $("#delete-lineup-template-button").addEventListener("click", deleteSelectedLineupTemplate);
+  $("#lineup-template-form").addEventListener("submit", saveLineupTemplate);
 
   document.addEventListener("keydown", handleShortcut);
   window.addEventListener("beforeunload", persistRecoveryDraft);
@@ -371,6 +380,115 @@ function renderRoster() {
   });
   $$('[data-delete-player]').forEach((button) => button.addEventListener("click", () => deleteCustomPlayer(button.dataset.deletePlayer)));
   refreshIcons();
+}
+
+function renderLineupTemplates() {
+  const select = $("#lineup-template-select");
+  const selectedId = select.value;
+  select.innerHTML = `<option value="">Sin plantilla</option>${lineupTemplates.map((template) => `<option value="${escapeHtml(template.id)}">${escapeHtml(template.name)}${template.formation ? ` · ${escapeHtml(template.formation)}` : ""}</option>`).join("")}`;
+  select.value = lineupTemplates.some((template) => template.id === selectedId) ? selectedId : "";
+  const hasSelection = Boolean(select.value);
+  $("#load-lineup-template-button").disabled = !hasSelection;
+  $("#delete-lineup-template-button").disabled = !hasSelection;
+  refreshIcons();
+}
+
+function homePlayersOnPitch() {
+  return store.getState().board.document.entities.filter((entity) => entity.type === "player" && entity.teamId === "home");
+}
+
+function openLineupTemplateDialog() {
+  const players = homePlayersOnPitch();
+  if (!players.length) {
+    toast("Coloca al menos un jugador KORU antes de guardar una alineacion");
+    return;
+  }
+  $("#lineup-template-form").reset();
+  $("#lineup-template-count").textContent = `${players.length} jugadores KORU se guardaran con su posicion actual.`;
+  $("#lineup-template-dialog").showModal();
+  $("#lineup-template-name").focus();
+  refreshIcons();
+}
+
+async function saveLineupTemplate(event) {
+  event.preventDefault();
+  if (event.submitter?.value === "cancel") {
+    $("#lineup-template-dialog").close();
+    return;
+  }
+  const players = homePlayersOnPitch();
+  if (!players.length) return;
+  const payload = {
+    name: $("#lineup-template-name").value.trim(),
+    formation: $("#lineup-template-formation").value.trim(),
+    players: players.map((player) => ({
+      rosterKey: player.metadata?.rosterKey || `snapshot:${player.name}:${player.number || 0}`,
+      name: player.name,
+      number: player.number || 0,
+      positionLabel: player.positionLabel || null,
+      avatarUrl: player.metadata?.avatarUrl || null,
+      position: { x: player.position.x, y: player.position.y, z: 0 },
+    })),
+  };
+  if (!payload.name) return;
+  const button = $("#confirm-lineup-template-button");
+  button.disabled = true;
+  try {
+    const template = await tacticsApi.createLineupTemplate(payload);
+    lineupTemplates.unshift(template);
+    $("#lineup-template-dialog").close();
+    renderLineupTemplates();
+    $("#lineup-template-select").value = template.id;
+    renderLineupTemplates();
+    toast(`Alineacion ${template.name} guardada`);
+  } catch (error) {
+    toast(error.message || "No se pudo guardar la alineacion");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function loadSelectedLineupTemplate() {
+  const template = lineupTemplates.find((item) => item.id === $("#lineup-template-select").value);
+  if (!template) return;
+  const state = store.getState();
+  const existingHomeIds = new Set(state.board.document.entities.filter((entity) => entity.type === "player" && entity.teamId === "home").map((entity) => entity.id));
+  const remainingEntities = state.board.document.entities.filter((entity) => !existingHomeIds.has(entity.id));
+  const players = template.players.map((player) => createPlayerEntity({
+    username: player.name,
+    name: player.name,
+    number: player.number,
+    positionLabel: player.positionLabel,
+    rosterKey: player.rosterKey,
+    avatarUrl: player.avatarUrl,
+    source: "lineup-template",
+  }, "home", player.position, player.number));
+  const scenes = state.board.document.scenes.map((scene) => ({
+    ...scene,
+    entityStates: [...scene.entityStates.filter((item) => !existingHomeIds.has(item.entityId)), ...captureSceneEntityStates(players)],
+  }));
+  store.updateMany([
+    { path: ["board", "document", "entities"], value: [...remainingEntities, ...players] },
+    { path: ["board", "document", "scenes"], value: scenes },
+  ], `Cargar alineacion ${template.name}`);
+  store.setSelection(players.map((player) => player.id));
+  afterDocumentChange();
+  toast(`${template.name}${template.formation ? ` (${template.formation})` : ""} cargada`);
+}
+
+async function deleteSelectedLineupTemplate() {
+  const select = $("#lineup-template-select");
+  const template = lineupTemplates.find((item) => item.id === select.value);
+  if (!template) return;
+  if (!window.confirm(`Eliminar la alineacion "${template.name}"?`)) return;
+  try {
+    await tacticsApi.deleteLineupTemplate(template.id);
+    lineupTemplates = lineupTemplates.filter((item) => item.id !== template.id);
+    renderLineupTemplates();
+    toast("Alineacion eliminada");
+  } catch (error) {
+    toast(error.message || "No se pudo eliminar la alineacion");
+  }
 }
 
 function findRosterPlayer(playerKey) {

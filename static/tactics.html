@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829d" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829e" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -45,6 +45,10 @@
           </div>
           <label class="search-field"><i data-lucide="search"></i><input id="roster-search" type="search" placeholder="Buscar jugador" aria-label="Buscar jugador" /></label>
           <div class="team-switch segmented" id="team-switch"><button class="active" type="button" data-team="home">KORU</button><button type="button" data-team="away">Rival</button></div>
+          <section class="lineup-templates" id="lineup-templates">
+            <div class="section-title"><strong>Alineaciones</strong><button class="icon-button small" id="save-lineup-template-button" type="button" aria-label="Guardar alineacion actual" title="Guardar alineacion"><i data-lucide="bookmark-plus"></i></button></div>
+            <div class="lineup-template-picker"><select id="lineup-template-select" aria-label="Alineacion guardada"><option value="">Sin plantilla</option></select><button class="icon-button small" id="load-lineup-template-button" type="button" aria-label="Cargar alineacion" title="Cargar alineacion" disabled><i data-lucide="upload"></i></button><button class="icon-button small" id="delete-lineup-template-button" type="button" aria-label="Eliminar alineacion" title="Eliminar alineacion" disabled><i data-lucide="trash-2"></i></button></div>
+          </section>
           <div class="roster-list" id="roster-list"></div>
           <div class="library-divider"></div>
           <div class="panel-heading library-heading"><div><span>Documentos</span><strong>Biblioteca</strong></div><button class="icon-button small" id="new-board-button" type="button" aria-label="Nueva pizarra" title="Nueva pizarra"><i data-lucide="plus"></i></button></div>
@@ -125,6 +129,13 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <dialog class="player-dialog lineup-template-dialog" id="lineup-template-dialog">
+      <form method="dialog" id="lineup-template-form">
+        <header><div><span>Alineacion</span><strong>Guardar plantilla</strong></div><button class="icon-button small" value="cancel" type="submit" aria-label="Cerrar" title="Cerrar"><i data-lucide="x"></i></button></header>
+        <div class="player-form-body"><label>Nombre<input id="lineup-template-name" required maxlength="100" placeholder="Once titular" /></label><label>Sistema<input id="lineup-template-formation" maxlength="32" placeholder="4-2-3-1" /></label><p class="koru-kit-note" id="lineup-template-count"></p></div>
+        <footer><button class="secondary-button" value="cancel" type="submit">Cancelar</button><button class="primary-button" id="confirm-lineup-template-button" value="default" type="submit"><i data-lucide="bookmark-plus"></i><span>Guardar</span></button></footer>
+      </form>
+    </dialog>
     <dialog class="player-dialog" id="player-dialog">
       <form id="player-form" method="dialog">
         <header><div><span>Plantilla tactica</span><strong>Crear jugador</strong></div><button class="icon-button small" id="close-player-dialog" type="button" aria-label="Cerrar" title="Cerrar"><i data-lucide="x"></i></button></header>
@@ -139,6 +150,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260829d"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260829e"></script>
   </body>
 </html>

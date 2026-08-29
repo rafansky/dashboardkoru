@@ -97,6 +97,19 @@ def init_storage() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS tactical_lineup_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                formation TEXT NOT NULL DEFAULT '',
+                players_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tactical_lineup_templates_updated ON tactical_lineup_templates(updated_at DESC)")
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS match_reports (
                 match_id TEXT PRIMARY KEY,
                 opponent TEXT NOT NULL DEFAULT '',
@@ -766,5 +779,42 @@ def create_tactical_player(payload: dict[str, Any]) -> dict[str, Any]:
 def delete_tactical_player(player_id: str) -> bool:
     with closing(sqlite3.connect(DB_PATH)) as conn:
         cursor = conn.execute("DELETE FROM tactical_players WHERE id = ?", (player_id,))
+        conn.commit()
+    return cursor.rowcount > 0
+
+
+def _lineup_template_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    template = _row_to_dict(row)
+    template["players"] = json.loads(template.pop("players_json"))
+    return template
+
+
+def list_tactical_lineup_templates() -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM tactical_lineup_templates ORDER BY updated_at DESC").fetchall()
+    return [_lineup_template_from_row(row) for row in rows]
+
+
+def create_tactical_lineup_template(payload: dict[str, Any]) -> dict[str, Any]:
+    template_id = uuid.uuid4().hex
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute(
+            """
+            INSERT INTO tactical_lineup_templates (id, name, formation, players_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (template_id, payload["name"], payload.get("formation", ""), json.dumps(payload["players"], ensure_ascii=False), now, now),
+        )
+        conn.commit()
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM tactical_lineup_templates WHERE id = ?", (template_id,)).fetchone()
+    return _lineup_template_from_row(row)  # type: ignore[arg-type]
+
+
+def delete_tactical_lineup_template(template_id: str) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("DELETE FROM tactical_lineup_templates WHERE id = ?", (template_id,))
         conn.commit()
     return cursor.rowcount > 0

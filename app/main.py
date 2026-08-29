@@ -22,6 +22,7 @@ from .storage import (
     add_note,
     attach_file_to_match_report,
     create_tactical_player,
+    create_tactical_lineup_template,
     create_tactical_board,
     create_match_event,
     delete_note,
@@ -29,6 +30,7 @@ from .storage import (
     detach_file_from_match_report,
     delete_tactical_board,
     delete_tactical_player,
+    delete_tactical_lineup_template,
     get_tactical_board,
     get_match_report,
     get_match_plan,
@@ -40,13 +42,14 @@ from .storage import (
     list_notes,
     list_tactical_boards,
     list_tactical_players,
+    list_tactical_lineup_templates,
     list_match_reports,
     save_upload,
     upsert_match_report,
     upsert_match_plan,
     update_tactical_board,
 )
-from .tactics_models import MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
+from .tactics_models import MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -326,4 +329,21 @@ async def create_squad_player(payload: TacticalSquadPlayerCreate) -> dict:
 async def remove_squad_player(player_id: str) -> dict[str, bool]:
     if not delete_tactical_player(player_id):
         raise HTTPException(status_code=404, detail="Jugador no encontrado")
+    return {"deleted": True}
+
+
+@app.get("/api/tactical-lineup-templates")
+async def tactical_lineup_templates() -> list[dict]:
+    return list_tactical_lineup_templates()
+
+
+@app.post("/api/tactical-lineup-templates", status_code=201)
+async def create_lineup_template(payload: TacticalLineupTemplateCreate) -> dict:
+    return create_tactical_lineup_template(payload.model_dump(mode="json", by_alias=True))
+
+
+@app.delete("/api/tactical-lineup-templates/{template_id}")
+async def remove_lineup_template(template_id: str) -> dict[str, bool]:
+    if not delete_tactical_lineup_template(template_id):
+        raise HTTPException(status_code=404, detail="Alineacion no encontrada")
     return {"deleted": True}

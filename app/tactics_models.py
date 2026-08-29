@@ -302,6 +302,21 @@ class MatchEventCreate(TacticalModel):
     note: str = Field(default="", max_length=500)
 
 
+class TacticalLineupTemplatePlayer(TacticalModel):
+    roster_key: str = Field(alias="rosterKey", min_length=1, max_length=180)
+    name: str = Field(min_length=1, max_length=80)
+    number: int = Field(ge=0, le=99)
+    position_label: str | None = Field(default=None, alias="positionLabel", max_length=24)
+    avatar_url: str | None = Field(default=None, alias="avatarUrl", max_length=700)
+    position: PitchPoint
+
+
+class TacticalLineupTemplateCreate(TacticalModel):
+    name: str = Field(min_length=1, max_length=100)
+    formation: str = Field(default="", max_length=32)
+    players: list[TacticalLineupTemplatePlayer] = Field(min_length=1, max_length=25)
+
+
 TACTICAL_POSITIONS = Literal["POR", "LD", "LI", "DFC", "CAD", "CAI", "MCD", "MC", "MD", "MI", "MCO", "ED", "EI", "SD", "DC", "LIBRE"]
 
 

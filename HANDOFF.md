@@ -97,3 +97,13 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 1. Tactical board Phase 6C: reusable formations and lineup templates for pre-match setup.
 2. Tactical board Phase 7+: lazy-loaded Three.js renderer backed by the same tactical document.
 3. Add staff roles/permissions before team sharing is implemented.
+# Relevo - Fase 7A: Alineaciones reutilizables
+
+Fecha: 2026-08-29
+
+- Ultimo commit previsto: `add reusable lineup templates`.
+- La pizarra incorpora el bloque **Alineaciones** en el panel izquierdo: guardar once KORU actual, elegir/cargar y borrar plantillas.
+- Persistencia: tabla SQLite `tactical_lineup_templates`; API `GET/POST/DELETE /api/tactical-lineup-templates`.
+- Cada plantilla conserva nombre, sistema, dorsal, avatar, `rosterKey` y posicion de los jugadores. Al cargar se reemplazan solo los jugadores del equipo local y se actualizan los estados de todas las escenas; no se tocan rival, balon, anotaciones, analisis ni dibujo.
+- Validacion incluida en `tests/test_tactics_api.py::test_lineup_template_crud`.
+- Siguiente fase sugerida: convocatoria por partido y disponibilidad de jugadores, reutilizando las alineaciones guardadas y enlazandolas al informe de partido.

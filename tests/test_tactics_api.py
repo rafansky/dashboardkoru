@@ -167,6 +167,32 @@ class TacticalApiTests(unittest.TestCase):
         deleted = self.client.delete(f"/api/tactical-players/{player['id']}")
         self.assertEqual(deleted.status_code, 200)
 
+    def test_lineup_template_crud(self) -> None:
+        payload = {
+            "name": "Once de presion",
+            "formation": "4-2-3-1",
+            "players": [{
+                "rosterKey": "custom:ricky",
+                "name": "Ricky",
+                "number": 10,
+                "positionLabel": "MCO",
+                "avatarUrl": "/uploads/ricky.webp",
+                "position": {"x": 58, "y": 34, "z": 0},
+            }],
+        }
+        created = self.client.post("/api/tactical-lineup-templates", json=payload)
+        self.assertEqual(created.status_code, 201)
+        template = created.json()
+        self.assertEqual(template["formation"], "4-2-3-1")
+        self.assertEqual(template["players"][0]["rosterKey"], "custom:ricky")
+
+        listed = self.client.get("/api/tactical-lineup-templates")
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.json()[0]["id"], template["id"])
+
+        deleted = self.client.delete(f"/api/tactical-lineup-templates/{template['id']}")
+        self.assertEqual(deleted.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()

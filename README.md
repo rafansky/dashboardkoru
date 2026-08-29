@@ -59,6 +59,10 @@ La password activa vive solo en el servicio del mini PC como variable de entorno
 
 ## Pizarra tactica
 
+### Alineaciones reutilizables
+
+En el panel izquierdo, bajo los equipos, el bloque **Alineaciones** permite guardar los jugadores KORU colocados como plantilla con nombre y sistema. Al cargar una, solo sustituye los jugadores KORU de la pizarra: conserva rival, balon, dibujos, anotaciones y analisis. La posicion se aplica en todas las escenas para que la linea temporal siga siendo coherente.
+
 La segunda fase del editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard.
 
 Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.

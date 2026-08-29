@@ -34,6 +34,9 @@ export const tacticsApi = {
   listPlayers: (team = "") => request(`/api/tactical-players${team ? `?team=${encodeURIComponent(team)}` : ""}`),
   createPlayer: (payload) => request("/api/tactical-players", jsonOptions("POST", payload)),
   deletePlayer: (id) => request(`/api/tactical-players/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  listLineupTemplates: () => request("/api/tactical-lineup-templates"),
+  createLineupTemplate: (payload) => request("/api/tactical-lineup-templates", jsonOptions("POST", payload)),
+  deleteLineupTemplate: (id) => request(`/api/tactical-lineup-templates/${encodeURIComponent(id)}`, { method: "DELETE" }),
   uploadFile: (file) => {
     const body = new FormData();
     body.append("file", file);
