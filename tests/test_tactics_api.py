@@ -104,6 +104,20 @@ class TacticalApiTests(unittest.TestCase):
         self.assertEqual(dossier["matchId"], payload["matchId"])
         self.assertEqual(dossier["boardCount"], 1)
 
+        uploaded = self.client.post("/api/files", files={"file": ("plan.txt", b"Plan de partido", "text/plain")})
+        self.assertEqual(uploaded.status_code, 200)
+        attached = self.client.post(
+            f"/api/match-reports/{payload['matchId']}/files",
+            json={"fileId": uploaded.json()["id"]},
+        )
+        self.assertEqual(attached.status_code, 201)
+        attachments = self.client.get(f"/api/match-reports/{payload['matchId']}/files")
+        self.assertEqual(attachments.json()[0]["original_name"], "plan.txt")
+        history_with_file = self.client.get("/api/match-history")
+        self.assertEqual(history_with_file.json()[0]["attachmentCount"], 1)
+        detached = self.client.delete(f"/api/match-reports/{payload['matchId']}/files/{uploaded.json()['id']}")
+        self.assertEqual(detached.status_code, 200)
+
     def test_custom_player_crud(self) -> None:
         created = self.client.post(
             "/api/tactical-players",

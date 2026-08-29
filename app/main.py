@@ -20,9 +20,11 @@ from .settings import (
 )
 from .storage import (
     add_note,
+    attach_file_to_match_report,
     create_tactical_player,
     create_tactical_board,
     delete_note,
+    detach_file_from_match_report,
     delete_tactical_board,
     delete_tactical_player,
     get_tactical_board,
@@ -30,6 +32,7 @@ from .storage import (
     init_storage,
     list_files,
     list_match_history,
+    list_match_report_files,
     list_notes,
     list_tactical_boards,
     list_tactical_players,
@@ -38,7 +41,7 @@ from .storage import (
     upsert_match_report,
     update_tactical_board,
 )
-from .tactics_models import MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
+from .tactics_models import MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -243,6 +246,26 @@ async def match_report(match_id: str) -> dict:
     if not report:
         raise HTTPException(status_code=404, detail="Informe de partido no encontrado")
     return report
+
+
+@app.get("/api/match-reports/{match_id}/files")
+async def match_report_files(match_id: str) -> list[dict]:
+    return list_match_report_files(match_id)
+
+
+@app.post("/api/match-reports/{match_id}/files", status_code=201)
+async def attach_match_report_file(match_id: str, payload: MatchReportFileLink) -> dict:
+    attachment = attach_file_to_match_report(match_id, payload.file_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    return attachment
+
+
+@app.delete("/api/match-reports/{match_id}/files/{file_id}")
+async def remove_match_report_file(match_id: str, file_id: int) -> dict[str, bool]:
+    if not detach_file_from_match_report(match_id, file_id):
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    return {"deleted": True}
 
 
 @app.put("/api/match-reports/{match_id}")

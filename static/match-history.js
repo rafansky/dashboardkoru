@@ -85,7 +85,7 @@ function renderDetail(item) {
   const tags = (item.tags || []).map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("");
   target.innerHTML = `<header class="detail-header">
       <div><span>${escapeHtml(item.competition || "Partido")}</span><h1>${escapeHtml(item.opponent || "Rival pendiente")}</h1><small>${formatDateTime(item.matchDate || item.lastActivity)} · ${statusLabel(item.status)}</small></div>
-      <strong class="score">${score}</strong>
+      <div class="detail-actions"><button class="compact-button" data-print-report type="button"><i data-lucide="printer"></i><span>Imprimir</span></button><label class="compact-button file-button"><i data-lucide="paperclip"></i><span>Adjuntar</span><input data-attachment-upload type="file" /></label><strong class="score">${score}</strong></div>
     </header>
     <div class="tag-row">${tags || `<span class="muted">Sin etiquetas</span>`}</div>
     <section class="detail-grid">
@@ -95,14 +95,69 @@ function renderDetail(item) {
       <article class="detail-block stats-block"><div><span>Pizarras</span><b>${item.boardCount}</b></div><div><span>Sesiones</span><b>${item.sessionCount}</b></div><div><span>Anotaciones</span><b>${item.entryCount}</b></div></article>
     </section>
     <section class="linked-section"><div class="section-heading"><div><span>Pizarras vinculadas</span><strong>${item.boardCount}</strong></div></div><div class="linked-list">${item.boards.length ? item.boards.map((board) => `<a class="linked-board" href="/tactics?board=${encodeURIComponent(board.id)}"><i data-lucide="clipboard-pen-line"></i><span><strong>${escapeHtml(board.name)}</strong><small>${escapeHtml(board.category)} · ${board.sceneCount} escenas</small></span><i data-lucide="arrow-up-right"></i></a>`).join("") : `<div class="empty-list">Aun no hay pizarras vinculadas.</div>`}</div></section>
-    <section class="linked-section"><div class="section-heading"><div><span>Sesiones de analisis</span><strong>${item.sessionCount}</strong></div></div><div class="linked-list">${item.sessions.length ? item.sessions.map((session) => `<a class="linked-board" href="/tactics?board=${encodeURIComponent(session.boardId)}"><i data-lucide="notebook-pen"></i><span><strong>${escapeHtml(session.name)}</strong><small>${escapeHtml(session.boardName)} · ${statusLabel(session.type)} · ${session.entryCount} notas</small></span><i data-lucide="arrow-up-right"></i></a>`).join("") : `<div class="empty-list">Aun no hay sesiones vinculadas.</div>`}</div></section>`;
+    <section class="linked-section"><div class="section-heading"><div><span>Sesiones de analisis</span><strong>${item.sessionCount}</strong></div></div><div class="linked-list">${item.sessions.length ? item.sessions.map((session) => `<a class="linked-board" href="/tactics?board=${encodeURIComponent(session.boardId)}"><i data-lucide="notebook-pen"></i><span><strong>${escapeHtml(session.name)}</strong><small>${escapeHtml(session.boardName)} · ${statusLabel(session.type)} · ${session.entryCount} notas</small></span><i data-lucide="arrow-up-right"></i></a>`).join("") : `<div class="empty-list">Aun no hay sesiones vinculadas.</div>`}</div></section>
+    <section class="linked-section attachments-section"><div class="section-heading"><div><span>Adjuntos</span><strong>${item.attachmentCount || 0}</strong></div></div><div class="attachment-list">${(item.attachments || []).length ? item.attachments.map((attachment) => renderAttachment(attachment)).join("") : `<div class="empty-list">Sin adjuntos. Sube capturas, clips o documentos del partido.</div>`}</div></section>`;
+  $("[data-print-report]").addEventListener("click", printReport);
+  $("[data-attachment-upload]").addEventListener("change", (event) => uploadAttachment(item.matchId, event.target.files?.[0]));
+  target.querySelectorAll("[data-remove-attachment]").forEach((button) => button.addEventListener("click", () => removeAttachment(item.matchId, Number(button.dataset.removeAttachment))));
 }
+
+function renderAttachment(attachment) {
+  const image = String(attachment.content_type || "").startsWith("image/");
+  return `<article class="attachment-row">${image ? `<a class="attachment-preview" href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer"><img src="${escapeHtml(attachment.url)}" alt="" /></a>` : `<a class="attachment-icon" href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer"><i data-lucide="file"></i></a>`}<a class="attachment-copy" href="${escapeHtml(attachment.url)}" target="_blank" rel="noreferrer"><strong>${escapeHtml(attachment.original_name)}</strong><small>${formatFileSize(attachment.size)} · ${formatDate(attachment.attached_at)}</small></a><button class="attachment-remove" data-remove-attachment="${attachment.id}" type="button" title="Quitar del expediente" aria-label="Quitar ${escapeHtml(attachment.original_name)}"><i data-lucide="x"></i></button></article>`;
+}
+
+async function uploadAttachment(matchId, file) {
+  if (!file) return;
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    const upload = await request("/api/files", { method: "POST", body });
+    await request(`/api/match-reports/${encodeURIComponent(matchId)}/files`, jsonOptions("POST", { fileId: upload.id }));
+    toast("Adjunto agregado al expediente");
+    await loadHistory();
+  } catch (error) {
+    toast(error.message || "No se pudo subir el adjunto");
+  }
+}
+
+async function removeAttachment(matchId, fileId) {
+  try {
+    await request(`/api/match-reports/${encodeURIComponent(matchId)}/files/${fileId}`, { method: "DELETE" });
+    toast("Adjunto quitado del expediente");
+    await loadHistory();
+  } catch (error) {
+    toast(error.message || "No se pudo quitar el adjunto");
+  }
+}
+
+function printReport() {
+  document.body.classList.add("printing-dossier");
+  window.print();
+  window.setTimeout(() => document.body.classList.remove("printing-dossier"), 500);
+}
+
+async function request(url, options = {}) {
+  const response = await fetch(url, options);
+  if (response.status === 401) {
+    window.location.href = "/login";
+    throw new Error("Sesion caducada");
+  }
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || "No se pudo completar la operacion");
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+function jsonOptions(method, body) { return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }; }
 
 function unique(items) { return [...new Set(items)]; }
 function escapeHtml(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function formatDate(value) { return value ? new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short" }).format(new Date(value)) : "Sin fecha"; }
 function formatDateTime(value) { return value ? new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "Sin fecha"; }
 function formatText(value, fallback) { return escapeHtml(value || fallback).replaceAll("\n", "<br>"); }
+function formatFileSize(size) { return size < 1024 * 1024 ? `${Math.max(1, Math.round(size / 1024))} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`; }
 function statusLabel(status) { return { "pre-match": "Prepartido", live: "En directo", "post-match": "Postpartido" }[status] || "Sesion"; }
 function toast(message) { const element = $("#toast"); element.textContent = message; element.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => element.classList.remove("show"), 2600); }
 function refreshIcons() { if (window.lucide) window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } }); }

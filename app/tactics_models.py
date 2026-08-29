@@ -277,6 +277,10 @@ class MatchReportUpsert(TacticalModel):
     tags: list[str] = Field(default_factory=list, max_length=20)
 
 
+class MatchReportFileLink(TacticalModel):
+    file_id: int = Field(alias="fileId", ge=1)
+
+
 TACTICAL_POSITIONS = Literal["POR", "LD", "LI", "DFC", "CAD", "CAI", "MCD", "MC", "MD", "MI", "MCO", "ED", "EI", "SD", "DC", "LIBRE"]
 
 

@@ -71,6 +71,8 @@ La linea de tiempo permite capturar el estado del campo como escena, duplicarlo,
 
 `/match-history` es el espacio de consulta para managers. Agrupa cada informe con sus pizarras y sesiones vinculadas por partido, y permite filtrar por rival, competicion, estado y etiquetas. Desde cada elemento se puede volver directamente a la pizarra correspondiente.
 
+Dentro de cada expediente, `Adjuntar` permite subir capturas, clips o documentos. El archivo se conserva en la biblioteca del club y queda asociado al partido sin duplicarlo. `Imprimir` abre una version limpia del expediente para guardarla como PDF desde el dialogo de impresion del navegador.
+
 Pruebas:
 
 ```powershell

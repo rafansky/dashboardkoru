@@ -115,6 +115,19 @@ def init_storage() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_match_reports_updated ON match_reports(updated_at DESC)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS match_report_files (
+                match_id TEXT NOT NULL,
+                file_id INTEGER NOT NULL,
+                attached_at TEXT NOT NULL,
+                PRIMARY KEY (match_id, file_id),
+                FOREIGN KEY (match_id) REFERENCES match_reports(match_id),
+                FOREIGN KEY (file_id) REFERENCES files(id)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_match_report_files_match ON match_report_files(match_id, attached_at DESC)")
         conn.commit()
 
 
@@ -440,6 +453,49 @@ def get_match_report(match_id: str) -> dict[str, Any] | None:
     return _match_report_from_row(row) if row else None
 
 
+def list_match_report_files(match_id: str) -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT files.id, files.original_name, files.stored_name, files.content_type, files.size,
+                   files.created_at, match_report_files.attached_at
+            FROM match_report_files
+            JOIN files ON files.id = match_report_files.file_id
+            WHERE match_report_files.match_id = ?
+            ORDER BY match_report_files.attached_at DESC
+            """,
+            (match_id,),
+        ).fetchall()
+    attachments = []
+    for row in rows:
+        item = _row_to_dict(row)
+        item["url"] = f"/uploads/{item['stored_name']}"
+        attachments.append(item)
+    return attachments
+
+
+def attach_file_to_match_report(match_id: str, file_id: int) -> dict[str, Any] | None:
+    attached_at = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        exists = conn.execute("SELECT 1 FROM files WHERE id = ?", (file_id,)).fetchone()
+        if not exists:
+            return None
+        conn.execute(
+            "INSERT OR IGNORE INTO match_report_files (match_id, file_id, attached_at) VALUES (?, ?, ?)",
+            (match_id, file_id, attached_at),
+        )
+        conn.commit()
+    return next((item for item in list_match_report_files(match_id) if item["id"] == file_id), None)
+
+
+def detach_file_from_match_report(match_id: str, file_id: int) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("DELETE FROM match_report_files WHERE match_id = ? AND file_id = ?", (match_id, file_id))
+        conn.commit()
+    return cursor.rowcount > 0
+
+
 def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
     """Return manager dossiers assembled from reports and linked tactical boards."""
     capped_limit = max(1, min(limit, 200))
@@ -521,6 +577,10 @@ def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
         dossier["sessionCount"] = len(dossier["sessions"])
         if board["updated_at"] > (dossier.get("lastActivity") or ""):
             dossier["lastActivity"] = board["updated_at"]
+
+    for match_id, dossier in dossiers.items():
+        dossier["attachments"] = list_match_report_files(match_id)
+        dossier["attachmentCount"] = len(dossier["attachments"])
 
     return sorted(
         dossiers.values(),
