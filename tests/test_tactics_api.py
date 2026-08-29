@@ -47,6 +47,8 @@ class TacticalApiTests(unittest.TestCase):
     def test_authenticated_board_crud_and_page(self) -> None:
         page = self.client.get("/tactics")
         self.assertEqual(page.status_code, 200)
+        history_page = self.client.get("/match-history")
+        self.assertEqual(history_page.status_code, 200)
 
         created = self.client.post("/api/tactical-boards", json=self.payload())
         self.assertEqual(created.status_code, 201)
@@ -91,6 +93,16 @@ class TacticalApiTests(unittest.TestCase):
         listed = self.client.get("/api/match-reports")
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(listed.json()[0]["matchId"], payload["matchId"])
+
+        board_payload = self.payload()
+        board_payload["matchId"] = payload["matchId"]
+        board = self.client.post("/api/tactical-boards", json=board_payload)
+        self.assertEqual(board.status_code, 201)
+        history = self.client.get("/api/match-history")
+        self.assertEqual(history.status_code, 200)
+        dossier = history.json()[0]
+        self.assertEqual(dossier["matchId"], payload["matchId"])
+        self.assertEqual(dossier["boardCount"], 1)
 
     def test_custom_player_crud(self) -> None:
         created = self.client.post(

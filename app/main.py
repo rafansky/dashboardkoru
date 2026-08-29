@@ -29,6 +29,7 @@ from .storage import (
     get_match_report,
     init_storage,
     list_files,
+    list_match_history,
     list_notes,
     list_tactical_boards,
     list_tactical_players,
@@ -115,6 +116,11 @@ async def index() -> FileResponse:
 @app.get("/tactics")
 async def tactics_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "tactics.html")
+
+
+@app.get("/match-history")
+async def match_history_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "match-history.html")
 
 
 @app.get("/login")
@@ -224,6 +230,11 @@ async def remove_board(board_id: str) -> dict[str, bool]:
 @app.get("/api/match-reports")
 async def match_reports() -> list[dict]:
     return list_match_reports()
+
+
+@app.get("/api/match-history")
+async def match_history() -> list[dict]:
+    return list_match_history()
 
 
 @app.get("/api/match-reports/{match_id}")

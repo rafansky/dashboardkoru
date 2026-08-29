@@ -440,6 +440,95 @@ def get_match_report(match_id: str) -> dict[str, Any] | None:
     return _match_report_from_row(row) if row else None
 
 
+def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
+    """Return manager dossiers assembled from reports and linked tactical boards."""
+    capped_limit = max(1, min(limit, 200))
+    reports = {report["matchId"]: report for report in list_match_reports(capped_limit)}
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT * FROM tactical_boards
+            WHERE match_id IS NOT NULL AND match_id != ''
+            ORDER BY updated_at DESC
+            LIMIT ?
+            """,
+            (capped_limit * 4,),
+        ).fetchall()
+
+    dossiers: dict[str, dict[str, Any]] = {
+        match_id: {
+            **report,
+            "boards": [],
+            "sessions": [],
+            "boardCount": 0,
+            "sessionCount": 0,
+            "entryCount": 0,
+            "lastActivity": report.get("updated_at"),
+        }
+        for match_id, report in reports.items()
+    }
+    for row in rows:
+        board = _tactical_board_from_row(row)
+        match_id = board["matchId"]
+        dossier = dossiers.setdefault(
+            match_id,
+            {
+                "matchId": match_id,
+                "opponent": "",
+                "competition": "",
+                "matchDate": None,
+                "status": "pre-match",
+                "scoreFor": None,
+                "scoreAgainst": None,
+                "lineup": [],
+                "summary": "",
+                "takeaways": "",
+                "tags": [],
+                "created_at": board["created_at"],
+                "updated_at": board["updated_at"],
+                "boards": [],
+                "sessions": [],
+                "boardCount": 0,
+                "sessionCount": 0,
+                "entryCount": 0,
+                "lastActivity": board["updated_at"],
+            },
+        )
+        dossier["boards"].append({
+            "id": board["id"],
+            "name": board["name"],
+            "category": board["category"],
+            "description": board["description"],
+            "updatedAt": board["updated_at"],
+            "sceneCount": len(board["document"].get("scenes", [])),
+        })
+        for session in board["document"].get("analysis", {}).get("sessions", []):
+            if session.get("matchId") not in {None, match_id}:
+                continue
+            entries = session.get("entries", [])
+            dossier["sessions"].append({
+                "id": session.get("id", ""),
+                "boardId": board["id"],
+                "boardName": board["name"],
+                "name": session.get("name", "Sesion"),
+                "type": session.get("type", "pre-match"),
+                "createdAt": session.get("createdAt"),
+                "entryCount": len(entries),
+            })
+            dossier["entryCount"] += len(entries)
+        dossier["boardCount"] = len(dossier["boards"])
+        dossier["sessionCount"] = len(dossier["sessions"])
+        if board["updated_at"] > (dossier.get("lastActivity") or ""):
+            dossier["lastActivity"] = board["updated_at"]
+
+    return sorted(
+        dossiers.values(),
+        key=lambda dossier: dossier.get("matchDate") or dossier.get("lastActivity") or "",
+        reverse=True,
+    )[:capped_limit]
+
+
 def upsert_match_report(payload: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
     with closing(sqlite3.connect(DB_PATH)) as conn:

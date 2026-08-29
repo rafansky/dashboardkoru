@@ -67,6 +67,10 @@ La plantilla tactica admite jugadores personalizados de KORU o del rival con nom
 
 La linea de tiempo permite capturar el estado del campo como escena, duplicarlo, nombrarlo, anotar lo que debe pasar, definir su duracion y reproducir el movimiento hacia la siguiente escena. Las posiciones de una escena solo cambian al pulsar `Capturar`, para poder probar variantes sin perder la jugada guardada.
 
+## Historial de partidos
+
+`/match-history` es el espacio de consulta para managers. Agrupa cada informe con sus pizarras y sesiones vinculadas por partido, y permite filtrar por rival, competicion, estado y etiquetas. Desde cada elemento se puede volver directamente a la pizarra correspondiente.
+
 Pruebas:
 
 ```powershell

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#090b0f" />
+    <title>Historial de partidos | KORU eClub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/match-history.css?v=20260829a" />
+  </head>
+  <body>
+    <main class="history-app">
+      <header class="history-header">
+        <a class="icon-button" href="/" aria-label="Volver al dashboard" title="Dashboard"><i data-lucide="arrow-left"></i></a>
+        <img src="/assets/koru-mark.svg" alt="KORU" class="history-mark" />
+        <div class="history-title"><span>Manager workspace</span><strong>Historial de partidos</strong></div>
+        <div class="history-actions"><span id="history-count" class="history-count">0 expedientes</span><button id="refresh-history" class="icon-button" type="button" title="Actualizar" aria-label="Actualizar"><i data-lucide="refresh-cw"></i></button></div>
+      </header>
+
+      <section class="history-filters" aria-label="Filtros de historial">
+        <label class="search-box"><i data-lucide="search"></i><input id="history-search" type="search" placeholder="Buscar rival, etiqueta o contenido" /></label>
+        <label><span>Competicion</span><select id="competition-filter"><option value="">Todas</option></select></label>
+        <label><span>Estado</span><select id="status-filter"><option value="">Todos</option><option value="pre-match">Prepartido</option><option value="live">En directo</option><option value="post-match">Postpartido</option></select></label>
+        <label><span>Etiqueta</span><select id="tag-filter"><option value="">Todas</option></select></label>
+      </section>
+
+      <section class="history-workspace">
+        <aside class="dossier-list-panel">
+          <div class="panel-heading"><span>Expedientes</span><strong id="filtered-count">0</strong></div>
+          <div id="dossier-list" class="dossier-list"></div>
+        </aside>
+        <section class="dossier-detail" id="dossier-detail">
+          <div class="detail-empty"><i data-lucide="notebook-tabs"></i><strong>Selecciona un expediente</strong></div>
+        </section>
+      </section>
+    </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script type="module" src="/static/match-history.js?v=20260829a"></script>
+  </body>
+</html>

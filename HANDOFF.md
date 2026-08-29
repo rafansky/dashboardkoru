@@ -63,6 +63,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - Phase 4D adds edit handles: selected arrows and zones show a start and end/corner handle that can be dragged to resize or redirect the annotation. The annotation manager also has a duplicate control; duplicates are offset slightly and selected immediately.
 - Phase 4E adds scene export. The download button beside `Capturar` exports a clean 1920px PNG of the visible pitch and active-scene annotations, excluding selection/tirter controls. If a remote avatar blocks canvas export, it falls back to a clean SVG download.
 - Phase 5A is complete: a pizarra linked to an imported VPG/PLG match exposes a persistent match dossier. It stores match status, KORU/rival score, lineup, summary, takeaways and tags in SQLite (`match_reports`), through `GET/PUT /api/match-reports`. The dossier is shared by `matchId`, so it is reusable from every board tied to that match. The backend now fully validates and persists phase 4 scene annotations too; this closes the former schema 2/3 save mismatch.
+- Phase 5B is complete: `/match-history` is a compact manager history workspace. `GET /api/match-history` assembles dossiers from reports plus every tactical board linked by `matchId`, exposing board/session/note counts and direct links back to source boards. The UI filters by text, competition, status and tags and remains usable on mobile as a stacked list/detail layout. It is linked from both the dashboard navigation and the tactics header.
 - Managers can create reusable KORU or rival players with name, dorsal, position and an optional uploaded face. Profiles persist in SQLite (`tactical_players`) and use the existing uploads service. KORU tactical markers are always white with orange trim.
 - Tactical IDs use a UUID fallback because the public deployment currently runs over plain HTTP, where browsers do not expose `crypto.randomUUID()`. Keep the cache-version query on the tactical entry module when changing startup code.
 - The 3D button, drawing tools and playback controls are intentionally disabled until their corresponding phases; they do not simulate functionality.
@@ -80,7 +81,6 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Next phase
 
-- Phase 5B should add a dedicated match-history workspace: searchable dossiers, boards and analysis sessions grouped by `matchId`, and filters by competition, rival, tags and status.
 - Phase 5C can add attachments and exports: associate uploaded clips/screenshots/files with a dossier and export a printable post-match report.
 
 ## Repo / workflow notes
@@ -92,7 +92,6 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 ## Likely next steps
 
 1. Tactical board Phase 4: arrows, zones, drawing objects, text, measurement and contextual properties.
-2. Tactical board Phase 5B: searchable match dossier history and board/session grouping by `matchId`.
-3. Tactical board Phase 5C: dossier attachments and printable post-match report export.
+2. Tactical board Phase 5C: dossier attachments and printable post-match report export.
 4. Tactical board Phase 7+: lazy-loaded Three.js renderer backed by the same tactical document.
 5. Add staff roles/permissions before team sharing is implemented.

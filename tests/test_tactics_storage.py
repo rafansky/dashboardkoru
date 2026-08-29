@@ -58,6 +58,7 @@ class TacticalStorageTests(unittest.TestCase):
         })
         self.assertEqual(report["matchId"], "plg-10")
         self.assertEqual(storage.get_match_report("plg-10")["tags"], ["scouting"])
+        self.assertEqual(storage.list_match_history()[0]["matchId"], "plg-10")
 
 
 if __name__ == "__main__":
