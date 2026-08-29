@@ -23,7 +23,9 @@ from .storage import (
     attach_file_to_match_report,
     create_tactical_player,
     create_tactical_board,
+    create_match_event,
     delete_note,
+    delete_match_event,
     detach_file_from_match_report,
     delete_tactical_board,
     delete_tactical_player,
@@ -34,6 +36,7 @@ from .storage import (
     list_files,
     list_match_history,
     list_match_report_files,
+    list_match_events,
     list_notes,
     list_tactical_boards,
     list_tactical_players,
@@ -43,7 +46,7 @@ from .storage import (
     upsert_match_plan,
     update_tactical_board,
 )
-from .tactics_models import MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
+from .tactics_models import MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -268,6 +271,23 @@ async def save_match_plan(match_id: str, payload: MatchPlanUpsert) -> dict:
     if payload.match_id != match_id:
         raise HTTPException(status_code=400, detail="El identificador del plan no coincide")
     return upsert_match_plan(payload.model_dump(mode="json", by_alias=True))
+
+
+@app.get("/api/match-reports/{match_id}/events")
+async def match_events(match_id: str) -> list[dict]:
+    return list_match_events(match_id)
+
+
+@app.post("/api/match-reports/{match_id}/events", status_code=201)
+async def add_match_event(match_id: str, payload: MatchEventCreate) -> dict:
+    return create_match_event(match_id, payload.model_dump(mode="json"))
+
+
+@app.delete("/api/match-reports/{match_id}/events/{event_id}")
+async def remove_match_event(match_id: str, event_id: int) -> dict[str, bool]:
+    if not delete_match_event(match_id, event_id):
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    return {"deleted": True}
 
 
 @app.post("/api/match-reports/{match_id}/files", status_code=201)

@@ -143,6 +143,19 @@ def init_storage() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_match_plans_updated ON match_plans(updated_at DESC)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS match_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                match_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                minute INTEGER,
+                note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_match_events_match ON match_events(match_id, created_at DESC)")
         conn.commit()
 
 
@@ -550,6 +563,44 @@ def upsert_match_plan(payload: dict[str, Any]) -> dict[str, Any]:
     return get_match_plan(payload["matchId"])  # type: ignore[return-value]
 
 
+def _match_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    event = _row_to_dict(row)
+    event["matchId"] = event.pop("match_id")
+    event["type"] = event.pop("event_type")
+    return event
+
+
+def list_match_events(match_id: str, limit: int = 80) -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM match_events WHERE match_id = ? ORDER BY created_at DESC LIMIT ?",
+            (match_id, max(1, min(limit, 200))),
+        ).fetchall()
+    return [_match_event_from_row(row) for row in rows]
+
+
+def create_match_event(match_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    created_at = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute(
+            "INSERT INTO match_events (match_id, event_type, minute, note, created_at) VALUES (?, ?, ?, ?, ?)",
+            (match_id, payload["type"], payload.get("minute"), payload.get("note", ""), created_at),
+        )
+        conn.commit()
+        event_id = cursor.lastrowid
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM match_events WHERE id = ?", (event_id,)).fetchone()
+    return _match_event_from_row(row)  # type: ignore[arg-type]
+
+
+def delete_match_event(match_id: str, event_id: int) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("DELETE FROM match_events WHERE match_id = ? AND id = ?", (match_id, event_id))
+        conn.commit()
+    return cursor.rowcount > 0
+
+
 def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
     """Return manager dossiers assembled from reports and linked tactical boards."""
     capped_limit = max(1, min(limit, 200))
@@ -636,6 +687,8 @@ def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
         dossier["attachments"] = list_match_report_files(match_id)
         dossier["attachmentCount"] = len(dossier["attachments"])
         dossier["matchPlan"] = get_match_plan(match_id)
+        dossier["events"] = list_match_events(match_id)
+        dossier["eventCount"] = len(dossier["events"])
 
     return sorted(
         dossiers.values(),

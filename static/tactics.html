@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829c" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829d" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -84,6 +84,14 @@
               <button class="secondary-button" id="save-report-button" type="button"><i data-lucide="clipboard-check"></i><span>Guardar informe</span></button>
             </div>
           </section>
+          <section class="property-section live-events-section" id="live-events-section">
+            <div class="section-title"><strong>Registro en directo</strong><span id="live-events-count">0</span></div>
+            <div class="live-events-fields" id="live-events-fields" hidden>
+              <div class="live-event-entry"><input id="live-minute" type="number" min="0" max="180" placeholder="Min" inputmode="numeric" aria-label="Minuto" /><input id="live-event-note" maxlength="500" placeholder="Nota opcional" aria-label="Nota del evento" /></div>
+              <div class="live-event-actions" id="live-event-actions"><button type="button" data-live-event="goal" title="Gol KORU" aria-label="Gol KORU"><i data-lucide="goal"></i></button><button type="button" data-live-event="conceded" title="Gol rival" aria-label="Gol rival"><i data-lucide="shield-alert"></i></button><button type="button" data-live-event="substitution" title="Cambio" aria-label="Cambio"><i data-lucide="repeat-2"></i></button><button type="button" data-live-event="card" title="Tarjeta" aria-label="Tarjeta"><i data-lucide="rectangle-vertical"></i></button><button type="button" data-live-event="adjustment" title="Ajuste tactico" aria-label="Ajuste tactico"><i data-lucide="sliders-horizontal"></i></button><button type="button" data-live-event="note" title="Nota" aria-label="Nota"><i data-lucide="sticky-note"></i></button></div>
+              <div class="live-events-list" id="live-events-list"></div>
+            </div>
+          </section>
           <div class="property-section selection-section" id="selection-section" hidden><div class="section-title"><strong>Seleccion</strong><span id="selection-summary">0 objetos</span></div><div class="selection-detail" id="selection-detail"></div><button class="danger-button" id="delete-selection" type="button"><i data-lucide="trash-2"></i><span>Eliminar del campo</span></button></div>
           <div class="property-section">
             <div class="section-title"><strong>Campo</strong><span>Metros reales</span></div>
@@ -131,6 +139,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260829c"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260829d"></script>
   </body>
 </html>

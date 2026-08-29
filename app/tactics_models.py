@@ -296,6 +296,12 @@ class MatchPlanUpsert(TacticalModel):
     checklist: list[MatchPlanItem] = Field(default_factory=list, max_length=20)
 
 
+class MatchEventCreate(TacticalModel):
+    type: Literal["goal", "conceded", "substitution", "card", "adjustment", "note"]
+    minute: int | None = Field(default=None, ge=0, le=180)
+    note: str = Field(default="", max_length=500)
+
+
 TACTICAL_POSITIONS = Literal["POR", "LD", "LI", "DFC", "CAD", "CAI", "MCD", "MC", "MD", "MI", "MCO", "ED", "EI", "SD", "DC", "LIBRE"]
 
 

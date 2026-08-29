@@ -19,6 +19,7 @@ const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 const KIND_LABELS = { observation: "Observacion", decision: "Decision", adjustment: "Ajuste", task: "Tarea", outcome: "Resultado" };
+const LIVE_EVENT_LABELS = { goal: "Gol KORU", conceded: "Gol rival", substitution: "Cambio", card: "Tarjeta", adjustment: "Ajuste tactico", note: "Nota" };
 const AUTO_POSITIONS = {
   home: [[8, 34], [24, 12], [22, 31], [22, 48], [34, 58], [43, 20], [44, 43], [60, 10], [61, 34], [60, 57], [79, 34]],
   away: [[97, 34], [81, 12], [83, 31], [83, 48], [71, 58], [62, 20], [61, 43], [45, 10], [44, 34], [45, 57], [26, 34]],
@@ -41,6 +42,7 @@ let playbackFrame = null;
 let playbackToken = 0;
 let matchReport = null;
 let loadedReportMatchId = "";
+let matchEvents = [];
 
 new Pitch2DInteractions({
   viewport: $("#pitch-viewport"),
@@ -97,6 +99,14 @@ function bindControls() {
   $("#pitch-surface").addEventListener("change", (event) => change(["board", "document", "pitch", "surface"], event.target.value, "Cambiar cesped"));
   $("#board-match").addEventListener("change", bindBoardToMatch);
   $("#save-report-button").addEventListener("click", () => saveMatchReport().catch((error) => toast(error.message || "No se pudo guardar el informe")));
+  $("#live-event-actions").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-live-event]");
+    if (button) addLiveEvent(button.dataset.liveEvent).catch((error) => toast(error.message || "No se pudo registrar el evento"));
+  });
+  $("#live-events-list").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-live-event]");
+    if (button) deleteLiveEvent(Number(button.dataset.deleteLiveEvent)).catch((error) => toast(error.message || "No se pudo borrar el evento"));
+  });
 
   $$('[data-overlay]').forEach((input) => input.addEventListener("change", () => {
     change(["board", "document", "pitch", "overlays"], $$('[data-overlay]:checked').map((item) => item.value), "Cambiar overlays");
@@ -917,6 +927,7 @@ async function loadMatchReport(matchId) {
   loadedReportMatchId = matchId || "";
   if (!matchId) {
     matchReport = null;
+    matchEvents = [];
     renderMatchReport();
     return;
   }
@@ -931,6 +942,15 @@ async function loadMatchReport(matchId) {
   } catch (error) {
     if (error.status !== 404) throw error;
   }
+  try {
+    const events = await tacticsApi.listMatchEvents(matchId);
+    if (loadedReportMatchId === matchId) {
+      matchEvents = events;
+      renderMatchReport();
+    }
+  } catch (error) {
+    toast(error.message || "No se pudo cargar el registro en directo");
+  }
 }
 
 function renderMatchReport() {
@@ -938,6 +958,8 @@ function renderMatchReport() {
   const visible = Boolean(matchId);
   $("#match-report-empty").hidden = visible;
   $("#match-report-fields").hidden = !visible;
+  $("#live-events-fields").hidden = !visible;
+  $("#live-events-count").textContent = String(matchEvents.length);
   if (!visible) {
     $("#match-report-meta").textContent = "Sin vincular";
     return;
@@ -951,6 +973,8 @@ function renderMatchReport() {
   syncValue("#report-summary", report.summary || "");
   syncValue("#report-takeaways", report.takeaways || "");
   syncValue("#report-tags", (report.tags || []).join(", "));
+  $("#live-events-list").innerHTML = matchEvents.length ? matchEvents.slice(0, 8).map((item) => `<article class="live-event-row" data-type="${escapeHtml(item.type)}"><span>${item.minute === null || item.minute === undefined ? "--" : `${item.minute}'`}</span><strong>${LIVE_EVENT_LABELS[item.type] || item.type}</strong><small>${escapeHtml(item.note || "")}</small><button type="button" data-delete-live-event="${item.id}" title="Borrar evento" aria-label="Borrar evento"><i data-lucide="x"></i></button></article>`).join("") : `<div class="compact-empty">Sin eventos registrados.</div>`;
+  refreshIcons();
 }
 
 function optionalScore(selector) {
@@ -981,6 +1005,29 @@ async function saveMatchReport() {
   matchReport = await tacticsApi.upsertMatchReport(matchId, payload);
   renderMatchReport();
   toast("Informe de partido guardado");
+}
+
+async function addLiveEvent(type) {
+  const matchId = store.getState().board.matchId;
+  if (!matchId) return toast("Vincula primero un partido");
+  const minuteValue = $("#live-minute").value.trim();
+  const event = await tacticsApi.createMatchEvent(matchId, {
+    type,
+    minute: minuteValue === "" ? null : Number(minuteValue),
+    note: $("#live-event-note").value.trim(),
+  });
+  matchEvents = [event, ...matchEvents];
+  $("#live-event-note").value = "";
+  renderMatchReport();
+  toast(`${LIVE_EVENT_LABELS[type]} registrado`);
+}
+
+async function deleteLiveEvent(eventId) {
+  const matchId = store.getState().board.matchId;
+  if (!matchId) return;
+  await tacticsApi.deleteMatchEvent(matchId, eventId);
+  matchEvents = matchEvents.filter((item) => item.id !== eventId);
+  renderMatchReport();
 }
 
 function activeSession() {

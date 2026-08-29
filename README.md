@@ -75,6 +75,8 @@ Dentro de cada expediente, `Adjuntar` permite subir capturas, clips o documentos
 
 El bloque `Plan de partido` sirve para preparar el scouting del rival: perfil, amenazas, balon parado, objetivos y checklist. `Usar plantilla` carga una base corta que se puede ajustar, marcar y guardar para cada encuentro.
 
+Con una pizarra vinculada, el panel `Registro en directo` permite anotar gol, gol rival, cambio, tarjeta, ajuste tactico o nota con minuto opcional. Los eventos se guardan en el expediente y aparecen tambien en el historial.
+
 Pruebas:
 
 ```powershell
