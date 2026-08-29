@@ -10,9 +10,9 @@ import {
   createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260827d";
+} from "./model.js?v=20260829a";
 import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260827e";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260829a";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -52,6 +52,7 @@ new Pitch2DInteractions({
   onDraw: addTacticalAnnotation,
   onText: addTextAnnotation,
   onAnnotationMove: moveTacticalAnnotation,
+  onAnnotationResize: resizeTacticalAnnotation,
 });
 
 document.addEventListener("DOMContentLoaded", init);
@@ -522,13 +523,26 @@ function moveTacticalAnnotation(id, start, end) {
   afterDocumentChange();
 }
 
+function resizeTacticalAnnotation(id, handle, position) {
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const pitch = state.board.document.pitch;
+  const point = { x: Math.max(0, Math.min(pitch.width, position.x)), y: Math.max(0, Math.min(pitch.height, position.y)) };
+  const annotations = state.board.document.scenes[index].annotations.map((annotation) => {
+    if (annotation.id !== id || annotation.type === "text") return annotation;
+    return { ...annotation, [handle === "start" ? "start" : "end"]: point };
+  });
+  store.update(["board", "document", "scenes", index, "annotations"], annotations, "Ajustar anotacion");
+  afterDocumentChange();
+}
+
 function renderAnnotationList(state) {
   const annotations = currentScene(state)?.annotations || [];
   $("#annotation-count").textContent = String(annotations.length);
   $("#annotation-list").innerHTML = annotations.length ? annotations.map((annotation, index) => {
     const label = annotation.type === "arrow" ? `Flecha ${index + 1}` : annotation.type === "zone" ? `Zona ${index + 1}` : annotation.text || `Texto ${index + 1}`;
     const icon = annotation.type === "arrow" ? "move-up-right" : annotation.type === "zone" ? "square-dashed" : "type";
-    return `<div class="annotation-row${state.selection.includes(annotation.id) ? " active" : ""}" data-annotation-row="${annotation.id}"><i data-lucide="${icon}"></i><strong>${escapeHtml(label)}</strong><input type="color" value="${escapeHtml(annotation.color || "#f95516")}" data-annotation-color="${annotation.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" class="annotation-edit" data-edit-annotation="${annotation.id}" title="Editar texto" aria-label="Editar texto"${annotation.type === "text" ? "" : " hidden"}><i data-lucide="pencil"></i></button><button type="button" class="annotation-delete" data-delete-annotation="${annotation.id}" title="Eliminar anotacion" aria-label="Eliminar anotacion"><i data-lucide="trash-2"></i></button></div>`;
+    return `<div class="annotation-row${state.selection.includes(annotation.id) ? " active" : ""}" data-annotation-row="${annotation.id}"><i data-lucide="${icon}"></i><strong>${escapeHtml(label)}</strong><input type="color" value="${escapeHtml(annotation.color || "#f95516")}" data-annotation-color="${annotation.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" class="annotation-duplicate" data-duplicate-annotation="${annotation.id}" title="Duplicar anotacion" aria-label="Duplicar anotacion"><i data-lucide="copy"></i></button><button type="button" class="annotation-edit" data-edit-annotation="${annotation.id}" title="Editar texto" aria-label="Editar texto"${annotation.type === "text" ? "" : " hidden"}><i data-lucide="pencil"></i></button><button type="button" class="annotation-delete" data-delete-annotation="${annotation.id}" title="Eliminar anotacion" aria-label="Eliminar anotacion"><i data-lucide="trash-2"></i></button></div>`;
   }).join("") : `<div class="compact-empty">Usa las herramientas de la izquierda para anotar esta escena.</div>`;
   refreshIcons();
 }
@@ -546,11 +560,25 @@ function updateAnnotationColor(event) {
 function handleAnnotationAction(event) {
   const deleteButton = event.target.closest("[data-delete-annotation]");
   const editButton = event.target.closest("[data-edit-annotation]");
-  if (!deleteButton && !editButton) return;
-  const id = (deleteButton || editButton).dataset.deleteAnnotation || (deleteButton || editButton).dataset.editAnnotation;
+  const duplicateButton = event.target.closest("[data-duplicate-annotation]");
+  if (!deleteButton && !editButton && !duplicateButton) return;
+  const action = deleteButton || editButton || duplicateButton;
+  const id = action.dataset.deleteAnnotation || action.dataset.editAnnotation || action.dataset.duplicateAnnotation;
   const state = store.getState();
   const index = currentSceneIndex(state);
   const current = state.board.document.scenes[index].annotations || [];
+  if (duplicateButton) {
+    const source = current.find((annotation) => annotation.id === id);
+    if (!source) return;
+    const move = (point) => ({ x: Math.min(state.board.document.pitch.width, point.x + 2), y: Math.min(state.board.document.pitch.height, point.y + 2) });
+    const copy = source.type === "text"
+      ? { ...source, id: createTacticalId(), position: move(source.position) }
+      : { ...source, id: createTacticalId(), start: move(source.start), end: move(source.end) };
+    store.update(["board", "document", "scenes", index, "annotations"], [...current, copy], "Duplicar anotacion");
+    store.setSelection([copy.id]);
+    afterDocumentChange();
+    return;
+  }
   if (deleteButton) {
     store.update(["board", "document", "scenes", index, "annotations"], current.filter((annotation) => annotation.id !== id), "Eliminar anotacion");
     afterDocumentChange();

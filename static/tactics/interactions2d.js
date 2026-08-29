@@ -17,6 +17,7 @@ export class Pitch2DInteractions {
     this.onDraw = options.onDraw;
     this.onText = options.onText;
     this.onAnnotationMove = options.onAnnotationMove;
+    this.onAnnotationResize = options.onAnnotationResize;
     this.mode = null;
     this.pointers = new Map();
     this.bind();
@@ -46,6 +47,7 @@ export class Pitch2DInteractions {
 
     const entityElement = event.target.closest?.("[data-entity-id]");
     const annotationElement = event.target.closest?.("[data-annotation-id]");
+    const handleElement = event.target.closest?.("[data-annotation-handle]");
     const useHand = state.ui.activeTool === "hand" || event.button === 1;
     if (useHand) {
       this.mode = { type: "pan", start: { x: event.clientX, y: event.clientY }, pan: { ...state.ui.pan } };
@@ -68,6 +70,15 @@ export class Pitch2DInteractions {
     }
 
     if (state.ui.activeTool !== "select") return;
+    if (handleElement) {
+      this.mode = {
+        type: "annotation-resize",
+        id: handleElement.dataset.annotationId,
+        handle: handleElement.dataset.annotationHandle,
+        endPitch: this.renderer.clientToPitch(event.clientX, event.clientY),
+      };
+      return;
+    }
     if (entityElement) {
       const id = entityElement.dataset.entityId;
       const additive = event.shiftKey || event.ctrlKey || event.metaKey;
@@ -137,6 +148,8 @@ export class Pitch2DInteractions {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
     } else if (this.mode.type === "annotation-drag") {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
+    } else if (this.mode.type === "annotation-resize") {
+      this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
     } else if (this.mode.type === "marquee") {
       const bounds = this.viewport.getBoundingClientRect();
       this.updateMarquee(this.mode.start, { x: event.clientX - bounds.left, y: event.clientY - bounds.top });
@@ -152,6 +165,8 @@ export class Pitch2DInteractions {
       this.onDraw?.(this.mode.tool, this.mode.startPitch, this.mode.endPitch);
     } else if (this.mode.type === "annotation-drag") {
       this.onAnnotationMove?.(this.mode.id, this.mode.startPitch, this.mode.endPitch);
+    } else if (this.mode.type === "annotation-resize") {
+      this.onAnnotationResize?.(this.mode.id, this.mode.handle, this.mode.endPitch);
     } else if (this.mode.type === "marquee") {
       const rect = this.marquee.getBoundingClientRect();
       this.onSelection(this.renderer.entitiesInScreenRect(rect));

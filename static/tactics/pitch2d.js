@@ -1,4 +1,4 @@
-import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260827e";
+import { clampToPitch, isPerspectiveOrientation, pitchViewport, projectPerspectivePoint, unprojectPerspectivePoint } from "./geometry.js?v=20260829a";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -217,16 +217,42 @@ function addAnnotations(group, annotations, pitch) {
   });
 }
 
+function addAnnotationHandles(group, annotations, selectedIds, pitch) {
+  const selected = annotations.filter((annotation) => selectedIds.has(annotation.id) && annotation.type !== "text");
+  if (!selected.length) return;
+  const handles = svgElement("g", { class: "annotation-handle-layer" });
+  selected.forEach((annotation) => {
+    const points = [{ key: "start", value: annotation.start }, { key: "end", value: annotation.end }];
+    points.forEach(({ key, value }) => {
+      const position = projectPerspectivePoint(value, pitch);
+      handles.append(svgElement("circle", {
+        class: "annotation-handle",
+        cx: position.x,
+        cy: position.y,
+        r: 1.15,
+        "data-annotation-id": annotation.id,
+        "data-annotation-handle": key,
+        role: "slider",
+        "aria-label": key === "start" ? "Mover inicio" : "Mover final",
+      }));
+    });
+  });
+  group.append(handles);
+}
+
 export class Pitch2DRenderer {
   constructor(container) {
     this.container = container;
     this.document = null;
     this.svg = null;
     this.entityLayer = null;
+    this.annotationLayer = null;
+    this.annotations = [];
   }
 
   render(document, annotations = []) {
     this.document = document;
+    this.annotations = annotations;
     const pitch = document.pitch;
     const viewport = pitchViewport(pitch);
     const svg = svgElement("svg", {
@@ -243,7 +269,9 @@ export class Pitch2DRenderer {
       addPerspectivePitchMarkings(pitchWorld, pitch);
     } else addFlatPitchMarkings(pitchWorld, pitch.width, pitch.height);
     addOverlays(pitchWorld, pitch);
-    addAnnotations(pitchWorld, annotations, pitch);
+    const annotationLayer = svgElement("g", { class: "annotation-layer" });
+    addAnnotations(annotationLayer, annotations, pitch);
+    pitchWorld.append(annotationLayer);
     const entityLayer = svgElement("g", { class: "entity-layer" });
     addEntities(entityLayer, document);
     svg.append(pitchWorld, entityLayer);
@@ -254,6 +282,7 @@ export class Pitch2DRenderer {
     svg.dataset.perspective = String(perspective);
     this.svg = svg;
     this.entityLayer = entityLayer;
+    this.annotationLayer = annotationLayer;
   }
 
   setSelection(ids) {
@@ -265,6 +294,8 @@ export class Pitch2DRenderer {
     this.svg.querySelectorAll("[data-annotation-id]").forEach((element) => {
       element.classList.toggle("selected", selected.has(element.dataset.annotationId));
     });
+    this.annotationLayer?.querySelector(".annotation-handle-layer")?.remove();
+    if (this.document && this.annotationLayer) addAnnotationHandles(this.annotationLayer, this.annotations, selected, this.document.pitch);
   }
 
   previewEntityPositions(positions) {
