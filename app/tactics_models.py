@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-LATEST_TACTICAL_SCHEMA = 2
+LATEST_TACTICAL_SCHEMA = 3
 
 
 def migrate_tactical_document(payload: Any) -> Any:
@@ -19,6 +19,9 @@ def migrate_tactical_document(payload: Any) -> Any:
     if version == 1:
         migrated.setdefault("analysis", {"activeSessionId": None, "sessions": []})
         migrated["schemaVersion"] = 2
+    if version <= 2:
+        migrated["scenes"] = [{**scene, "annotations": scene.get("annotations", [])} for scene in migrated.get("scenes", [])]
+        migrated["schemaVersion"] = 3
     return migrated
 
 
@@ -108,6 +111,24 @@ class EntityState(TacticalModel):
     opacity: float = Field(default=1, ge=0, le=1)
 
 
+class SceneAnnotation(TacticalModel):
+    id: str
+    type: Literal["arrow", "zone", "text"]
+    start: PitchPoint | None = None
+    end: PitchPoint | None = None
+    position: PitchPoint | None = None
+    color: str = Field(default="#f95516", pattern=r"^#[0-9a-fA-F]{6}$")
+    text: str = Field(default="", max_length=240)
+
+    @model_validator(mode="after")
+    def validate_annotation_geometry(self) -> "SceneAnnotation":
+        if self.type == "text" and self.position is None:
+            raise ValueError("El texto tactico necesita una posicion")
+        if self.type in {"arrow", "zone"} and (self.start is None or self.end is None):
+            raise ValueError("La anotacion necesita inicio y final")
+        return self
+
+
 class TacticalScene(TacticalModel):
     id: str
     name: str = Field(min_length=1, max_length=80)
@@ -115,6 +136,7 @@ class TacticalScene(TacticalModel):
     transition: Literal["linear", "ease", "ease-in", "ease-out", "ease-in-out"] = "ease-in-out"
     notes: str = Field(default="", max_length=4000)
     entity_states: list[EntityState] = Field(default_factory=list, alias="entityStates")
+    annotations: list[SceneAnnotation] = Field(default_factory=list)
 
 
 class TimelineConfig(TacticalModel):
@@ -213,6 +235,11 @@ class TacticalBoardDocument(TacticalModel):
         for scene in self.scenes:
             if not {state.entity_id for state in scene.entity_states}.issubset(known_entities):
                 raise ValueError(f"La escena {scene.id} contiene entidades inexistentes")
+            for annotation in scene.annotations:
+                points = [annotation.start, annotation.end, annotation.position]
+                for point in (item for item in points if item is not None):
+                    if point.x > self.pitch.width or point.y > self.pitch.height:
+                        raise ValueError(f"La anotacion {annotation.id} esta fuera del campo")
         for session in self.analysis.sessions:
             for entry in session.entries:
                 if not set(entry.entity_ids).issubset(known_entities):
@@ -234,6 +261,20 @@ class TacticalBoardCreate(TacticalModel):
 
 class TacticalBoardUpdate(TacticalBoardCreate):
     version: int = Field(ge=1)
+
+
+class MatchReportUpsert(TacticalModel):
+    match_id: str = Field(alias="matchId", min_length=1, max_length=120)
+    opponent: str = Field(default="", max_length=120)
+    competition: str = Field(default="", max_length=120)
+    match_date: datetime | None = Field(default=None, alias="matchDate")
+    status: Literal["pre-match", "live", "post-match"] = "pre-match"
+    score_for: int | None = Field(default=None, alias="scoreFor", ge=0, le=99)
+    score_against: int | None = Field(default=None, alias="scoreAgainst", ge=0, le=99)
+    lineup: list[str] = Field(default_factory=list, max_length=25)
+    summary: str = Field(default="", max_length=4000)
+    takeaways: str = Field(default="", max_length=4000)
+    tags: list[str] = Field(default_factory=list, max_length=20)
 
 
 TACTICAL_POSITIONS = Literal["POR", "LD", "LI", "DFC", "CAD", "CAI", "MCD", "MC", "MD", "MI", "MCO", "ED", "EI", "SD", "DC", "LIBRE"]

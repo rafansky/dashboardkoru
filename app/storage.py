@@ -95,6 +95,26 @@ def init_storage() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_tactical_players_team ON tactical_players(team, number)"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS match_reports (
+                match_id TEXT PRIMARY KEY,
+                opponent TEXT NOT NULL DEFAULT '',
+                competition TEXT NOT NULL DEFAULT '',
+                match_date TEXT,
+                status TEXT NOT NULL DEFAULT 'pre-match',
+                score_for INTEGER,
+                score_against INTEGER,
+                lineup_json TEXT NOT NULL DEFAULT '[]',
+                summary TEXT NOT NULL DEFAULT '',
+                takeaways TEXT NOT NULL DEFAULT '',
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_match_reports_updated ON match_reports(updated_at DESC)")
         conn.commit()
 
 
@@ -392,6 +412,56 @@ def delete_tactical_board(board_id: str) -> bool:
         cursor = conn.execute("DELETE FROM tactical_boards WHERE id = ?", (board_id,))
         conn.commit()
     return cursor.rowcount > 0
+
+
+def _match_report_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    report = _row_to_dict(row)
+    report["matchId"] = report.pop("match_id")
+    report["matchDate"] = report.pop("match_date")
+    report["scoreFor"] = report.pop("score_for")
+    report["scoreAgainst"] = report.pop("score_against")
+    report["lineup"] = json.loads(report.pop("lineup_json"))
+    report["takeaways"] = report.pop("takeaways")
+    report["tags"] = json.loads(report.pop("tags_json"))
+    return report
+
+
+def list_match_reports(limit: int = 100) -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM match_reports ORDER BY COALESCE(match_date, updated_at) DESC LIMIT ?", (max(1, min(limit, 200)),)).fetchall()
+    return [_match_report_from_row(row) for row in rows]
+
+
+def get_match_report(match_id: str) -> dict[str, Any] | None:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM match_reports WHERE match_id = ?", (match_id,)).fetchone()
+    return _match_report_from_row(row) if row else None
+
+
+def upsert_match_report(payload: dict[str, Any]) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute(
+            """
+            INSERT INTO match_reports (match_id, opponent, competition, match_date, status, score_for, score_against, lineup_json, summary, takeaways, tags_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(match_id) DO UPDATE SET
+                opponent = excluded.opponent, competition = excluded.competition, match_date = excluded.match_date,
+                status = excluded.status, score_for = excluded.score_for, score_against = excluded.score_against,
+                lineup_json = excluded.lineup_json, summary = excluded.summary, takeaways = excluded.takeaways,
+                tags_json = excluded.tags_json, updated_at = excluded.updated_at
+            """,
+            (
+                payload["matchId"], payload.get("opponent", ""), payload.get("competition", ""), payload.get("matchDate"),
+                payload.get("status", "pre-match"), payload.get("scoreFor"), payload.get("scoreAgainst"),
+                json.dumps(payload.get("lineup", []), ensure_ascii=False), payload.get("summary", ""), payload.get("takeaways", ""),
+                json.dumps(payload.get("tags", []), ensure_ascii=False), now, now,
+            ),
+        )
+        conn.commit()
+    return get_match_report(payload["matchId"])  # type: ignore[return-value]
 
 
 def list_tactical_players(team: str | None = None) -> list[dict[str, Any]]:

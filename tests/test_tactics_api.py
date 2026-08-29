@@ -51,7 +51,7 @@ class TacticalApiTests(unittest.TestCase):
         created = self.client.post("/api/tactical-boards", json=self.payload())
         self.assertEqual(created.status_code, 201)
         board = created.json()
-        self.assertEqual(board["document"]["schemaVersion"], 2)
+        self.assertEqual(board["document"]["schemaVersion"], 3)
         self.assertIn("analysis", board["document"])
 
         listed = self.client.get("/api/tactical-boards")
@@ -68,6 +68,29 @@ class TacticalApiTests(unittest.TestCase):
 
         deleted = self.client.delete(f"/api/tactical-boards/{board['id']}")
         self.assertEqual(deleted.status_code, 200)
+
+    def test_match_report_upsert_and_list(self) -> None:
+        payload = {
+            "matchId": "vpg-zero-2026-09-01-koru-rival",
+            "opponent": "Rival FC",
+            "competition": "VPG Zero",
+            "matchDate": "2026-09-01T21:30:00+00:00",
+            "status": "post-match",
+            "scoreFor": 3,
+            "scoreAgainst": 1,
+            "lineup": ["Ricky", "Muro"],
+            "summary": "Buena presion tras perdida.",
+            "takeaways": "Mantener el doble pivote.",
+            "tags": ["presion", "transicion"],
+        }
+        saved = self.client.put(f"/api/match-reports/{payload['matchId']}", json=payload)
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json()["scoreFor"], 3)
+        self.assertEqual(saved.json()["lineup"], ["Ricky", "Muro"])
+
+        listed = self.client.get("/api/match-reports")
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.json()[0]["matchId"], payload["matchId"])
 
     def test_custom_player_crud(self) -> None:
         created = self.client.post(

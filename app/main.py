@@ -26,15 +26,18 @@ from .storage import (
     delete_tactical_board,
     delete_tactical_player,
     get_tactical_board,
+    get_match_report,
     init_storage,
     list_files,
     list_notes,
     list_tactical_boards,
     list_tactical_players,
+    list_match_reports,
     save_upload,
+    upsert_match_report,
     update_tactical_board,
 )
-from .tactics_models import TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
+from .tactics_models import MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -216,6 +219,26 @@ async def remove_board(board_id: str) -> dict[str, bool]:
     if not delete_tactical_board(board_id):
         raise HTTPException(status_code=404, detail="Pizarra no encontrada")
     return {"deleted": True}
+
+
+@app.get("/api/match-reports")
+async def match_reports() -> list[dict]:
+    return list_match_reports()
+
+
+@app.get("/api/match-reports/{match_id}")
+async def match_report(match_id: str) -> dict:
+    report = get_match_report(match_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Informe de partido no encontrado")
+    return report
+
+
+@app.put("/api/match-reports/{match_id}")
+async def save_match_report(match_id: str, payload: MatchReportUpsert) -> dict:
+    if payload.match_id != match_id:
+        raise HTTPException(status_code=400, detail="El identificador del informe no coincide")
+    return upsert_match_report(payload.model_dump(mode="json", by_alias=True))
 
 
 @app.get("/api/tactical-players")

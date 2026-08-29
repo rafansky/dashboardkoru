@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829b" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260829c" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -70,6 +70,19 @@
             <label>Categoria<select id="board-category"><option>Ataque</option><option>Defensa</option><option>Transicion</option><option>Presion</option><option>Salida de balon</option><option>Finalizacion</option><option>Corner</option><option>Falta</option><option>Saque de banda</option><option>Entrenamiento</option><option>Analisis rival</option></select></label>
             <label>Descripcion<textarea id="board-description" rows="3" maxlength="2000" placeholder="Objetivo de la sesion..."></textarea></label>
           </div>
+          <section class="property-section match-report-section" id="match-report-section">
+            <div class="section-title"><strong>Informe de partido</strong><span id="match-report-meta">Sin vincular</span></div>
+            <div class="compact-empty" id="match-report-empty">Vincula un partido para crear su expediente.</div>
+            <div class="match-report-fields" id="match-report-fields" hidden>
+              <label>Estado<select id="report-status"><option value="pre-match">Prepartido</option><option value="live">En directo</option><option value="post-match">Postpartido</option></select></label>
+              <div class="report-score-fields"><label>KORU<input id="report-score-for" type="number" min="0" max="99" inputmode="numeric" /></label><label>Rival<input id="report-score-against" type="number" min="0" max="99" inputmode="numeric" /></label></div>
+              <label>Convocatoria<textarea id="report-lineup" rows="3" maxlength="1000" placeholder="Un jugador por linea"></textarea></label>
+              <label>Resumen<textarea id="report-summary" rows="3" maxlength="4000" placeholder="Lectura del partido..."></textarea></label>
+              <label>Conclusiones<textarea id="report-takeaways" rows="3" maxlength="4000" placeholder="Decisiones y tareas..."></textarea></label>
+              <label>Etiquetas<input id="report-tags" maxlength="400" placeholder="presion, salida, transicion" /></label>
+              <button class="secondary-button" id="save-report-button" type="button"><i data-lucide="clipboard-check"></i><span>Guardar informe</span></button>
+            </div>
+          </section>
           <div class="property-section selection-section" id="selection-section" hidden><div class="section-title"><strong>Seleccion</strong><span id="selection-summary">0 objetos</span></div><div class="selection-detail" id="selection-detail"></div><button class="danger-button" id="delete-selection" type="button"><i data-lucide="trash-2"></i><span>Eliminar del campo</span></button></div>
           <div class="property-section">
             <div class="section-title"><strong>Campo</strong><span>Metros reales</span></div>
@@ -117,6 +130,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260829b"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260829c"></script>
   </body>
 </html>

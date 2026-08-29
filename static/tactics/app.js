@@ -10,9 +10,9 @@ import {
   createSceneFromEntities,
   createTacticalId,
   normalizeBoard,
-} from "./model.js?v=20260829b";
+} from "./model.js?v=20260829c";
 import { Pitch2DInteractions } from "./interactions2d.js";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260829b";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260829c";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -39,6 +39,8 @@ let lastSceneUiKey = "";
 let previewUrl = null;
 let playbackFrame = null;
 let playbackToken = 0;
+let matchReport = null;
+let loadedReportMatchId = "";
 
 new Pitch2DInteractions({
   viewport: $("#pitch-viewport"),
@@ -77,6 +79,7 @@ async function init() {
     renderMatchOptions();
     renderLibrary();
     renderRoster();
+    await loadMatchReport(store.getState().board.matchId);
 
     const requestedId = new URLSearchParams(window.location.search).get("board");
     if (requestedId) await openBoard(requestedId);
@@ -93,6 +96,7 @@ function bindControls() {
   $("#pitch-orientation").addEventListener("change", (event) => change(["board", "document", "pitch", "orientation"], event.target.value, "Cambiar orientacion"));
   $("#pitch-surface").addEventListener("change", (event) => change(["board", "document", "pitch", "surface"], event.target.value, "Cambiar cesped"));
   $("#board-match").addEventListener("change", bindBoardToMatch);
+  $("#save-report-button").addEventListener("click", () => saveMatchReport().catch((error) => toast(error.message || "No se pudo guardar el informe")));
 
   $$('[data-overlay]').forEach((input) => input.addEventListener("change", () => {
     change(["board", "document", "pitch", "overlays"], $$('[data-overlay]:checked').map((item) => item.value), "Cambiar overlays");
@@ -220,6 +224,7 @@ function render(state) {
   $("#pitch-readout").textContent = `${board.document.pitch.width} x ${board.document.pitch.height} m`;
   $("#zoom-readout").textContent = `Zoom ${Math.round(ui.zoom * 100)}%`;
   $("#timeline-time").textContent = formatTimelineTime(state.playback.time);
+  renderMatchReport();
   persistRecoveryDraft();
 }
 
@@ -273,6 +278,7 @@ async function openBoard(id) {
   }
   const board = normalizeBoard(await tacticsApi.getBoard(id));
   store.replaceBoard(board);
+  await loadMatchReport(board.matchId);
   localStorage.removeItem(DRAFT_KEY);
   history.replaceState(null, "", `/tactics?board=${encodeURIComponent(id)}`);
   renderLibrary();
@@ -284,6 +290,7 @@ async function createBoard() {
     try { await saveBoard(false); } catch { return; }
   }
   store.replaceBoard(createNewBoard());
+  await loadMatchReport(null);
   localStorage.removeItem(DRAFT_KEY);
   history.replaceState(null, "", "/tactics");
   renderLibrary();
@@ -882,6 +889,98 @@ function bindBoardToMatch(event) {
   if (sessionIndex >= 0) changes.push({ path: ["board", "document", "analysis", "sessions", sessionIndex, "matchId"], value: matchId });
   store.updateMany(changes, "Vincular partido");
   afterDocumentChange();
+  loadMatchReport(matchId).catch((error) => toast(error.message || "No se pudo cargar el informe"));
+}
+
+function selectedMatch(matchId = store.getState().board.matchId) {
+  return matches.find((match) => match.id === matchId) || null;
+}
+
+function emptyMatchReport(matchId) {
+  const match = selectedMatch(matchId);
+  return {
+    matchId,
+    opponent: match?.opponent || "",
+    competition: match?.platform || "",
+    matchDate: match?.datetime || null,
+    status: match?.status === "complete" ? "post-match" : "pre-match",
+    scoreFor: match?.scoreFor ?? null,
+    scoreAgainst: match?.scoreAgainst ?? null,
+    lineup: [],
+    summary: "",
+    takeaways: "",
+    tags: [],
+  };
+}
+
+async function loadMatchReport(matchId) {
+  loadedReportMatchId = matchId || "";
+  if (!matchId) {
+    matchReport = null;
+    renderMatchReport();
+    return;
+  }
+  matchReport = emptyMatchReport(matchId);
+  renderMatchReport();
+  try {
+    const report = await tacticsApi.getMatchReport(matchId);
+    if (loadedReportMatchId === matchId) {
+      matchReport = report;
+      renderMatchReport();
+    }
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+}
+
+function renderMatchReport() {
+  const matchId = store.getState().board.matchId;
+  const visible = Boolean(matchId);
+  $("#match-report-empty").hidden = visible;
+  $("#match-report-fields").hidden = !visible;
+  if (!visible) {
+    $("#match-report-meta").textContent = "Sin vincular";
+    return;
+  }
+  const report = matchReport?.matchId === matchId ? matchReport : emptyMatchReport(matchId);
+  $("#match-report-meta").textContent = [report.competition, report.opponent].filter(Boolean).join(" · ") || "Partido vinculado";
+  syncValue("#report-status", report.status || "pre-match");
+  syncValue("#report-score-for", report.scoreFor ?? "");
+  syncValue("#report-score-against", report.scoreAgainst ?? "");
+  syncValue("#report-lineup", (report.lineup || []).join("\n"));
+  syncValue("#report-summary", report.summary || "");
+  syncValue("#report-takeaways", report.takeaways || "");
+  syncValue("#report-tags", (report.tags || []).join(", "));
+}
+
+function optionalScore(selector) {
+  const value = $(selector).value.trim();
+  return value === "" ? null : Number(value);
+}
+
+async function saveMatchReport() {
+  const matchId = store.getState().board.matchId;
+  if (!matchId) {
+    toast("Vincula primero un partido");
+    return;
+  }
+  const base = matchReport?.matchId === matchId ? matchReport : emptyMatchReport(matchId);
+  const payload = {
+    matchId,
+    opponent: base.opponent || "",
+    competition: base.competition || "",
+    matchDate: base.matchDate || null,
+    status: $("#report-status").value,
+    scoreFor: optionalScore("#report-score-for"),
+    scoreAgainst: optionalScore("#report-score-against"),
+    lineup: $("#report-lineup").value.split("\n").map((item) => item.trim()).filter(Boolean),
+    summary: $("#report-summary").value.trim(),
+    takeaways: $("#report-takeaways").value.trim(),
+    tags: $("#report-tags").value.split(",").map((item) => item.trim()).filter(Boolean),
+  };
+  matchReport = await tacticsApi.upsertMatchReport(matchId, payload);
+  renderMatchReport();
+  toast("Informe de partido guardado");
 }
 
 function activeSession() {

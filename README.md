@@ -63,7 +63,7 @@ La segunda fase del editor tactico esta disponible en `/tactics` y desde el enla
 
 Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.
 
-La plantilla tactica admite jugadores personalizados de KORU o del rival con nombre, dorsal, posicion y cara subida. KORU se representa siempre en blanco y naranja. Cada pizarra puede vincularse a un partido y guardar sesiones historicas con observaciones, decisiones, ajustes, tareas y resultados asociados a minutos, escenas y jugadores seleccionados.
+La plantilla tactica admite jugadores personalizados de KORU o del rival con nombre, dorsal, posicion y cara subida. KORU se representa siempre en blanco y naranja. Cada pizarra puede vincularse a un partido y guardar sesiones historicas con observaciones, decisiones, ajustes, tareas y resultados asociados a minutos, escenas y jugadores seleccionados. Al vincular un encuentro aparece tambien su informe compartido: estado, marcador, convocatoria, resumen, conclusiones y etiquetas. El informe pertenece al partido, no a una pizarra concreta, para que las preparaciones y sesiones futuras queden en el mismo expediente.
 
 La linea de tiempo permite capturar el estado del campo como escena, duplicarlo, nombrarlo, anotar lo que debe pasar, definir su duracion y reproducir el movimiento hacia la siguiente escena. Las posiciones de una escena solo cambian al pulsar `Capturar`, para poder probar variantes sin perder la jugada guardada.
 

@@ -346,6 +346,8 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .selection-detail strong { overflow: hidden; font-size: 0.67rem; text-overflow: ellipsis; white-space: nowrap; }
 .selection-detail small { color: var(--soft); font-size: 0.58rem; }
 .session-fields, .analysis-meta-fields, .player-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
+.match-report-fields { display: grid; gap: 9px; }
+.report-score-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; }
 .scene-fields { display: grid; grid-template-columns: 0.72fr minmax(0, 1.28fr); gap: 6px; }
 .scene-fields label { min-width: 0; }
 .scene-actions { display: grid; grid-template-columns: minmax(0, 1fr) repeat(5, 33px); gap: 5px; }

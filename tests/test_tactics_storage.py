@@ -45,6 +45,20 @@ class TacticalStorageTests(unittest.TestCase):
         self.assertTrue(storage.delete_tactical_board(board["id"]))
         self.assertIsNone(storage.get_tactical_board(board["id"]))
 
+    def test_match_report_upsert(self) -> None:
+        report = storage.upsert_match_report({
+            "matchId": "plg-10",
+            "opponent": "Rival",
+            "competition": "PLG",
+            "status": "pre-match",
+            "lineup": ["Ricky"],
+            "summary": "",
+            "takeaways": "",
+            "tags": ["scouting"],
+        })
+        self.assertEqual(report["matchId"], "plg-10")
+        self.assertEqual(storage.get_match_report("plg-10")["tags"], ["scouting"])
+
 
 if __name__ == "__main__":
     unittest.main()
