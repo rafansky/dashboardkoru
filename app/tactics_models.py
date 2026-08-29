@@ -281,6 +281,21 @@ class MatchReportFileLink(TacticalModel):
     file_id: int = Field(alias="fileId", ge=1)
 
 
+class MatchPlanItem(TacticalModel):
+    id: str = Field(min_length=1, max_length=80)
+    label: str = Field(min_length=1, max_length=160)
+    checked: bool = False
+
+
+class MatchPlanUpsert(TacticalModel):
+    match_id: str = Field(alias="matchId", min_length=1, max_length=120)
+    opponent_profile: str = Field(default="", alias="opponentProfile", max_length=2000)
+    threats: str = Field(default="", max_length=2000)
+    set_pieces: str = Field(default="", alias="setPieces", max_length=2000)
+    match_goals: str = Field(default="", alias="matchGoals", max_length=2000)
+    checklist: list[MatchPlanItem] = Field(default_factory=list, max_length=20)
+
+
 TACTICAL_POSITIONS = Literal["POR", "LD", "LI", "DFC", "CAD", "CAI", "MCD", "MC", "MD", "MI", "MCO", "ED", "EI", "SD", "DC", "LIBRE"]
 
 

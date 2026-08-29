@@ -73,6 +73,8 @@ La linea de tiempo permite capturar el estado del campo como escena, duplicarlo,
 
 Dentro de cada expediente, `Adjuntar` permite subir capturas, clips o documentos. El archivo se conserva en la biblioteca del club y queda asociado al partido sin duplicarlo. `Imprimir` abre una version limpia del expediente para guardarla como PDF desde el dialogo de impresion del navegador.
 
+El bloque `Plan de partido` sirve para preparar el scouting del rival: perfil, amenazas, balon parado, objetivos y checklist. `Usar plantilla` carga una base corta que se puede ajustar, marcar y guardar para cada encuentro.
+
 Pruebas:
 
 ```powershell

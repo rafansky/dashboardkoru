@@ -128,6 +128,21 @@ def init_storage() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_match_report_files_match ON match_report_files(match_id, attached_at DESC)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS match_plans (
+                match_id TEXT PRIMARY KEY,
+                opponent_profile TEXT NOT NULL DEFAULT '',
+                threats TEXT NOT NULL DEFAULT '',
+                set_pieces TEXT NOT NULL DEFAULT '',
+                match_goals TEXT NOT NULL DEFAULT '',
+                checklist_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_match_plans_updated ON match_plans(updated_at DESC)")
         conn.commit()
 
 
@@ -496,6 +511,45 @@ def detach_file_from_match_report(match_id: str, file_id: int) -> bool:
     return cursor.rowcount > 0
 
 
+def _match_plan_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    plan = _row_to_dict(row)
+    plan["matchId"] = plan.pop("match_id")
+    plan["opponentProfile"] = plan.pop("opponent_profile")
+    plan["setPieces"] = plan.pop("set_pieces")
+    plan["matchGoals"] = plan.pop("match_goals")
+    plan["checklist"] = json.loads(plan.pop("checklist_json"))
+    return plan
+
+
+def get_match_plan(match_id: str) -> dict[str, Any] | None:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM match_plans WHERE match_id = ?", (match_id,)).fetchone()
+    return _match_plan_from_row(row) if row else None
+
+
+def upsert_match_plan(payload: dict[str, Any]) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute(
+            """
+            INSERT INTO match_plans (match_id, opponent_profile, threats, set_pieces, match_goals, checklist_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(match_id) DO UPDATE SET
+                opponent_profile = excluded.opponent_profile, threats = excluded.threats,
+                set_pieces = excluded.set_pieces, match_goals = excluded.match_goals,
+                checklist_json = excluded.checklist_json, updated_at = excluded.updated_at
+            """,
+            (
+                payload["matchId"], payload.get("opponentProfile", ""), payload.get("threats", ""),
+                payload.get("setPieces", ""), payload.get("matchGoals", ""),
+                json.dumps(payload.get("checklist", []), ensure_ascii=False), now, now,
+            ),
+        )
+        conn.commit()
+    return get_match_plan(payload["matchId"])  # type: ignore[return-value]
+
+
 def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
     """Return manager dossiers assembled from reports and linked tactical boards."""
     capped_limit = max(1, min(limit, 200))
@@ -581,6 +635,7 @@ def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
     for match_id, dossier in dossiers.items():
         dossier["attachments"] = list_match_report_files(match_id)
         dossier["attachmentCount"] = len(dossier["attachments"])
+        dossier["matchPlan"] = get_match_plan(match_id)
 
     return sorted(
         dossiers.values(),

@@ -118,6 +118,22 @@ class TacticalApiTests(unittest.TestCase):
         detached = self.client.delete(f"/api/match-reports/{payload['matchId']}/files/{uploaded.json()['id']}")
         self.assertEqual(detached.status_code, 200)
 
+        plan_payload = {
+            "matchId": payload["matchId"],
+            "opponentProfile": "Bloque medio y salida corta.",
+            "threats": "Extremos atacan el segundo palo.",
+            "setPieces": "Vigilar el rebote frontal.",
+            "matchGoals": "Ganar segunda jugada y atacar espalda.",
+            "checklist": [{"id": "press", "label": "Acordar gatillos de presion", "checked": True}],
+        }
+        plan = self.client.put(f"/api/match-reports/{payload['matchId']}/plan", json=plan_payload)
+        self.assertEqual(plan.status_code, 200)
+        self.assertTrue(plan.json()["checklist"][0]["checked"])
+        loaded_plan = self.client.get(f"/api/match-reports/{payload['matchId']}/plan")
+        self.assertEqual(loaded_plan.json()["matchGoals"], plan_payload["matchGoals"])
+        history_with_plan = self.client.get("/api/match-history")
+        self.assertEqual(history_with_plan.json()[0]["matchPlan"]["opponentProfile"], plan_payload["opponentProfile"])
+
     def test_custom_player_crud(self) -> None:
         created = self.client.post(
             "/api/tactical-players",
