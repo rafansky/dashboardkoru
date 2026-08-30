@@ -13,7 +13,7 @@ import {
 } from "./model.js?v=20260830b";
 import { Pitch2DInteractions } from "./interactions2d.js?v=20260830j";
 import { Pitch2DRenderer } from "./pitch2d.js?v=20260830k";
-import { Pitch3DRenderer } from "./pitch3d.js?v=20260831a";
+import { Pitch3DRenderer } from "./pitch3d.js?v=20260831b";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -114,6 +114,7 @@ async function init() {
     const fallbackId = boards.find((board) => board.id === rememberedId)?.id || boards[0]?.id;
     if (requestedId) await openBoard(requestedId);
     else if (!recoveryDraft && fallbackId) await openBoard(fallbackId);
+    hydrateRosterAvatars();
   } catch (error) {
     toast(error.message || "No se pudo cargar la pizarra");
   }
@@ -444,12 +445,32 @@ async function openBoard(id) {
   }
   const board = normalizeBoard(await tacticsApi.getBoard(id));
   store.replaceBoard(board);
+  hydrateRosterAvatars();
   await loadMatchReport(board.matchId);
   localStorage.removeItem(DRAFT_KEY);
   history.replaceState(null, "", `/tactics?board=${encodeURIComponent(id)}`);
   localStorage.setItem(LAST_BOARD_KEY, id);
   renderLibrary();
   toast(`Abierta: ${board.name}`);
+}
+
+function hydrateRosterAvatars() {
+  const state = store.getState();
+  const roster = [...rosterPlayers("home"), ...rosterPlayers("away")];
+  const byKey = new Map(roster.map((player) => [player.rosterKey, player]));
+  const byName = new Map(roster.map((player) => [String(player.username || "").toLowerCase(), player]));
+  const changes = state.board.document.entities.flatMap((entity, index) => {
+    if (entity.type !== "player" || entity.metadata?.avatarUrl) return [];
+    const player = byKey.get(entity.metadata?.rosterKey) || byName.get(String(entity.name || "").toLowerCase());
+    if (!player?.avatarUrl) return [];
+    return [{
+      path: ["board", "document", "entities", index, "metadata"],
+      value: { ...entity.metadata, avatarUrl: player.avatarUrl },
+    }];
+  });
+  if (!changes.length) return;
+  store.updateMany(changes, "Sincronizar fotos de jugadores");
+  afterDocumentChange();
 }
 
 async function createBoard() {

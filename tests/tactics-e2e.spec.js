@@ -22,7 +22,7 @@ async function openTactics(page, path = "/tactics", options = {}) {
 
 function threeDAuditBoard() {
   const entities = [
-    { id: "home-1", type: "player", teamId: "home", name: "Ricky", number: 10, position: { x: 22, y: 34, z: 0 }, rotation: 90, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
+    { id: "home-1", type: "player", teamId: "home", name: "Ricky", number: 10, position: { x: 22, y: 34, z: 0 }, rotation: 90, scale: 1, opacity: 1, locked: false, visible: true, metadata: { avatarUrl: "https://vpg-prod-user-uploads.fra1.cdn.digitaloceanspaces.com/avatars/ricky.webp" } },
     { id: "home-2", type: "player", teamId: "home", name: "Pedro", number: 3, position: { x: 48, y: 22, z: 0 }, rotation: 90, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
     { id: "away-1", type: "player", teamId: "away", name: "Rival", number: 9, position: { x: 76, y: 42, z: 0 }, rotation: 270, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
     { id: "ball-1", type: "ball", teamId: null, name: "Balon", number: null, position: { x: 52.5, y: 34, z: 0 }, rotation: 0, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
@@ -154,6 +154,11 @@ test("base tactics route restores the most recent saved board", async ({ page })
 test("3D view mirrors the tactical document and supports camera interaction", async ({ page }, testInfo) => {
   test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
+  let avatarLoads = 0;
+  await page.route("**/api/tactical-avatar**", async (route) => {
+    avatarLoads += 1;
+    await route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#14b8a6"/><circle cx="40" cy="30" r="18" fill="#f4c7a1"/></svg>' });
+  });
   await page.route("**/api/tactical-boards/audit-3d", async (route) => {
     const board = route.request().method() === "PUT"
       ? { ...threeDAuditBoard(), ...route.request().postDataJSON(), id: "audit-3d", version: 2 }
@@ -162,6 +167,7 @@ test("3D view mirrors the tactical document and supports camera interaction", as
   });
   await openTactics(page, "/tactics?board=audit-3d");
   await page.getByRole("button", { name: "3D", exact: true }).click();
+  await expect.poll(() => avatarLoads).toBeGreaterThan(0);
 
   const canvas = page.locator("#pitch-3d-layer canvas");
   await expect(canvas).toBeVisible();

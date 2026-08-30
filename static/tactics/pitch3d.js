@@ -77,10 +77,28 @@ function makeTextTexture(text, options = {}) {
   return texture;
 }
 
+function isSupportedAvatarUrl(value) {
+  return /^(\/uploads\/|\/imageneskoru\/|\/assets\/|https:\/\/)/.test(String(value || ""));
+}
+
 function playerAvatarTextureUrl(avatarUrl) {
   return avatarUrl.startsWith("https://")
     ? `/api/tactical-avatar?source=${encodeURIComponent(avatarUrl)}`
     : avatarUrl;
+}
+
+function makeAvatarMaskTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  context.beginPath();
+  context.arc(64, 64, 61, 0, Math.PI * 2);
+  context.fillStyle = "#ffffff";
+  context.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  return texture;
 }
 
 function makePlayerTexture(entity, team, anonymizePlayers) {
@@ -125,26 +143,6 @@ function makePlayerTexture(entity, team, anonymizePlayers) {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.minFilter = THREE.LinearFilter;
 
-  const avatarUrl = entity.metadata?.avatarUrl;
-  if (avatarUrl && /^(\/uploads\/|\/imageneskoru\/|\/assets\/|https:\/\/)/.test(avatarUrl)) {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = () => {
-      context.clearRect(0, 0, 256, 256);
-      context.save();
-      context.beginPath();
-      context.arc(128, 128, 101, 0, Math.PI * 2);
-      context.clip();
-      const scale = Math.max(202 / image.width, 202 / image.height);
-      const width = image.width * scale;
-      const height = image.height * scale;
-      context.drawImage(image, 128 - width / 2, 128 - height / 2, width, height);
-      context.restore();
-      drawFrame();
-      texture.needsUpdate = true;
-    };
-    image.src = playerAvatarTextureUrl(avatarUrl);
-  }
   texture.userData = { label: anonymizePlayers ? `Jugador ${entity.number ?? ""}` : entity.name };
   return texture;
 }
@@ -599,6 +597,26 @@ export class Pitch3DRenderer {
     playerSprite.renderOrder = 5;
     playerSprite.userData.entityId = entity.id;
     group.add(playerSprite);
+
+    const avatarUrl = entity.metadata?.avatarUrl;
+    if (isSupportedAvatarUrl(avatarUrl)) {
+      const avatarTexture = new THREE.TextureLoader().load(playerAvatarTextureUrl(avatarUrl));
+      avatarTexture.colorSpace = THREE.SRGBColorSpace;
+      avatarTexture.minFilter = THREE.LinearFilter;
+      const avatar = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: avatarTexture,
+        alphaMap: makeAvatarMaskTexture(),
+        transparent: true,
+        alphaTest: 0.04,
+        depthTest: false,
+        depthWrite: false,
+      }));
+      avatar.scale.set(4.28, 4.28, 1);
+      avatar.position.y = 3.1;
+      avatar.renderOrder = 6;
+      avatar.userData.entityId = entity.id;
+      group.add(avatar);
+    }
 
     const hitTarget = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
     hitTarget.scale.set(7.2, 7.2, 1);
