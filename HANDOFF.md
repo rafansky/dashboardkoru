@@ -175,3 +175,12 @@ Fecha: 2026-08-30
 - Aplicar una formación sustituye solo los jugadores KORU por puestos vacíos (`POR`, `DFC`, etc.), conserva rival/elementos/anotaciones y actualiza todas las escenas.
 - Si se carga una alineación mientras hay puestos de formación, sus jugadores ocupan esos puntos por coincidencia de posición, completando los restantes en orden. Sin puestos de formación, conserva las coordenadas guardadas por la alineación.
 - Siguiente fase sugerida: capas de visibilidad para mostrar/ocultar equipos, nombres, balón y anotaciones durante una explicación.
+
+# Relevo - Correccion de arranque y seleccion
+
+Fecha: 2026-08-30
+
+- La seleccion rectangular solo aparece tras un arrastre intencional de 7 px. Se cancela al perder foco, ocultar la pagina, recibir `pointercancel` o cambiar de pantalla completa, por lo que ya no queda un rectangulo abierto al maximizar el campo.
+- Entrar en `/tactics` sin parametro recupera la ultima pizarra utilizada o, si no hay preferencia local, la pizarra guardada mas reciente. El boton **Nueva pizarra** sigue creando un documento vacio de forma explicita.
+- La carga inicial usa resultados independientes: un fallo del dashboard externo ya no impide cargar pizarras, jugadores, alineaciones o biblioteca tactica.
+- Cobertura E2E: umbral y cancelacion del rectangulo, recuperacion de la pizarra y jugador guardados, escritorio, movil, flechas, trayectorias y exportacion grafica.

@@ -11,11 +11,12 @@ import {
   createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260830b";
-import { Pitch2DInteractions } from "./interactions2d.js?v=20260830f";
+import { Pitch2DInteractions } from "./interactions2d.js?v=20260830g";
 import { Pitch2DRenderer } from "./pitch2d.js?v=20260830f";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
+const LAST_BOARD_KEY = "koru:tactics:last-board:v1";
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 const KIND_LABELS = { observation: "Observacion", decision: "Decision", adjustment: "Ajuste", task: "Tarea", outcome: "Resultado" };
@@ -71,6 +72,7 @@ new Pitch2DInteractions({
   onAnnotationResize: resizeTacticalAnnotation,
   onPathPoint: addPathPoint,
   onPathPreview: previewPathPoint,
+  onCancel: restoreRenderer,
 });
 
 document.addEventListener("DOMContentLoaded", init);
@@ -83,17 +85,18 @@ async function init() {
   refreshIcons();
 
   try {
-    const [boardList, dashboard, playerList, templates, plays] = await Promise.all([
+    const [boardResult, dashboardResult, playerResult, templateResult, playResult] = await Promise.allSettled([
       tacticsApi.listBoards(),
       tacticsApi.getDashboard(),
       tacticsApi.listPlayers(),
       tacticsApi.listLineupTemplates(),
       tacticsApi.listPlayTemplates(),
     ]);
-    boards = boardList;
-    customRoster = playerList;
-    lineupTemplates = templates;
-    playTemplates = plays;
+    boards = settledValue(boardResult, []);
+    customRoster = settledValue(playerResult, []);
+    lineupTemplates = settledValue(templateResult, []);
+    playTemplates = settledValue(playResult, []);
+    const dashboard = settledValue(dashboardResult, {});
     dashboardRoster = dashboard.analytics?.playerElo || dashboard.leaderboards?.scorers || [];
     matches = uniqueMatches([...(dashboard.upcoming || []), ...(dashboard.recent || [])]);
     renderMatchOptions();
@@ -104,10 +107,17 @@ async function init() {
     await loadMatchReport(store.getState().board.matchId);
 
     const requestedId = new URLSearchParams(window.location.search).get("board");
+    const rememberedId = localStorage.getItem(LAST_BOARD_KEY);
+    const fallbackId = boards.find((board) => board.id === rememberedId)?.id || boards[0]?.id;
     if (requestedId) await openBoard(requestedId);
+    else if (!recoveryDraft && fallbackId) await openBoard(fallbackId);
   } catch (error) {
     toast(error.message || "No se pudo cargar la pizarra");
   }
+}
+
+function settledValue(result, fallback) {
+  return result.status === "fulfilled" ? result.value : fallback;
 }
 
 function bindControls() {
@@ -325,6 +335,14 @@ function render(state) {
   persistRecoveryDraft();
 }
 
+function restoreRenderer() {
+  const state = store.getState();
+  const scene = currentScene(state);
+  renderer.render(state.board.document, scene?.annotations || [], scene?.movementPaths || []);
+  renderer.setSelection(state.selection);
+  renderer.setLayers(state.ui.layers);
+}
+
 function syncValue(selector, value) {
   const element = $(selector);
   if (element && document.activeElement !== element && element.value !== String(value ?? "")) element.value = value ?? "";
@@ -355,6 +373,7 @@ async function saveBoard(showFeedback = false) {
       else persistRecoveryDraft();
       await refreshLibrary();
       history.replaceState(null, "", `/tactics?board=${encodeURIComponent(saved.id)}`);
+      localStorage.setItem(LAST_BOARD_KEY, saved.id);
       if (showFeedback) toast("Pizarra guardada");
       if (currentSignature !== sentSignature) scheduleAutosave();
       return saved;
@@ -378,6 +397,7 @@ async function openBoard(id) {
   await loadMatchReport(board.matchId);
   localStorage.removeItem(DRAFT_KEY);
   history.replaceState(null, "", `/tactics?board=${encodeURIComponent(id)}`);
+  localStorage.setItem(LAST_BOARD_KEY, id);
   renderLibrary();
   toast(`Abierta: ${board.name}`);
 }

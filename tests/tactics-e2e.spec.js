@@ -2,9 +2,14 @@ import { expect, test } from "@playwright/test";
 
 const password = process.env.KORU_E2E_PASSWORD || "test-password";
 
-async function openTactics(page, path = "/tactics") {
+async function openTactics(page, path = "/tactics", options = {}) {
   const login = await page.request.post("/api/login", { multipart: { password } });
   expect(login.ok()).toBeTruthy();
+  if (options.mockBoards !== false) {
+    await page.route("**/api/tactical-boards?search=", async (route) => {
+      await route.fulfill({ contentType: "application/json", body: "[]" });
+    });
+  }
   await page.route("**/api/dashboard", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -26,6 +31,19 @@ test("desktop editor renders a usable tactical workspace", async ({ page }, test
   await expect(page.locator("#scene-strip .scene-card")).toHaveCount(1);
   await expect(page.locator("#pitch-shell svg .perspective-band")).toHaveCount(10);
 
+  const viewport = page.locator("#pitch-viewport");
+  const viewportBox = await viewport.boundingBox();
+  const dragStart = { x: viewportBox.x + viewportBox.width * 0.72, y: viewportBox.y + viewportBox.height * 0.38 };
+  await page.mouse.move(dragStart.x, dragStart.y);
+  await page.mouse.down();
+  await page.mouse.move(dragStart.x + 3, dragStart.y + 3);
+  await expect(page.locator("#selection-marquee")).toBeHidden();
+  await page.mouse.move(dragStart.x + 90, dragStart.y + 60);
+  await expect(page.locator("#selection-marquee")).toBeVisible();
+  await page.evaluate(() => document.dispatchEvent(new Event("fullscreenchange")));
+  await expect(page.locator("#selection-marquee")).toBeHidden();
+  await page.mouse.up();
+
   await page.getByRole("button", { name: "Abrir modo presentacion" }).click();
   await expect(page.locator("body")).toHaveClass(/presentation-mode/);
   await expect(page.locator("#presentation-dock")).toBeVisible();
@@ -40,6 +58,38 @@ test("desktop editor renders a usable tactical workspace", async ({ page }, test
   expect(stage?.height).toBeGreaterThan(500);
   expect(errors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("desktop.png"), fullPage: true });
+});
+
+test("base tactics route restores the most recent saved board", async ({ page }) => {
+  await page.addInitScript(() => localStorage.removeItem("koru:tactics:last-board:v1"));
+  await page.route("**/api/tactical-boards?search=", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([{ id: "latest-board", name: "Ultima pizarra", updated_at: "2026-08-30T12:00:00Z" }]),
+    });
+  });
+  await page.route("**/api/tactical-boards/latest-board", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "latest-board",
+        name: "Ultima pizarra",
+        category: "Ataque",
+        version: 1,
+        document: {
+          schemaVersion: 3,
+          pitch: { width: 105, height: 68, view: "full", orientation: "top-to-bottom", surface: "stripes", overlays: [] },
+          teams: [],
+          entities: [{ id: "saved-player", type: "player", teamId: "home", name: "Ricky", number: 10, position: { x: 30, y: 30, z: 0 }, rotation: 90, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} }],
+          scenes: [{ id: "scene-1", name: "Escena base", duration: 3, transition: "ease-in-out", notes: "", entityStates: [], annotations: [] }],
+        },
+      }),
+    });
+  });
+  await openTactics(page, "/tactics", { mockBoards: false });
+  await expect(page.locator("#board-name")).toHaveValue("Ultima pizarra");
+  await expect(page.locator('[data-entity-id="saved-player"]')).toBeVisible();
+  await expect(page).toHaveURL(/board=latest-board/);
 });
 
 test("mobile editor starts clear and opens one panel at a time", async ({ page }, testInfo) => {

@@ -1,5 +1,7 @@
 import { clamp, clampToPitch } from "./geometry.js";
 
+const MARQUEE_DRAG_THRESHOLD = 7;
+
 function pointerDistance(a, b) {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
@@ -20,6 +22,7 @@ export class Pitch2DInteractions {
     this.onAnnotationResize = options.onAnnotationResize;
     this.onPathPoint = options.onPathPoint;
     this.onPathPreview = options.onPathPreview;
+    this.onCancel = options.onCancel;
     this.mode = null;
     this.pointers = new Map();
     this.bind();
@@ -29,14 +32,20 @@ export class Pitch2DInteractions {
     this.viewport.addEventListener("pointerdown", (event) => this.pointerDown(event));
     this.viewport.addEventListener("pointermove", (event) => this.pointerMove(event));
     this.viewport.addEventListener("pointerup", (event) => this.pointerUp(event));
-    this.viewport.addEventListener("pointercancel", (event) => this.pointerUp(event));
+    this.viewport.addEventListener("pointercancel", () => this.cancelInteraction());
     this.viewport.addEventListener("wheel", (event) => this.wheel(event), { passive: false });
     this.viewport.addEventListener("dragover", (event) => event.preventDefault());
     this.viewport.addEventListener("drop", (event) => this.drop(event));
+    window.addEventListener("blur", () => this.cancelInteraction());
+    document.addEventListener("fullscreenchange", () => this.cancelInteraction());
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) this.cancelInteraction();
+    });
   }
 
   pointerDown(event) {
     if (!this.renderer.svg) return;
+    if (event.button !== 0 && event.button !== 1) return;
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.viewport.setPointerCapture(event.pointerId);
     const state = this.getState();
@@ -122,8 +131,8 @@ export class Pitch2DInteractions {
 
     const bounds = this.viewport.getBoundingClientRect();
     const start = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
-    this.mode = { type: "marquee", start };
-    this.updateMarquee(start, start);
+    this.mode = { type: "marquee", start, moved: false };
+    this.hideMarquee();
   }
 
   pointerMove(event) {
@@ -164,7 +173,13 @@ export class Pitch2DInteractions {
       this.renderer.previewAnnotationResize(this.mode.id, this.mode.handle, this.mode.endPitch);
     } else if (this.mode.type === "marquee") {
       const bounds = this.viewport.getBoundingClientRect();
-      this.updateMarquee(this.mode.start, { x: event.clientX - bounds.left, y: event.clientY - bounds.top });
+      const end = {
+        x: clamp(event.clientX - bounds.left, 0, bounds.width),
+        y: clamp(event.clientY - bounds.top, 0, bounds.height),
+      };
+      if (!this.mode.moved && pointerDistance(this.mode.start, end) < MARQUEE_DRAG_THRESHOLD) return;
+      this.mode.moved = true;
+      this.updateMarquee(this.mode.start, end);
     }
   }
 
@@ -180,9 +195,13 @@ export class Pitch2DInteractions {
     } else if (this.mode.type === "annotation-resize") {
       this.onAnnotationResize?.(this.mode.id, this.mode.handle, this.mode.endPitch);
     } else if (this.mode.type === "marquee") {
-      const rect = this.marquee.getBoundingClientRect();
-      this.onSelection(this.renderer.entitiesInScreenRect(rect));
-      this.marquee.hidden = true;
+      if (this.mode.moved) {
+        const rect = this.marquee.getBoundingClientRect();
+        this.onSelection(this.renderer.entitiesInScreenRect(rect));
+      } else {
+        this.onSelection([]);
+      }
+      this.hideMarquee();
     }
     if (this.mode.type !== "pinch" || this.pointers.size < 2) this.mode = null;
   }
@@ -193,6 +212,20 @@ export class Pitch2DInteractions {
     this.marquee.style.top = `${Math.min(start.y, end.y)}px`;
     this.marquee.style.width = `${Math.abs(end.x - start.x)}px`;
     this.marquee.style.height = `${Math.abs(end.y - start.y)}px`;
+  }
+
+  hideMarquee() {
+    this.marquee.hidden = true;
+    this.marquee.style.width = "0px";
+    this.marquee.style.height = "0px";
+  }
+
+  cancelInteraction() {
+    if (!this.mode && this.marquee.hidden) return;
+    this.pointers.clear();
+    this.mode = null;
+    this.hideMarquee();
+    this.onCancel?.();
   }
 
   wheel(event) {
