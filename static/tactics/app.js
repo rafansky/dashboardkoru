@@ -12,7 +12,7 @@ import {
   normalizeBoard,
 } from "./model.js?v=20260830b";
 import { Pitch2DInteractions } from "./interactions2d.js?v=20260830h";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260830h";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260830i";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
