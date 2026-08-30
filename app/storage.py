@@ -8,12 +8,14 @@ from typing import Any
 
 from fastapi import UploadFile
 
-from .settings import DATA_DIR, DB_PATH, UPLOAD_DIR
+from .settings import CLIPS_DIR, DATA_DIR, DB_PATH, IMAGES_DIR, UPLOAD_DIR
 
 
 def init_storage() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    CLIPS_DIR.mkdir(parents=True, exist_ok=True)
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(DB_PATH)) as conn:
         conn.execute(
             """
@@ -190,6 +192,37 @@ def init_storage() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_opponent_profiles_updated ON opponent_profiles(updated_at DESC)")
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS match_video_clips (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                match_id TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                source_url TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_match_video_clips_match ON match_video_clips(match_id, created_at DESC)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS match_video_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                clip_id INTEGER NOT NULL,
+                match_id TEXT NOT NULL,
+                timestamp_seconds REAL NOT NULL,
+                note TEXT NOT NULL,
+                board_id TEXT,
+                scene_id TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (clip_id) REFERENCES match_video_clips(id)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_match_video_notes_clip ON match_video_notes(clip_id, timestamp_seconds)")
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(files)").fetchall()}
+        if "storage_kind" not in columns:
+            conn.execute("ALTER TABLE files ADD COLUMN storage_kind TEXT NOT NULL DEFAULT 'upload'")
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS match_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 match_id TEXT NOT NULL,
@@ -260,7 +293,7 @@ def list_files(limit: int = 30) -> list[dict[str, Any]]:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             """
-            SELECT id, original_name, stored_name, content_type, size, created_at
+            SELECT id, original_name, stored_name, content_type, size, created_at, storage_kind
             FROM files
             ORDER BY id DESC
             LIMIT ?
@@ -270,7 +303,7 @@ def list_files(limit: int = 30) -> list[dict[str, Any]]:
     files = []
     for row in rows:
         item = _row_to_dict(row)
-        item["url"] = f"/uploads/{item['stored_name']}"
+        item["url"] = file_url(item["stored_name"], item.get("storage_kind"))
         files.append(item)
     return files
 
@@ -280,7 +313,9 @@ async def save_upload(file: UploadFile) -> dict[str, Any]:
     original = Path(file.filename or "archivo").name
     suffix = Path(original).suffix[:16]
     stored = f"{uuid.uuid4().hex}{suffix}"
-    target = UPLOAD_DIR / stored
+    storage_kind, directory = upload_destination(file.content_type)
+    directory.mkdir(parents=True, exist_ok=True)
+    target = directory / stored
 
     size = 0
     with target.open("wb") as handle:
@@ -292,10 +327,10 @@ async def save_upload(file: UploadFile) -> dict[str, Any]:
     with closing(sqlite3.connect(DB_PATH)) as conn:
         cursor = conn.execute(
             """
-            INSERT INTO files (original_name, stored_name, content_type, size, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO files (original_name, stored_name, content_type, size, created_at, storage_kind)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (original, stored, file.content_type, size, created_at),
+            (original, stored, file.content_type, size, created_at, storage_kind),
         )
         conn.commit()
         file_id = cursor.lastrowid
@@ -307,8 +342,21 @@ async def save_upload(file: UploadFile) -> dict[str, Any]:
         "content_type": file.content_type,
         "size": size,
         "created_at": created_at,
-        "url": f"/uploads/{stored}",
+        "url": file_url(stored, storage_kind),
     }
+
+
+def upload_destination(content_type: str | None) -> tuple[str, Path]:
+    if str(content_type or "").startswith("video/"):
+        return "clip", CLIPS_DIR
+    if str(content_type or "").startswith("image/"):
+        return "image", IMAGES_DIR
+    return "upload", UPLOAD_DIR
+
+
+def file_url(stored_name: str, storage_kind: str | None) -> str:
+    prefix = {"clip": "/clipskoru", "image": "/imageneskoru"}.get(storage_kind or "", "/uploads")
+    return f"{prefix}/{stored_name}"
 
 
 def get_previous_elo_snapshot(snapshot_date: str) -> dict[str, int]:
@@ -548,7 +596,7 @@ def list_match_report_files(match_id: str) -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT files.id, files.original_name, files.stored_name, files.content_type, files.size,
-                   files.created_at, match_report_files.attached_at
+                   files.created_at, files.storage_kind, match_report_files.attached_at
             FROM match_report_files
             JOIN files ON files.id = match_report_files.file_id
             WHERE match_report_files.match_id = ?
@@ -559,7 +607,7 @@ def list_match_report_files(match_id: str) -> list[dict[str, Any]]:
     attachments = []
     for row in rows:
         item = _row_to_dict(row)
-        item["url"] = f"/uploads/{item['stored_name']}"
+        item["url"] = file_url(item["stored_name"], item.get("storage_kind"))
         attachments.append(item)
     return attachments
 
@@ -667,6 +715,66 @@ def upsert_opponent_profile(payload: dict[str, Any]) -> dict[str, Any]:
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM opponent_profiles WHERE name_key = ?", (key,)).fetchone()
     return _opponent_profile_from_row(row)  # type: ignore[arg-type]
+
+
+def _match_video_note_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    note = _row_to_dict(row)
+    note["timestampSeconds"] = note.pop("timestamp_seconds")
+    note["boardId"] = note.pop("board_id")
+    note["sceneId"] = note.pop("scene_id")
+    return note
+
+
+def list_match_video_clips(match_id: str) -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        clips = conn.execute("SELECT * FROM match_video_clips WHERE match_id = ? ORDER BY created_at DESC", (match_id,)).fetchall()
+        result = []
+        for row in clips:
+            clip = _row_to_dict(row)
+            notes = conn.execute("SELECT * FROM match_video_notes WHERE clip_id = ? ORDER BY timestamp_seconds", (clip["id"],)).fetchall()
+            clip["matchId"] = clip.pop("match_id")
+            clip["sourceUrl"] = clip.pop("source_url")
+            clip["notes"] = [_match_video_note_from_row(note) for note in notes]
+            result.append(clip)
+    return result
+
+
+def create_match_video_clip(match_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("INSERT INTO match_video_clips (match_id, title, source_url, created_at) VALUES (?, ?, ?, ?)", (match_id, payload.get("title", ""), payload["sourceUrl"], now))
+        conn.commit()
+        clip_id = cursor.lastrowid
+    return next(clip for clip in list_match_video_clips(match_id) if clip["id"] == clip_id)
+
+
+def delete_match_video_clip(match_id: str, clip_id: int) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute("DELETE FROM match_video_notes WHERE match_id = ? AND clip_id = ?", (match_id, clip_id))
+        cursor = conn.execute("DELETE FROM match_video_clips WHERE match_id = ? AND id = ?", (match_id, clip_id))
+        conn.commit()
+    return cursor.rowcount > 0
+
+
+def create_match_video_note(match_id: str, clip_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        exists = conn.execute("SELECT 1 FROM match_video_clips WHERE match_id = ? AND id = ?", (match_id, clip_id)).fetchone()
+        if not exists:
+            return None
+        cursor = conn.execute("INSERT INTO match_video_notes (clip_id, match_id, timestamp_seconds, note, board_id, scene_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)", (clip_id, match_id, payload["timestampSeconds"], payload["note"], payload.get("boardId"), payload.get("sceneId"), now))
+        conn.commit()
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM match_video_notes WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    return _match_video_note_from_row(row) if row else None
+
+
+def delete_match_video_note(match_id: str, clip_id: int, note_id: int) -> bool:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        cursor = conn.execute("DELETE FROM match_video_notes WHERE id = ? AND clip_id = ? AND match_id = ?", (note_id, clip_id, match_id))
+        conn.commit()
+    return cursor.rowcount > 0
 
 
 def _match_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
@@ -840,6 +948,8 @@ def list_match_history(limit: int = 100) -> list[dict[str, Any]]:
         dossier["eventCount"] = len(dossier["events"])
         dossier["callups"] = list_match_callups(match_id)
         dossier["callupCount"] = len(dossier["callups"])
+        dossier["clips"] = list_match_video_clips(match_id)
+        dossier["clipCount"] = len(dossier["clips"])
 
     return sorted(
         dossiers.values(),

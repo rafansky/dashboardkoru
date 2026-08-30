@@ -15,6 +15,8 @@ from .settings import (
     AUTH_PASSWORD,
     AUTH_SECRET,
     AUTH_SESSION_HOURS,
+    CLIPS_DIR,
+    IMAGES_DIR,
     STATIC_DIR,
     UPLOAD_DIR,
 )
@@ -26,9 +28,13 @@ from .storage import (
     create_tactical_play_template,
     create_tactical_board,
     create_match_event,
+    create_match_video_clip,
+    create_match_video_note,
     delete_match_callup,
     delete_note,
     delete_match_event,
+    delete_match_video_clip,
+    delete_match_video_note,
     detach_file_from_match_report,
     delete_tactical_board,
     delete_tactical_player,
@@ -50,6 +56,7 @@ from .storage import (
     list_tactical_lineup_templates,
     list_tactical_play_templates,
     list_match_reports,
+    list_match_video_clips,
     list_opponent_profiles,
     save_upload,
     upsert_match_report,
@@ -58,7 +65,7 @@ from .storage import (
     upsert_opponent_profile,
     update_tactical_board,
 )
-from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, OpponentProfileUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalPlayTemplateCreate, TacticalSquadPlayerCreate
+from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, MatchVideoClipCreate, MatchVideoNoteCreate, OpponentProfileUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalPlayTemplateCreate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -126,6 +133,8 @@ def startup() -> None:
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+app.mount("/clipskoru", StaticFiles(directory=CLIPS_DIR, check_dir=False), name="clipskoru")
+app.mount("/imageneskoru", StaticFiles(directory=IMAGES_DIR, check_dir=False), name="imageneskoru")
 
 
 @app.get("/")
@@ -309,6 +318,38 @@ async def add_match_event(match_id: str, payload: MatchEventCreate) -> dict:
 async def remove_match_event(match_id: str, event_id: int) -> dict[str, bool]:
     if not delete_match_event(match_id, event_id):
         raise HTTPException(status_code=404, detail="Evento no encontrado")
+    return {"deleted": True}
+
+
+@app.get("/api/match-reports/{match_id}/clips")
+async def match_video_clips(match_id: str) -> list[dict]:
+    return list_match_video_clips(match_id)
+
+
+@app.post("/api/match-reports/{match_id}/clips", status_code=201)
+async def add_match_video_clip(match_id: str, payload: MatchVideoClipCreate) -> dict:
+    return create_match_video_clip(match_id, payload.model_dump(mode="json", by_alias=True))
+
+
+@app.delete("/api/match-reports/{match_id}/clips/{clip_id}")
+async def remove_match_video_clip(match_id: str, clip_id: int) -> dict[str, bool]:
+    if not delete_match_video_clip(match_id, clip_id):
+        raise HTTPException(status_code=404, detail="Video no encontrado")
+    return {"deleted": True}
+
+
+@app.post("/api/match-reports/{match_id}/clips/{clip_id}/notes", status_code=201)
+async def add_match_video_note(match_id: str, clip_id: int, payload: MatchVideoNoteCreate) -> dict:
+    note = create_match_video_note(match_id, clip_id, payload.model_dump(mode="json", by_alias=True))
+    if not note:
+        raise HTTPException(status_code=404, detail="Video no encontrado")
+    return note
+
+
+@app.delete("/api/match-reports/{match_id}/clips/{clip_id}/notes/{note_id}")
+async def remove_match_video_note(match_id: str, clip_id: int, note_id: int) -> dict[str, bool]:
+    if not delete_match_video_note(match_id, clip_id, note_id):
+        raise HTTPException(status_code=404, detail="Nota de video no encontrada")
     return {"deleted": True}
 
 

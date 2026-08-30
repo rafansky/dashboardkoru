@@ -201,3 +201,14 @@ Fecha: 2026-08-30
 - En la pizarra, `Ctrl + clic` (tambien `Cmd` en macOS) suma o quita jugadores, balones, flechas, zonas y textos de la seleccion. `Supr`/`Backspace` borra todo el conjunto seleccionado.
 - El borrado admite selecciones mixtas de entidades y anotaciones en una sola operacion. Las filas del panel de anotaciones respetan el mismo modificador.
 - E2E cubre seleccionar dos anotaciones con Ctrl y borrarlas sin eliminar al jugador del campo.
+
+# Relevo - Fase 13: Video, clips y notas temporizadas
+
+Fecha: 2026-08-30
+
+- Cada expediente de partido dispone ahora de **Video y clips** en `/match-history`: se puede subir un MP4/WebM o registrar una URL directa a un archivo de video.
+- El reproductor incluye linea de tiempo, reproducir/pausar y saltos de -10, -5, +5 y +10 segundos. Desde el segundo actual se pueden crear notas, enlazarlas opcionalmente a una pizarra y volver a ese instante con un clic.
+- Persistencia: tablas `match_video_clips` y `match_video_notes`; API `GET/POST/DELETE /api/match-reports/{match_id}/clips` y `POST/DELETE /api/match-reports/{match_id}/clips/{clip_id}/notes`.
+- Los ficheros se separan automaticamente por tipo: los videos usan `CLIPS_DIR` y las imagenes `IMAGES_DIR`. Por defecto son `uploads/clipskoru` y `uploads/imageneskoru`; las URL publicas son `/clipskoru/...` y `/imageneskoru/...`.
+- En el mini PC no se detecto todavia el disco externo ni los puntos `/clipskoru` y `/imageneskoru`. Cuando este montado de verdad, configurar el servicio con `KORU_CLIPS_DIR=/clipskoru` y `KORU_IMAGES_DIR=/imageneskoru`; no crear esas rutas sobre el disco del sistema como sustituto.
+- Cobertura: API para clip, nota y subida de video al directorio de clips; E2E para controles del reproductor y anotacion temporal.

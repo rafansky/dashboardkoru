@@ -5,6 +5,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = BASE_DIR / "uploads"
+CLIPS_DIR = Path(os.getenv("KORU_CLIPS_DIR", str(UPLOAD_DIR / "clipskoru")))
+IMAGES_DIR = Path(os.getenv("KORU_IMAGES_DIR", str(UPLOAD_DIR / "imageneskoru")))
 DB_PATH = DATA_DIR / "koru.db"
 
 DASHBOARD_CACHE_SECONDS = 300

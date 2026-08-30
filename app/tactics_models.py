@@ -343,6 +343,26 @@ class OpponentProfileUpsert(TacticalModel):
     tags: list[str] = Field(default_factory=list, max_length=20)
 
 
+class MatchVideoClipCreate(TacticalModel):
+    title: str = Field(default="", max_length=160)
+    source_url: str = Field(alias="sourceUrl", min_length=1, max_length=1000)
+
+    @field_validator("source_url")
+    @classmethod
+    def validate_source_url(cls, value: str) -> str:
+        clean = value.strip()
+        if not (clean.startswith("/uploads/") or clean.startswith("https://") or clean.startswith("http://")):
+            raise ValueError("La fuente debe ser un archivo subido o una URL http(s)")
+        return clean
+
+
+class MatchVideoNoteCreate(TacticalModel):
+    timestamp_seconds: float = Field(alias="timestampSeconds", ge=0, le=86_400)
+    note: str = Field(min_length=1, max_length=2000)
+    board_id: str | None = Field(default=None, alias="boardId", max_length=80)
+    scene_id: str | None = Field(default=None, alias="sceneId", max_length=80)
+
+
 class MatchEventCreate(TacticalModel):
     type: Literal["goal", "conceded", "substitution", "card", "adjustment", "note"]
     minute: int | None = Field(default=None, ge=0, le=180)

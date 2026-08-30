@@ -4,6 +4,7 @@ let selectedId = "";
 const planDrafts = new Map();
 let opponentProfiles = [];
 const opponentProfileDrafts = new Map();
+let activeClipId = null;
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -96,6 +97,7 @@ function renderDetail(item) {
     ${renderOpponentProfile(item)}
     ${renderMatchPlan(item)}
     ${renderEventTimeline(item.events || [])}
+    ${renderVideoAnalysis(item)}
     <section class="linked-section"><div class="section-heading"><div><span>Pizarras vinculadas</span><strong>${item.boardCount}</strong></div></div><div class="linked-list">${item.boards.length ? item.boards.map((board) => `<a class="linked-board" href="/tactics?board=${encodeURIComponent(board.id)}"><i data-lucide="clipboard-pen-line"></i><span><strong>${escapeHtml(board.name)}</strong><small>${escapeHtml(board.category)} · ${board.sceneCount} escenas</small></span><i data-lucide="arrow-up-right"></i></a>`).join("") : `<div class="empty-list">Aun no hay pizarras vinculadas.</div>`}</div></section>
     <section class="linked-section"><div class="section-heading"><div><span>Sesiones de analisis</span><strong>${item.sessionCount}</strong></div></div><div class="linked-list">${item.sessions.length ? item.sessions.map((session) => `<a class="linked-board" href="/tactics?board=${encodeURIComponent(session.boardId)}"><i data-lucide="notebook-pen"></i><span><strong>${escapeHtml(session.name)}</strong><small>${escapeHtml(session.boardName)} · ${statusLabel(session.type)} · ${session.entryCount} notas</small></span><i data-lucide="arrow-up-right"></i></a>`).join("") : `<div class="empty-list">Aun no hay sesiones vinculadas.</div>`}</div></section>
     <section class="linked-section attachments-section"><div class="section-heading"><div><span>Adjuntos</span><strong>${item.attachmentCount || 0}</strong></div></div><div class="attachment-list">${(item.attachments || []).length ? item.attachments.map((attachment) => renderAttachment(attachment)).join("") : `<div class="empty-list">Sin adjuntos. Sube capturas, clips o documentos del partido.</div>`}</div></section>`;
@@ -112,6 +114,12 @@ function renderDetail(item) {
   $("[data-save-opponent-profile]")?.addEventListener("click", () => saveOpponentProfile(item));
   $("[data-use-opponent-profile]")?.addEventListener("click", () => applyOpponentProfileToPlan(item));
   target.querySelectorAll("[data-opponent-match-id]").forEach((button) => button.addEventListener("click", () => { selectedId = button.dataset.opponentMatchId; render(); }));
+  target.querySelector("[data-toggle-clip-form]")?.addEventListener("click", () => target.querySelector("[data-clip-form]").toggleAttribute("hidden"));
+  target.querySelector("[data-save-clip]")?.addEventListener("click", () => saveVideoClip(item));
+  target.querySelector("[data-clip-upload]")?.addEventListener("change", (event) => uploadVideoClip(item, event.target.files?.[0]));
+  target.querySelectorAll("[data-select-clip]").forEach((button) => button.addEventListener("click", () => { activeClipId = Number(button.dataset.selectClip); render(); }));
+  target.querySelectorAll("[data-delete-clip]").forEach((button) => button.addEventListener("click", () => deleteVideoClip(item.matchId, Number(button.dataset.deleteClip))));
+  bindVideoPlayer(item);
 }
 
 function opponentKey(name) { return String(name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("es"); }
@@ -185,6 +193,79 @@ function renderMatchPlan(item) {
 function renderEventTimeline(events) {
   const labels = { goal: "Gol KORU", conceded: "Gol rival", substitution: "Cambio", card: "Tarjeta", adjustment: "Ajuste tactico", note: "Nota" };
   return `<section class="linked-section event-timeline-section"><div class="section-heading"><div><span>Registro en directo</span><strong>${events.length}</strong></div></div><div class="event-timeline">${events.length ? events.slice(0, 12).map((event) => `<article class="history-event" data-type="${escapeHtml(event.type)}"><b>${event.minute === null || event.minute === undefined ? "--" : `${event.minute}'`}</b><strong>${labels[event.type] || event.type}</strong><span>${escapeHtml(event.note || "")}</span></article>`).join("") : `<div class="empty-list">Sin eventos de directo.</div>`}</div></section>`;
+}
+
+function renderVideoAnalysis(item) {
+  const clips = item.clips || [];
+  if (!clips.some((clip) => clip.id === activeClipId)) activeClipId = clips[0]?.id || null;
+  const clip = clips.find((entry) => entry.id === activeClipId);
+  const clipRows = clips.map((entry) => `<div class="clip-row${entry.id === activeClipId ? " active" : ""}"><button class="clip-select" type="button" data-select-clip="${entry.id}"><i data-lucide="film"></i><span><strong>${escapeHtml(entry.title || "Video sin titulo")}</strong><small>${entry.notes?.length || 0} notas</small></span></button><button type="button" data-delete-clip="${entry.id}" title="Eliminar video" aria-label="Eliminar video"><i data-lucide="trash-2"></i></button></div>`).join("");
+  const boardOptions = item.boards.map((board) => `<option value="${escapeHtml(board.id)}">${escapeHtml(board.name)}</option>`).join("");
+  const notes = clip?.notes || [];
+  const player = clip ? `<div class="clip-player"><video id="clip-video" preload="metadata" src="${escapeHtml(clip.sourceUrl)}"></video><div class="clip-controls"><button type="button" data-clip-seek="-10" title="Retroceder 10 segundos" aria-label="Retroceder 10 segundos"><i data-lucide="rewind"></i></button><button type="button" data-clip-seek="-5" title="Retroceder 5 segundos" aria-label="Retroceder 5 segundos"><i data-lucide="rotate-ccw"></i></button><button type="button" data-clip-play title="Reproducir o pausar" aria-label="Reproducir o pausar"><i data-lucide="play"></i></button><button type="button" data-clip-seek="5" title="Avanzar 5 segundos" aria-label="Avanzar 5 segundos"><i data-lucide="rotate-cw"></i></button><button type="button" data-clip-seek="10" title="Avanzar 10 segundos" aria-label="Avanzar 10 segundos"><i data-lucide="fast-forward"></i></button><span id="clip-time">00:00 / 00:00</span></div><input id="clip-progress" type="range" min="0" max="0" value="0" step="0.1" aria-label="Tiempo del video" /></div><div class="clip-note-compose"><textarea id="clip-note-text" rows="2" maxlength="2000" placeholder="Observacion en este instante..."></textarea><select id="clip-note-board" aria-label="Vincular nota a pizarra"><option value="">Sin pizarra vinculada</option>${boardOptions}</select><button class="compact-button plan-save" type="button" data-add-video-note><i data-lucide="plus"></i><span>Anotar instante</span></button></div><div class="clip-notes">${notes.length ? notes.map((note) => `<article class="clip-note"><button type="button" data-seek-note="${note.timestampSeconds}" title="Ir al instante"><strong>${formatVideoTime(note.timestampSeconds)}</strong></button><span>${formatText(note.note, "")}</span>${note.boardId ? `<a href="/tactics?board=${encodeURIComponent(note.boardId)}" title="Abrir pizarra"><i data-lucide="clipboard-pen-line"></i></a>` : ""}<button type="button" data-delete-video-note="${note.id}" title="Eliminar nota" aria-label="Eliminar nota"><i data-lucide="x"></i></button></article>`).join("") : `<div class="empty-list">Sin notas de video todavia.</div>`}</div>` : `<div class="clip-empty">Selecciona o añade un video para empezar el analisis.</div>`;
+  return `<section class="linked-section video-analysis-section"><div class="section-heading"><div><span>Video y clips</span><strong>${clips.length}</strong></div><button class="compact-button" type="button" data-toggle-clip-form><i data-lucide="video"></i><span>Añadir video</span></button></div><div class="clip-add-form" data-clip-form hidden><input id="clip-title" maxlength="160" placeholder="Nombre del clip" /><input id="clip-url" maxlength="1000" placeholder="URL directa del video .mp4/.webm" /><label class="compact-button file-button"><i data-lucide="upload"></i><span>Subir video</span><input data-clip-upload type="file" accept="video/*" /></label><button class="compact-button plan-save" type="button" data-save-clip><i data-lucide="plus"></i><span>Añadir</span></button></div><div class="clip-workspace"><div class="clip-list">${clipRows || `<div class="empty-list">Aun no hay videos.</div>`}</div><div class="clip-detail">${player}</div></div></section>`;
+}
+
+function bindVideoPlayer(item) {
+  const video = $("#clip-video");
+  if (!video) return;
+  const progress = $("#clip-progress");
+  const time = $("#clip-time");
+  const sync = () => {
+    const duration = Number.isFinite(video.duration) ? video.duration : 0;
+    progress.max = String(duration);
+    progress.value = String(Math.min(video.currentTime || 0, duration));
+    time.textContent = `${formatVideoTime(video.currentTime)} / ${formatVideoTime(duration)}`;
+  };
+  video.addEventListener("loadedmetadata", sync);
+  video.addEventListener("timeupdate", sync);
+  progress.addEventListener("input", () => { video.currentTime = Number(progress.value); sync(); });
+  $("[data-clip-play]")?.addEventListener("click", () => { if (video.paused) video.play().catch(() => toast("El navegador no pudo reproducir este video")); else video.pause(); });
+  document.querySelectorAll("[data-clip-seek]").forEach((button) => button.addEventListener("click", () => { video.currentTime = Math.max(0, Math.min(video.duration || Infinity, video.currentTime + Number(button.dataset.clipSeek))); sync(); }));
+  $("[data-add-video-note]")?.addEventListener("click", () => addVideoNote(item, video.currentTime));
+  document.querySelectorAll("[data-seek-note]").forEach((button) => button.addEventListener("click", () => { video.currentTime = Number(button.dataset.seekNote); video.play().catch(() => null); }));
+  document.querySelectorAll("[data-delete-video-note]").forEach((button) => button.addEventListener("click", () => deleteVideoNote(item.matchId, activeClipId, Number(button.dataset.deleteVideoNote))));
+}
+
+async function saveVideoClip(item) {
+  const sourceUrl = $("#clip-url").value.trim();
+  if (!sourceUrl) return $("#clip-url").focus();
+  try {
+    const clip = await request(`/api/match-reports/${encodeURIComponent(item.matchId)}/clips`, jsonOptions("POST", { title: $("#clip-title").value.trim(), sourceUrl }));
+    activeClipId = clip.id;
+    toast("Video añadido al expediente");
+    await loadHistory();
+  } catch (error) { toast(error.message || "No se pudo añadir el video"); }
+}
+
+async function uploadVideoClip(item, file) {
+  if (!file) return;
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    const upload = await request("/api/files", { method: "POST", body });
+    const clip = await request(`/api/match-reports/${encodeURIComponent(item.matchId)}/clips`, jsonOptions("POST", { title: $("#clip-title").value.trim() || file.name, sourceUrl: upload.url }));
+    activeClipId = clip.id;
+    toast("Video subido y añadido");
+    await loadHistory();
+  } catch (error) { toast(error.message || "No se pudo subir el video"); }
+}
+
+async function deleteVideoClip(matchId, clipId) {
+  try { await request(`/api/match-reports/${encodeURIComponent(matchId)}/clips/${clipId}`, { method: "DELETE" }); activeClipId = null; await loadHistory(); } catch (error) { toast(error.message || "No se pudo eliminar el video"); }
+}
+
+async function addVideoNote(item, timestampSeconds) {
+  const note = $("#clip-note-text").value.trim();
+  if (!note) return $("#clip-note-text").focus();
+  try {
+    await request(`/api/match-reports/${encodeURIComponent(item.matchId)}/clips/${activeClipId}/notes`, jsonOptions("POST", { timestampSeconds, note, boardId: $("#clip-note-board").value || null }));
+    await loadHistory();
+  } catch (error) { toast(error.message || "No se pudo guardar la nota de video"); }
+}
+
+async function deleteVideoNote(matchId, clipId, noteId) {
+  try { await request(`/api/match-reports/${encodeURIComponent(matchId)}/clips/${clipId}/notes/${noteId}`, { method: "DELETE" }); await loadHistory(); } catch (error) { toast(error.message || "No se pudo eliminar la nota"); }
 }
 
 function updatePlanField(matchId, field, value) { planDrafts.get(matchId)[field] = value; }
@@ -262,6 +343,7 @@ function formatDate(value) { return value ? new Intl.DateTimeFormat("es-ES", { d
 function formatDateTime(value) { return value ? new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "Sin fecha"; }
 function formatText(value, fallback) { return escapeHtml(value || fallback).replaceAll("\n", "<br>"); }
 function formatFileSize(size) { return size < 1024 * 1024 ? `${Math.max(1, Math.round(size / 1024))} KB` : `${(size / (1024 * 1024)).toFixed(1)} MB`; }
+function formatVideoTime(seconds) { const value = Math.max(0, Math.floor(Number(seconds) || 0)); return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`; }
 function createId() { return globalThis.crypto?.randomUUID?.() || `plan-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 function statusLabel(status) { return { "pre-match": "Prepartido", live: "En directo", "post-match": "Postpartido" }[status] || "Sesion"; }
 function toast(message) { const element = $("#toast"); element.textContent = message; element.classList.add("show"); clearTimeout(toast.timer); toast.timer = setTimeout(() => element.classList.remove("show"), 2600); }

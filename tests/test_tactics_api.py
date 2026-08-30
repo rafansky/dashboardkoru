@@ -157,6 +157,24 @@ class TacticalApiTests(unittest.TestCase):
         self.assertEqual(history_with_callup.json()[0]["callupCount"], 1)
         self.assertEqual(self.client.delete(f"/api/match-reports/{payload['matchId']}/callups/custom%3Aricky").status_code, 200)
 
+        clip = self.client.post(
+            f"/api/match-reports/{payload['matchId']}/clips",
+            json={"title": "Salida rival", "sourceUrl": "/uploads/salida-rival.mp4"},
+        )
+        self.assertEqual(clip.status_code, 201)
+        clip_id = clip.json()["id"]
+        note = self.client.post(
+            f"/api/match-reports/{payload['matchId']}/clips/{clip_id}/notes",
+            json={"timestampSeconds": 42.5, "note": "El extremo cierra tarde.", "boardId": board.json()["id"]},
+        )
+        self.assertEqual(note.status_code, 201)
+        clips = self.client.get(f"/api/match-reports/{payload['matchId']}/clips")
+        self.assertEqual(clips.json()[0]["notes"][0]["timestampSeconds"], 42.5)
+        history_with_clip = self.client.get("/api/match-history")
+        self.assertEqual(history_with_clip.json()[0]["clipCount"], 1)
+        self.assertEqual(self.client.delete(f"/api/match-reports/{payload['matchId']}/clips/{clip_id}/notes/{note.json()['id']}").status_code, 200)
+        self.assertEqual(self.client.delete(f"/api/match-reports/{payload['matchId']}/clips/{clip_id}").status_code, 200)
+
     def test_opponent_profile_is_saved_and_normalized(self) -> None:
         payload = {
             "name": "  Rival FC  ", "formation": "4-2-3-1", "playStyle": "Bloque medio y salida corta.",
@@ -195,6 +213,11 @@ class TacticalApiTests(unittest.TestCase):
 
         deleted = self.client.delete(f"/api/tactical-players/{player['id']}")
         self.assertEqual(deleted.status_code, 200)
+
+    def test_video_upload_uses_the_separate_clip_directory(self) -> None:
+        uploaded = self.client.post("/api/files", files={"file": ("analisis.mp4", b"not-a-real-video", "video/mp4")})
+        self.assertEqual(uploaded.status_code, 200)
+        self.assertTrue(uploaded.json()["url"].startswith("/clipskoru/"))
 
     def test_lineup_template_crud(self) -> None:
         payload = {
