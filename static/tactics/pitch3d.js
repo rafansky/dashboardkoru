@@ -198,6 +198,7 @@ export class Pitch3DRenderer {
     this.layers = { home: true, away: true, ball: true, names: true, annotations: true, markings: true };
     this.selectedIds = new Set();
     this.entities = new Map();
+    this.annotationGroups = new Map();
     this.pickables = [];
     this.active = false;
     this.cameraKey = "";
@@ -281,6 +282,7 @@ export class Pitch3DRenderer {
     this.movementPaths = movementPaths;
     disposeTree(this.world);
     this.entities.clear();
+    this.annotationGroups.clear();
     this.pickables = [];
 
     this.surfaceGroup = new THREE.Group();
@@ -465,7 +467,11 @@ export class Pitch3DRenderer {
     annotations.forEach((annotation) => {
       const color = new THREE.Color(annotation.color || "#f95516");
       if (annotation.type === "arrow") {
-        this.annotationsGroup.add(createArrow(point3(annotation.start, pitch, 0.35), point3(annotation.end, pitch, 0.35), color));
+        const arrow = createArrow(point3(annotation.start, pitch, 0.35), point3(annotation.end, pitch, 0.35), color);
+        arrow.userData.annotationId = annotation.id;
+        this.annotationsGroup.add(arrow);
+        this.annotationGroups.set(annotation.id, arrow);
+        this.pickables.push(...arrow.children);
       } else if (annotation.type === "zone") {
         const width = Math.max(0.2, Math.abs(annotation.end.x - annotation.start.x));
         const height = Math.max(0.2, Math.abs(annotation.end.y - annotation.start.y));
@@ -475,12 +481,18 @@ export class Pitch3DRenderer {
         );
         zone.rotation.x = -Math.PI / 2;
         zone.position.copy(point3({ x: (annotation.start.x + annotation.end.x) / 2, y: (annotation.start.y + annotation.end.y) / 2 }, pitch, 0.2));
+        zone.userData.annotationId = annotation.id;
         this.annotationsGroup.add(zone);
+        this.annotationGroups.set(annotation.id, zone);
+        this.pickables.push(zone);
       } else if (annotation.type === "text") {
         const text = createSprite(makeTextTexture(annotation.text || "Nota", { color: annotation.color || "#f95516" }), 12, 3, false);
         text.position.copy(point3(annotation.position, pitch, 2.2));
         text.renderOrder = 7;
+        text.userData.annotationId = annotation.id;
         this.annotationsGroup.add(text);
+        this.annotationGroups.set(annotation.id, text);
+        this.pickables.push(text);
       }
     });
 
@@ -577,10 +589,31 @@ export class Pitch3DRenderer {
     return target?.userData.entityId ? target : null;
   }
 
+  annotationAtPointer(event) {
+    const hit = this.pointerRay(event).intersectObjects(this.pickables, true)[0]?.object;
+    let target = hit;
+    while (target && !target.userData.annotationId) target = target.parent;
+    return target?.userData.annotationId ? target : null;
+  }
+
   beginEntityDrag(event) {
     if (!this.active || event.button !== 0 || !this.document) return;
     const target = this.entityAtPointer(event);
-    if (!target) return;
+    const annotationTarget = target ? null : this.annotationAtPointer(event);
+    if (!target && !annotationTarget) return;
+    if (annotationTarget) {
+      const annotation = this.annotations.find((item) => item.id === annotationTarget.userData.annotationId);
+      if (!annotation) return;
+      const startPitch = this.pitchAtPointer(event);
+      if (!startPitch) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.onSelection?.([annotation.id]);
+      this.drag = { type: "annotation", annotation, group: this.annotationGroups.get(annotation.id), startPitch };
+      this.controls.enabled = false;
+      this.webgl.domElement.setPointerCapture?.(event.pointerId);
+      return;
+    }
     const entity = this.document.entities.find((item) => item.id === target.userData.entityId);
     if (!entity || entity.locked) return;
     const additive = event.ctrlKey || event.metaKey || event.shiftKey;
@@ -608,6 +641,11 @@ export class Pitch3DRenderer {
     const current = this.pitchAtPointer(event);
     if (!current) return;
     const delta = { x: current.x - this.drag.startPitch.x, y: current.y - this.drag.startPitch.y };
+    if (this.drag.type === "annotation") {
+      this.drag.group.position.copy(point3({ x: delta.x, y: delta.y }, this.document.pitch, 0));
+      event.preventDefault();
+      return;
+    }
     this.drag.positions = Object.fromEntries(Object.entries(this.drag.starts).map(([id, start]) => [
       id,
       clampToPitch({ x: start.x + delta.x, y: start.y + delta.y, z: start.z || 0 }, this.document.pitch),
@@ -622,7 +660,12 @@ export class Pitch3DRenderer {
     this.drag = null;
     this.controls.enabled = this.active;
     this.webgl.domElement.releasePointerCapture?.(event.pointerId);
-    this.onMove?.(drag.starts, drag.positions);
+    if (drag.type === "annotation") {
+      const current = this.pitchAtPointer(event) || drag.startPitch;
+      this.onAnnotationMove?.(drag.annotation.id, drag.startPitch, current);
+    } else {
+      this.onMove?.(drag.starts, drag.positions);
+    }
     this.pointerStart = null;
   }
 
@@ -630,13 +673,15 @@ export class Pitch3DRenderer {
     if (!this.drag) return;
     const drag = this.drag;
     this.drag = null;
-    this.previewEntityPositions(drag.starts);
+    if (drag.type === "annotation") drag.group.position.set(0, 0, 0);
+    else this.previewEntityPositions(drag.starts);
     this.controls.enabled = this.active;
   }
 
   selectAtPointer(event) {
     if (!this.active || !this.pointerStart || Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y) > 6) return;
-    const id = this.entityAtPointer(event)?.userData.entityId;
+    const target = this.entityAtPointer(event) || this.annotationAtPointer(event);
+    const id = target?.userData.entityId || target?.userData.annotationId;
     if (!id) {
       this.onSelection?.([]);
       return;

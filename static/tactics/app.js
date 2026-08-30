@@ -38,7 +38,7 @@ const DEFAULT_PRESENTATION_LAYERS = { home: true, away: true, ball: true, names:
 const recoveryDraft = loadRecoveryDraft();
 const store = createEditorStore(recoveryDraft || createNewBoard(), Boolean(recoveryDraft));
 const renderer = new Pitch2DRenderer($("#pitch-2d-layer"));
-const renderer3d = new Pitch3DRenderer($("#pitch-3d-layer"), { onSelection: (selection) => store.setSelection(selection), onMove: commitEntityMove });
+const renderer3d = new Pitch3DRenderer($("#pitch-3d-layer"), { onSelection: (selection) => store.setSelection(selection), onMove: commitEntityMove, onAnnotationMove: moveTacticalAnnotation });
 let boards = [];
 let dashboardRoster = [];
 let customRoster = [];
