@@ -355,6 +355,12 @@ export class Pitch2DRenderer {
     addMovementPaths(this.movementPathLayer, this.movementPaths || [], this.document.pitch, path);
   }
 
+  setAnnotationDraft(annotation) {
+    if (!this.annotationLayer || !this.document) return;
+    this.annotationLayer.replaceChildren();
+    addAnnotations(this.annotationLayer, [...(this.annotations || []), ...(annotation ? [annotation] : [])], this.document.pitch);
+  }
+
   previewEntityPositions(positions) {
     if (!this.document) return;
     Object.entries(positions).forEach(([id, position]) => {

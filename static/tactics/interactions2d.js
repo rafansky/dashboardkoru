@@ -17,6 +17,7 @@ export class Pitch2DInteractions {
     this.onDropPlayer = options.onDropPlayer;
     this.onViewportChange = options.onViewportChange;
     this.onDraw = options.onDraw;
+    this.onDrawPreview = options.onDrawPreview;
     this.onText = options.onText;
     this.onAnnotationMove = options.onAnnotationMove;
     this.onAnnotationResize = options.onAnnotationResize;
@@ -170,6 +171,7 @@ export class Pitch2DInteractions {
       this.renderer.previewEntityPositions(this.mode.positions);
     } else if (this.mode.type === "draw") {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
+      this.onDrawPreview?.(this.mode.tool, this.mode.startPitch, this.mode.endPitch);
     } else if (this.mode.type === "annotation-drag") {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
       this.renderer.previewAnnotationMove(this.mode.id, this.mode.startPitch, this.mode.endPitch);
@@ -194,6 +196,7 @@ export class Pitch2DInteractions {
     if (this.mode.type === "drag") {
       this.onMove(this.mode.starts, this.mode.positions);
     } else if (this.mode.type === "draw") {
+      this.renderer.setAnnotationDraft(null);
       this.onDraw?.(this.mode.tool, this.mode.startPitch, this.mode.endPitch);
     } else if (this.mode.type === "annotation-drag") {
       this.onAnnotationMove?.(this.mode.id, this.mode.startPitch, this.mode.endPitch);

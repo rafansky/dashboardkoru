@@ -67,6 +67,7 @@ new Pitch2DInteractions({
   onDropPlayer: (reference, position) => addRosterPlayer(reference.playerKey, position),
   onViewportChange: (patch) => store.setUI(patch),
   onDraw: addTacticalAnnotation,
+  onDrawPreview: previewTacticalAnnotation,
   onText: addTextAnnotation,
   onAnnotationMove: moveTacticalAnnotation,
   onAnnotationResize: resizeTacticalAnnotation,
@@ -1058,6 +1059,17 @@ function addTacticalAnnotation(type, start, end) {
   store.update(["board", "document", "scenes", index, "annotations"], annotations, type === "arrow" ? "Dibujar flecha" : "Dibujar zona");
   afterDocumentChange();
   toast(type === "arrow" ? "Flecha anadida a esta escena" : "Zona anadida a esta escena");
+}
+
+function previewTacticalAnnotation(type, start, end) {
+  if (Math.hypot(end.x - start.x, end.y - start.y) < 0.2) return;
+  renderer.setAnnotationDraft({
+    id: "draft-annotation",
+    type,
+    start: { x: start.x, y: start.y },
+    end: { x: end.x, y: end.y },
+    color: type === "arrow" ? "#f95516" : "#f955164d",
+  });
 }
 
 function addTextAnnotation(position) {
