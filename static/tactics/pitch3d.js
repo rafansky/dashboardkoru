@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { pitchTo3D } from "./geometry.js?v=20260829b";
+import { clampToPitch, pitchTo3D, threeDToPitch } from "./geometry.js?v=20260829b";
 
 const VIEW_RECTS = {
   full: { x: 0, y: 0, width: 105, height: 68 },
@@ -191,6 +191,7 @@ export class Pitch3DRenderer {
   constructor(container, options = {}) {
     this.container = container;
     this.onSelection = options.onSelection;
+    this.onMove = options.onMove;
     this.document = null;
     this.annotations = [];
     this.movementPaths = [];
@@ -201,6 +202,7 @@ export class Pitch3DRenderer {
     this.active = false;
     this.cameraKey = "";
     this.pointerStart = null;
+    this.drag = null;
 
     this.root = document.createElement("div");
     this.root.className = "tactical-pitch-3d";
@@ -238,18 +240,29 @@ export class Pitch3DRenderer {
     this.resizeObserver.observe(this.container);
     this.webgl.domElement.addEventListener("pointerdown", (event) => {
       this.pointerStart = { x: event.clientX, y: event.clientY };
+      this.beginEntityDrag(event);
     });
+    this.webgl.domElement.addEventListener("pointermove", (event) => this.moveEntityDrag(event));
     this.webgl.domElement.addEventListener("pointerup", (event) => this.selectAtPointer(event));
+    this.webgl.domElement.addEventListener("pointerup", (event) => this.endEntityDrag(event));
+    this.webgl.domElement.addEventListener("pointercancel", () => this.cancelEntityDrag());
+    window.addEventListener("blur", () => this.cancelEntityDrag());
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) this.cancelEntityDrag();
+    });
     this.animate = this.animate.bind(this);
     this.frame = requestAnimationFrame(this.animate);
   }
 
   setActive(active) {
+    const previousAspect = this.camera.aspect;
     this.active = active;
     this.root.hidden = !active;
     this.controls.enabled = active;
+    if (!active) this.cancelEntityDrag();
     if (active) {
       this.resize();
+      if (this.document && Math.abs(previousAspect - this.camera.aspect) > 0.01) this.resetCamera();
       this.webgl.render(this.scene, this.camera);
     }
   }
@@ -538,8 +551,7 @@ export class Pitch3DRenderer {
     this.controls.update();
   }
 
-  selectAtPointer(event) {
-    if (!this.active || !this.pointerStart || Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y) > 6) return;
+  pointerRay(event) {
     const bounds = this.webgl.domElement.getBoundingClientRect();
     const pointer = new THREE.Vector2(
       ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
@@ -547,10 +559,84 @@ export class Pitch3DRenderer {
     );
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(pointer, this.camera);
-    const hit = raycaster.intersectObjects(this.pickables, true)[0]?.object;
+    return raycaster;
+  }
+
+  pitchAtPointer(event) {
+    if (!this.document) return null;
+    const point = new THREE.Vector3();
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    if (!this.pointerRay(event).ray.intersectPlane(plane, point)) return null;
+    return threeDToPitch(point, this.document.pitch);
+  }
+
+  entityAtPointer(event) {
+    const hit = this.pointerRay(event).intersectObjects(this.pickables, true)[0]?.object;
     let target = hit;
     while (target && !target.userData.entityId) target = target.parent;
-    const id = target?.userData.entityId;
+    return target?.userData.entityId ? target : null;
+  }
+
+  beginEntityDrag(event) {
+    if (!this.active || event.button !== 0 || !this.document) return;
+    const target = this.entityAtPointer(event);
+    if (!target) return;
+    const entity = this.document.entities.find((item) => item.id === target.userData.entityId);
+    if (!entity || entity.locked) return;
+    const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+    const current = [...this.selectedIds];
+    const selection = additive
+      ? (this.selectedIds.has(entity.id) ? current.filter((id) => id !== entity.id) : [...current, entity.id])
+      : (this.selectedIds.has(entity.id) ? current : [entity.id]);
+    this.onSelection?.(selection);
+    const starts = Object.fromEntries(selection.map((id) => {
+      const selected = this.document.entities.find((item) => item.id === id);
+      return selected ? [id, { ...selected.position }] : null;
+    }).filter(Boolean));
+    if (!starts[entity.id]) return;
+    const startPitch = this.pitchAtPointer(event);
+    if (!startPitch) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.drag = { starts, positions: structuredClone(starts), startPitch };
+    this.controls.enabled = false;
+    this.webgl.domElement.setPointerCapture?.(event.pointerId);
+  }
+
+  moveEntityDrag(event) {
+    if (!this.drag || !this.document) return;
+    const current = this.pitchAtPointer(event);
+    if (!current) return;
+    const delta = { x: current.x - this.drag.startPitch.x, y: current.y - this.drag.startPitch.y };
+    this.drag.positions = Object.fromEntries(Object.entries(this.drag.starts).map(([id, start]) => [
+      id,
+      clampToPitch({ x: start.x + delta.x, y: start.y + delta.y, z: start.z || 0 }, this.document.pitch),
+    ]));
+    this.previewEntityPositions(this.drag.positions);
+    event.preventDefault();
+  }
+
+  endEntityDrag(event) {
+    if (!this.drag) return;
+    const drag = this.drag;
+    this.drag = null;
+    this.controls.enabled = this.active;
+    this.webgl.domElement.releasePointerCapture?.(event.pointerId);
+    this.onMove?.(drag.starts, drag.positions);
+    this.pointerStart = null;
+  }
+
+  cancelEntityDrag() {
+    if (!this.drag) return;
+    const drag = this.drag;
+    this.drag = null;
+    this.previewEntityPositions(drag.starts);
+    this.controls.enabled = this.active;
+  }
+
+  selectAtPointer(event) {
+    if (!this.active || !this.pointerStart || Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y) > 6) return;
+    const id = this.entityAtPointer(event)?.userData.entityId;
     if (!id) {
       this.onSelection?.([]);
       return;

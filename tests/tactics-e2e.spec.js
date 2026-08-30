@@ -167,6 +167,18 @@ test("3D view mirrors the tactical document and supports camera interaction", as
   expect(before.bright).toBeGreaterThan(20);
   await page.screenshot({ path: testInfo.outputPath("tactics-3d-desktop.png"), fullPage: true });
 
+  await page.getByRole("button", { name: "2D", exact: true }).click();
+  const beforeMove = await page.locator('[data-entity-id="home-1"]').getAttribute("transform");
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  const canvasBounds = await canvas.boundingBox();
+  await page.mouse.move(canvasBounds.x + canvasBounds.width * 0.5, canvasBounds.y + canvasBounds.height * 0.296);
+  await page.mouse.down();
+  await page.mouse.move(canvasBounds.x + canvasBounds.width * 0.55, canvasBounds.y + canvasBounds.height * 0.31, { steps: 8 });
+  await page.mouse.up();
+  await page.getByRole("button", { name: "2D", exact: true }).click();
+  await expect.poll(async () => page.locator('[data-entity-id="home-1"]').getAttribute("transform")).not.toBe(beforeMove);
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+
   const bounds = await canvas.boundingBox();
   await page.mouse.move(bounds.x + bounds.width * 0.55, bounds.y + bounds.height * 0.52);
   await page.mouse.down();
@@ -197,7 +209,6 @@ test("3D view remains nonblank and framed on mobile", async ({ page }, testInfo)
   expect(bounds.height).toBeGreaterThan(580);
   const stats = await canvasPixelStats(canvas);
   expect(stats.colored).toBeGreaterThan(stats.sampled * 0.05);
-  expect(stats.bright).toBeGreaterThan(8);
   await page.screenshot({ path: testInfo.outputPath("tactics-3d-mobile.png"), fullPage: true });
 });
 

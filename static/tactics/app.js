@@ -13,7 +13,7 @@ import {
 } from "./model.js?v=20260830b";
 import { Pitch2DInteractions } from "./interactions2d.js?v=20260830j";
 import { Pitch2DRenderer } from "./pitch2d.js?v=20260830k";
-import { Pitch3DRenderer } from "./pitch3d.js?v=20260830a";
+import { Pitch3DRenderer } from "./pitch3d.js?v=20260830b";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -38,7 +38,7 @@ const DEFAULT_PRESENTATION_LAYERS = { home: true, away: true, ball: true, names:
 const recoveryDraft = loadRecoveryDraft();
 const store = createEditorStore(recoveryDraft || createNewBoard(), Boolean(recoveryDraft));
 const renderer = new Pitch2DRenderer($("#pitch-2d-layer"));
-const renderer3d = new Pitch3DRenderer($("#pitch-3d-layer"), { onSelection: (selection) => store.setSelection(selection) });
+const renderer3d = new Pitch3DRenderer($("#pitch-3d-layer"), { onSelection: (selection) => store.setSelection(selection), onMove: commitEntityMove });
 let boards = [];
 let dashboardRoster = [];
 let customRoster = [];

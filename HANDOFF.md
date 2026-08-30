@@ -245,5 +245,7 @@ Fecha: 2026-08-30
 - En 3D: arrastrar rota la camara, rueda/pellizco hace zoom, boton derecho desplaza y **Encajar campo** recupera un encuadre completo adaptado a escritorio o movil. La seleccion admite clic y Ctrl/Cmd/Shift; la edicion de objetos permanece en 2D para evitar desplazamientos accidentales.
 - En movil, la cabecera conserva accesibles los botones de paneles y el selector 2D/3D; los controles secundarios se ocultan para mantener una interfaz util en 390 px.
 - Se han incluido `three.module.min.js`, `three.core.min.js` y `OrbitControls.js` en `static/vendor/three/` para que la vista funcione tambien en el mini PC sin internet.
+- La vista 3D tambien permite editar: arrastra jugadores o balon directamente sobre el campo, con seleccion multiple mediante Ctrl/Cmd/Shift. El renderer convierte el punto del plano 3D a coordenadas tacticas, usa el mismo comando de movimiento que 2D y conserva deshacer/rehacer y guardado.
+- Al activar 3D se recalcula la camara si el canvas cambia de relacion de aspecto, evitando que el primer arrastre quede desalineado despues de abrir la vista o cambiar a movil.
 - Cobertura: 19 pruebas de logica y 7 E2E pasan. Las nuevas pruebas comprueban canvas no vacio en escritorio/movil, encuadre, interaccion real de camara, equivalencia 2D/3D y reproduccion de escenas.
 - Siguiente fase sugerida: sincronizar la vista 3D en el visor publico de espectador y exportar una captura/video de la pizarra desde el modo presentacion.
