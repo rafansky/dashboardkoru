@@ -149,7 +149,7 @@ function addEntities(group, document) {
   const teams = Object.fromEntries(document.teams.map((team) => [team.id, team]));
   document.entities.filter((entity) => entity.visible).forEach((entity) => {
     const item = svgElement("g", {
-      class: `pitch-entity entity-${entity.type}${entity.locked ? " locked" : ""}`,
+      class: `pitch-entity entity-${entity.type} team-${entity.teamId || "neutral"}${entity.locked ? " locked" : ""}`,
       "data-entity-id": entity.id,
       tabindex: entity.locked ? -1 : 0,
       role: "button",
@@ -169,11 +169,9 @@ function addEntities(group, document) {
       const number = svgElement("text", { class: `player-number${avatarUrl ? " has-avatar" : ""}`, x: avatarUrl ? 1.7 : 0, y: avatarUrl ? 2.03 : 0.68, "text-anchor": "middle" });
       number.textContent = String(entity.number ?? "");
       item.append(number);
-      if (document.settings.showNames) {
-        const name = svgElement("text", { class: "player-label", x: 0, y: 4.5, "text-anchor": "middle" });
-        name.textContent = document.settings.anonymizePlayers ? `Jugador ${entity.number ?? ""}` : entity.name;
-        item.append(name);
-      }
+      const name = svgElement("text", { class: "player-label", x: 0, y: 4.5, "text-anchor": "middle" });
+      name.textContent = document.settings.anonymizePlayers ? `Jugador ${entity.number ?? ""}` : entity.name;
+      item.append(name);
     } else if (entity.type === "ball") {
       item.append(svgElement("circle", { class: "selection-ring", r: 1.55 }));
       item.append(svgElement("circle", { r: 0.85, fill: "#f7f8fb", stroke: "#111", "stroke-width": 0.2 }));
@@ -276,11 +274,14 @@ export class Pitch2DRenderer {
     });
     const perspective = isPerspectiveOrientation(pitch);
     const pitchWorld = svgElement("g", { class: "pitch-world", transform: perspective ? "" : orientationTransform(pitch) });
-    if (perspective) {
-      addPerspectiveSurface(pitchWorld, pitch);
-      addPerspectivePitchMarkings(pitchWorld, pitch);
-    } else addFlatPitchMarkings(pitchWorld, pitch.width, pitch.height);
-    addOverlays(pitchWorld, pitch);
+    if (perspective) addPerspectiveSurface(pitchWorld, pitch);
+    const markingsLayer = svgElement("g", { class: "pitch-markings" });
+    if (perspective) addPerspectivePitchMarkings(markingsLayer, pitch);
+    else addFlatPitchMarkings(markingsLayer, pitch.width, pitch.height);
+    pitchWorld.append(markingsLayer);
+    const overlayLayer = svgElement("g", { class: "pitch-overlays" });
+    addOverlays(overlayLayer, pitch);
+    pitchWorld.append(overlayLayer);
     const annotationLayer = svgElement("g", { class: "annotation-layer" });
     addAnnotations(annotationLayer, annotations, pitch);
     pitchWorld.append(annotationLayer);
@@ -295,6 +296,7 @@ export class Pitch2DRenderer {
     this.svg = svg;
     this.entityLayer = entityLayer;
     this.annotationLayer = annotationLayer;
+    this.setLayers();
   }
 
   setSelection(ids) {
@@ -308,6 +310,19 @@ export class Pitch2DRenderer {
     });
     this.annotationLayer?.querySelector(".annotation-handle-layer")?.remove();
     if (this.document && this.annotationLayer) addAnnotationHandles(this.annotationLayer, this.annotations, selected, this.document.pitch);
+  }
+
+  setLayers(layers = {}) {
+    if (!this.svg || !this.document) return;
+    const values = {
+      home: layers.home !== false,
+      away: layers.away !== false,
+      ball: layers.ball !== false,
+      names: layers.names !== false && this.document.settings.showNames !== false,
+      annotations: layers.annotations !== false,
+      markings: layers.markings !== false,
+    };
+    Object.entries(values).forEach(([key, value]) => { this.svg.dataset[`show${key[0].toUpperCase()}${key.slice(1)}`] = String(value); });
   }
 
   previewEntityPositions(positions) {

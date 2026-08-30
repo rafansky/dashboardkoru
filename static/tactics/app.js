@@ -11,8 +11,8 @@ import {
   createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260830b";
-import { Pitch2DInteractions } from "./interactions2d.js?v=20260830c";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260830c";
+import { Pitch2DInteractions } from "./interactions2d.js?v=20260830d";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260830d";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -31,6 +31,7 @@ const FORMATION_PRESETS = {
   "3-5-2": [["POR", 8, 34], ["DFC", 21, 18], ["DFC", 18, 34], ["DFC", 21, 50], ["CAD", 42, 8], ["MC", 40, 23], ["MCD", 38, 34], ["MC", 40, 45], ["CAI", 42, 60], ["DC", 70, 23], ["DC", 70, 45]],
   "5-2-1-2": [["POR", 8, 34], ["CAD", 24, 6], ["DFC", 19, 21], ["DFC", 17, 34], ["DFC", 19, 47], ["CAI", 24, 62], ["MC", 40, 25], ["MC", 40, 43], ["MCO", 56, 34], ["DC", 72, 23], ["DC", 72, 45]],
 };
+const DEFAULT_PRESENTATION_LAYERS = { home: true, away: true, ball: true, names: true, annotations: true, markings: true };
 
 const recoveryDraft = loadRecoveryDraft();
 const store = createEditorStore(recoveryDraft || createNewBoard(), Boolean(recoveryDraft));
@@ -153,6 +154,12 @@ function bindControls() {
 
   $("#fit-pitch").addEventListener("click", () => store.setUI({ zoom: 1, pan: { x: 0, y: 0 } }));
   $("#fullscreen-button").addEventListener("click", toggleFullscreen);
+  $("#presentation-button").addEventListener("click", togglePresentationMode);
+  $("#open-presentation-button").addEventListener("click", () => setPresentationMode(true));
+  $("#exit-presentation-button").addEventListener("click", () => setPresentationMode(false));
+  $("#reset-layer-button").addEventListener("click", resetPresentationLayers);
+  $("#reset-presentation-layers").addEventListener("click", resetPresentationLayers);
+  $$('[data-presentation-layer]').forEach((control) => control.addEventListener("click", () => togglePresentationLayer(control.dataset.presentationLayer)));
 
   $("#new-scene-button").addEventListener("click", createScene);
   $("#previous-scene-button").addEventListener("click", () => activateScene(store.getState().playback.sceneIndex - 1));
@@ -215,6 +222,29 @@ function togglePanel(side, closeOtherOnMobile = false) {
   store.setUI(patch);
 }
 
+function setPresentationMode(enabled) {
+  if (enabled) {
+    playbackToken += 1;
+    store.setSelection([]);
+    store.setUI({ presentationMode: true, leftCollapsed: true, rightCollapsed: true, activeTool: "hand", zoom: 1, pan: { x: 0, y: 0 } });
+  } else store.setUI({ presentationMode: false, activeTool: "select" });
+}
+
+function togglePresentationMode() {
+  setPresentationMode(!store.getState().ui.presentationMode);
+}
+
+function togglePresentationLayer(layer) {
+  const layers = store.getState().ui.layers;
+  if (!Object.hasOwn(DEFAULT_PRESENTATION_LAYERS, layer)) return;
+  store.setUI({ layers: { ...layers, [layer]: layers[layer] === false } });
+}
+
+function resetPresentationLayers() {
+  store.setUI({ layers: { ...DEFAULT_PRESENTATION_LAYERS } });
+  toast("Capas restablecidas");
+}
+
 function change(path, value, label) {
   store.update(path, value, label);
   afterDocumentChange();
@@ -245,9 +275,21 @@ function render(state) {
 
   document.body.classList.toggle("left-collapsed", ui.leftCollapsed);
   document.body.classList.toggle("right-collapsed", ui.rightCollapsed);
+  document.body.classList.toggle("presentation-mode", ui.presentationMode);
   $("#pitch-viewport").dataset.tool = ui.activeTool;
   $("#pitch-shell").style.transform = `translate(${ui.pan.x}px, ${ui.pan.y}px) scale(${ui.zoom})`;
+  renderer.setLayers(ui.layers);
   $$('[data-tool]').forEach((button) => button.classList.toggle("active", button.dataset.tool === ui.activeTool));
+  $$('[data-presentation-layer]').forEach((control) => {
+    const visible = ui.layers[control.dataset.presentationLayer] !== false;
+    if (control.matches("input")) control.checked = visible;
+    else {
+      control.classList.toggle("active", visible);
+      control.setAttribute("aria-pressed", String(visible));
+    }
+  });
+  $("#presentation-button").classList.toggle("active", ui.presentationMode);
+  $("#presentation-button").setAttribute("aria-label", ui.presentationMode ? "Salir de modo presentacion" : "Abrir modo presentacion");
 
   syncValue("#board-name", board.name);
   syncValue("#board-description", board.description);
@@ -1558,7 +1600,11 @@ function handleShortcut(event) {
   else if (command && event.key.toLowerCase() === "y") { event.preventDefault(); store.redo(); }
   else if (command && event.key.toLowerCase() === "a") { event.preventDefault(); store.setSelection(store.getState().board.document.entities.map((entity) => entity.id)); }
   else if (["Delete", "Backspace"].includes(event.key)) { event.preventDefault(); deleteSelection(); }
-  else if (event.key === "Escape") store.setSelection([]);
+  else if (event.key === "Escape") {
+    if (store.getState().ui.presentationMode) setPresentationMode(false);
+    else store.setSelection([]);
+  }
+  else if (event.key.toLowerCase() === "p") togglePresentationMode();
   else if (event.key.toLowerCase() === "f") $("#fit-pitch").click();
   else if (event.key.toLowerCase() === "v") store.setUI({ activeTool: "select" });
   else if (event.key.toLowerCase() === "h") store.setUI({ activeTool: "hand" });

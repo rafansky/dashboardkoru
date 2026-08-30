@@ -26,6 +26,15 @@ test("desktop editor renders a usable tactical workspace", async ({ page }, test
   await expect(page.locator("#scene-strip .scene-card")).toHaveCount(1);
   await expect(page.locator("#pitch-shell svg .perspective-band")).toHaveCount(10);
 
+  await page.getByRole("button", { name: "Abrir modo presentacion" }).click();
+  await expect(page.locator("body")).toHaveClass(/presentation-mode/);
+  await expect(page.locator("#presentation-dock")).toBeVisible();
+  await page.getByRole("button", { name: "Mostrar anotaciones" }).click();
+  await expect(page.locator("#pitch-shell svg")).toHaveAttribute("data-show-annotations", "false");
+  await page.screenshot({ path: testInfo.outputPath("presentation-mode.png"), fullPage: true });
+  await page.getByRole("button", { name: "Salir de modo presentacion" }).click();
+  await expect(page.locator("body")).not.toHaveClass(/presentation-mode/);
+
   const stage = await page.locator("#pitch-viewport").boundingBox();
   expect(stage?.width).toBeGreaterThan(600);
   expect(stage?.height).toBeGreaterThan(500);

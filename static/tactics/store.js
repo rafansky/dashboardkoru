@@ -18,6 +18,8 @@ export function createEditorStore(initialBoard, initialDirty = false) {
       activeTool: "select",
       zoom: 1,
       pan: { x: 0, y: 0 },
+      presentationMode: false,
+      layers: { home: true, away: true, ball: true, names: true, annotations: true, markings: true },
     },
     playback: { playing: false, time: 0, sceneIndex: 0 },
     dirty: initialDirty,

@@ -49,3 +49,11 @@ test("applying a scene can keep playback active while chaining", () => {
   store.applyScene(2, [{ id: "a", position: { x: 70, y: 40 } }]);
   assert.equal(store.getState().playback.playing, false);
 });
+
+test("presentation controls are temporary UI state and do not dirty the board", () => {
+  const store = createEditorStore({ document: { entities: [] } });
+  store.setUI({ presentationMode: true, layers: { home: false } });
+  assert.equal(store.getState().ui.presentationMode, true);
+  assert.equal(store.getState().ui.layers.home, false);
+  assert.equal(store.getState().dirty, false);
+});

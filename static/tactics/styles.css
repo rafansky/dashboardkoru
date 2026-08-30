@@ -274,6 +274,13 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
   max-width: none;
   max-height: none;
 }
+.tactical-pitch[data-show-home="false"] .team-home,
+.tactical-pitch[data-show-away="false"] .team-away,
+.tactical-pitch[data-show-ball="false"] .entity-ball,
+.tactical-pitch[data-show-names="false"] .player-label,
+.tactical-pitch[data-show-annotations="false"] .annotation-layer,
+.tactical-pitch[data-show-annotations="false"] .annotation-handle-layer,
+.tactical-pitch[data-show-markings="false"] .pitch-markings { display: none; }
 .analysis-line { stroke: rgba(250, 204, 21, 0.62); stroke-width: 0.22; stroke-dasharray: 1.4 1; vector-effect: non-scaling-stroke; }
 .analysis-line.lanes { stroke: rgba(18, 214, 223, 0.5); }
 .grid-line { stroke: rgba(255, 255, 255, 0.18); stroke-width: 0.15; stroke-dasharray: 0.5 1; vector-effect: non-scaling-stroke; }
@@ -304,6 +311,26 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .pitch-viewport[data-tool="hand"] { cursor: grab; }
 .pitch-viewport[data-tool="hand"]:active { cursor: grabbing; }
 .stage-hud { position: absolute; right: 10px; bottom: 8px; display: flex; gap: 10px; color: var(--soft); font-size: 0.6rem; }
+.presentation-dock { position: absolute; right: 18px; bottom: 16px; z-index: 12; display: none; align-items: center; gap: 5px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 8px; background: rgba(15, 17, 22, 0.94); box-shadow: 0 14px 42px rgba(0, 0, 0, 0.44); backdrop-filter: blur(12px); }
+.presentation-dock > span { width: 1px; height: 23px; margin: 0 2px; background: var(--line); }
+.presentation-layer-button, .presentation-reset-button, .presentation-exit-button { width: 31px; height: 31px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--soft); cursor: pointer; }
+.presentation-layer-button:hover, .presentation-reset-button:hover { border-color: var(--line); background: var(--surface-3); color: var(--text); }
+.presentation-layer-button.active { color: var(--orange); background: rgba(249, 85, 22, 0.12); border-color: rgba(249, 85, 22, 0.34); }
+.presentation-exit-button { color: #ff9aa1; }
+.presentation-exit-button:hover { background: rgba(255, 88, 101, 0.13); }
+.presentation-dock svg { width: 15px; height: 15px; }
+.presentation-section { gap: 8px; }
+.presentation-section .section-title .icon-button { margin-left: auto; }
+.layer-toggles { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px 9px; }
+.layer-toggles .toggle-row { min-width: 0; gap: 5px; font-size: 0.58rem; }
+.layer-toggles .toggle-row input { width: 27px; height: 15px; }
+
+body.presentation-mode .tactics-app { grid-template-rows: minmax(0, 1fr); }
+body.presentation-mode .editor-header, body.presentation-mode .timeline-panel, body.presentation-mode .side-panel, body.presentation-mode .tool-rail, body.presentation-mode .stage-hud { display: none; }
+body.presentation-mode .editor-workspace, body.presentation-mode.left-collapsed .editor-workspace, body.presentation-mode.right-collapsed .editor-workspace, body.presentation-mode.left-collapsed.right-collapsed .editor-workspace { grid-template-columns: minmax(0, 1fr); }
+body.presentation-mode .editor-stage { grid-column: 1; }
+body.presentation-mode .pitch-viewport { padding: 18px; }
+body.presentation-mode .presentation-dock { display: flex; }
 
 .property-section { display: grid; gap: 9px; padding: 11px 10px; border-bottom: 1px solid var(--line); }
 .property-section label { display: grid; gap: 5px; color: var(--muted); font-size: 0.62rem; font-weight: 700; }
@@ -465,6 +492,8 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
   .timeline-panel { grid-template-columns: 96px minmax(0, 1fr); padding: 6px 7px; }
   .playback-controls > span, .timeline-meta { display: none; }
   .scene-card { width: 144px; height: 50px; }
+  .presentation-dock { right: 10px; bottom: 10px; gap: 2px; padding: 4px; }
+  .presentation-layer-button, .presentation-reset-button, .presentation-exit-button { width: 29px; height: 29px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

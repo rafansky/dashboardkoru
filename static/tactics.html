@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830c" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830d" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -24,6 +24,7 @@
           <div class="segmented compact"><button class="active" type="button" aria-pressed="true">2D</button><button type="button" disabled title="Disponible en la fase 3D">3D</button></div>
           <button class="icon-button" id="fit-pitch" type="button" aria-label="Encajar campo" title="Encajar campo"><i data-lucide="maximize"></i></button>
           <button class="icon-button" id="fullscreen-button" type="button" aria-label="Pantalla completa" title="Pantalla completa"><i data-lucide="expand"></i></button>
+          <button class="icon-button" id="presentation-button" type="button" aria-label="Abrir modo presentacion" title="Modo presentacion (P)"><i data-lucide="monitor-up"></i></button>
           <button class="icon-button" data-toggle-panel="right" type="button" aria-label="Mostrar u ocultar propiedades" title="Propiedades"><i data-lucide="panel-right"></i></button>
         </div>
         <div class="header-actions">
@@ -76,6 +77,17 @@
             <button data-tool="text" type="button" aria-label="Texto" title="Texto tactico"><i data-lucide="type"></i></button>
           </nav>
           <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span></div></div>
+          <div class="presentation-dock" id="presentation-dock" aria-label="Controles de presentacion">
+            <button class="presentation-layer-button" type="button" data-presentation-layer="home" aria-label="Mostrar KORU" title="KORU"><i data-lucide="users-round"></i></button>
+            <button class="presentation-layer-button" type="button" data-presentation-layer="away" aria-label="Mostrar rival" title="Rival"><i data-lucide="user-round"></i></button>
+            <button class="presentation-layer-button" type="button" data-presentation-layer="ball" aria-label="Mostrar balon" title="Balon"><i data-lucide="circle-dot"></i></button>
+            <button class="presentation-layer-button" type="button" data-presentation-layer="names" aria-label="Mostrar nombres" title="Nombres"><i data-lucide="type"></i></button>
+            <button class="presentation-layer-button" type="button" data-presentation-layer="annotations" aria-label="Mostrar anotaciones" title="Anotaciones"><i data-lucide="move-up-right"></i></button>
+            <button class="presentation-layer-button" type="button" data-presentation-layer="markings" aria-label="Mostrar lineas del campo" title="Lineas del campo"><i data-lucide="goal"></i></button>
+            <span></span>
+            <button class="presentation-reset-button" id="reset-presentation-layers" type="button" aria-label="Restablecer capas" title="Restablecer"><i data-lucide="rotate-ccw"></i></button>
+            <button class="presentation-exit-button" id="exit-presentation-button" type="button" aria-label="Salir de modo presentacion" title="Salir"><i data-lucide="x"></i></button>
+          </div>
         </section>
 
         <aside class="side-panel properties-panel" id="properties-panel">
@@ -123,6 +135,18 @@
             <label>Cesped<select id="pitch-surface"><option value="stripes">Franjas</option><option value="plain">Liso</option></select></label>
           </div>
           <div class="property-section"><div class="section-title"><strong>Analisis</strong><span>Overlays</span></div><label class="toggle-row"><input type="checkbox" value="thirds" data-overlay /><span>Tercios</span></label><label class="toggle-row"><input type="checkbox" value="five-lanes" data-overlay /><span>Cinco carriles</span></label><label class="toggle-row"><input type="checkbox" value="grid" data-overlay /><span>Cuadricula</span></label></div>
+          <section class="property-section presentation-section">
+            <div class="section-title"><strong>Presentacion</strong><button class="icon-button small" id="reset-layer-button" type="button" aria-label="Restablecer capas" title="Restablecer capas"><i data-lucide="rotate-ccw"></i></button></div>
+            <button class="secondary-button" id="open-presentation-button" type="button"><i data-lucide="monitor-up"></i><span>Explicar jugada</span></button>
+            <div class="layer-toggles">
+              <label class="toggle-row"><input type="checkbox" data-presentation-layer="home" /><span>KORU</span></label>
+              <label class="toggle-row"><input type="checkbox" data-presentation-layer="away" /><span>Rival</span></label>
+              <label class="toggle-row"><input type="checkbox" data-presentation-layer="ball" /><span>Balon</span></label>
+              <label class="toggle-row"><input type="checkbox" data-presentation-layer="names" /><span>Nombres</span></label>
+              <label class="toggle-row"><input type="checkbox" data-presentation-layer="annotations" /><span>Flechas y zonas</span></label>
+              <label class="toggle-row"><input type="checkbox" data-presentation-layer="markings" /><span>Lineas del campo</span></label>
+            </div>
+          </section>
           <div class="property-section scene-editor-section">
             <div class="section-title"><strong>Escena actual</strong><span id="scene-counter">1 de 1</span></div>
             <label>Nombre<input id="scene-name" maxlength="80" placeholder="Nombre de escena" /></label>
@@ -176,6 +200,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260830c"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260830d"></script>
   </body>
 </html>

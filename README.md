@@ -75,13 +75,15 @@ Guarda cualquier pizarra como jugada reutilizable con nombre, categoría y descr
 
 El selector **Formación rápida** añade los puestos vacíos de KORU para `4-2-3-1`, `4-3-3`, `4-4-2`, `3-5-2` y `5-2-1-2`. Después carga una alineación guardada para ocupar esos puestos: se asigna por posición cuando existe coincidencia y conserva rival, balón, anotaciones y escenas.
 
-El editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard. Incluye las fases 1 a 8B: editor 2D, escenas y reproduccion, anotaciones, expedientes de partido, trabajo en directo, plantillas de alineacion, convocatorias, biblioteca tactica y formaciones rapidas.
+El editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard. Incluye las fases 1 a 9: editor 2D, escenas y reproduccion, anotaciones, expedientes de partido, trabajo en directo, plantillas de alineacion, convocatorias, biblioteca tactica, formaciones rapidas y modo presentacion.
 
 Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.
 
 La plantilla tactica admite jugadores personalizados de KORU o del rival con nombre, dorsal, posicion y cara subida. KORU se representa siempre en blanco y naranja. Cada pizarra puede vincularse a un partido y guardar sesiones historicas con observaciones, decisiones, ajustes, tareas y resultados asociados a minutos, escenas y jugadores seleccionados. Al vincular un encuentro aparece tambien su informe compartido: estado, marcador, convocatoria, resumen, conclusiones y etiquetas. El informe pertenece al partido, no a una pizarra concreta, para que las preparaciones y sesiones futuras queden en el mismo expediente.
 
 La linea de tiempo permite capturar el estado del campo como escena, duplicarlo, nombrarlo, anotar lo que debe pasar, definir su duracion y reproducir el movimiento hacia la siguiente escena. Las posiciones de una escena solo cambian al pulsar `Capturar`, para poder probar variantes sin perder la jugada guardada.
+
+En **Presentacion**, el boton de la cabecera o la tecla `P` deja el campo limpio para explicarlo. Las capas de KORU, rival, balon, nombres, anotaciones y lineas del campo se pueden encender o apagar sin modificar ni guardar la pizarra. `Esc` sale de ese modo.
 
 ## Historial de partidos
 
