@@ -2,6 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 os.environ.setdefault("KORU_ACCESS_PASSWORD", "test-password")
 os.environ.setdefault("KORU_AUTH_SECRET", "test-secret")
@@ -69,6 +70,34 @@ class TacticalApiTests(unittest.TestCase):
         self.assertEqual(conflict.status_code, 409)
         deleted = self.client.delete(f"/api/tactical-boards/{board['id']}")
         self.assertEqual(deleted.status_code, 200)
+
+    def test_avatar_proxy_rejects_untrusted_origins(self) -> None:
+        response = self.client.get("/api/tactical-avatar", params={"source": "https://example.com/avatar.png"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_avatar_proxy_serves_vpg_image_same_origin(self) -> None:
+        class AvatarResponse:
+            status_code = 200
+            content = b"avatar-bytes"
+            headers = {"content-type": "image/webp"}
+
+        class AvatarClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+            async def get(self, *_args, **_kwargs):
+                return AvatarResponse()
+
+        with patch("app.main.httpx.AsyncClient", return_value=AvatarClient()):
+            response = self.client.get("/api/tactical-avatar", params={
+                "source": "https://vpg-prod-user-uploads.fra1.cdn.digitaloceanspaces.com/avatars/ricky.webp",
+            })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "image/webp")
+        self.assertEqual(response.content, b"avatar-bytes")
 
     def test_read_only_share_link_exposes_only_the_selected_board(self) -> None:
         created = self.client.post("/api/tactical-boards", json=self.payload())

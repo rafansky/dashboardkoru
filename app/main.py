@@ -4,9 +4,11 @@ import os
 import secrets
 import time
 from base64 import urlsafe_b64decode, urlsafe_b64encode
+from urllib.parse import urlparse
 
+import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .services.dashboard import dashboard_service
@@ -16,9 +18,11 @@ from .settings import (
     AUTH_SECRET,
     AUTH_SESSION_HOURS,
     CLIPS_DIR,
+    HTTP_TIMEOUT_SECONDS,
     IMAGES_DIR,
     STATIC_DIR,
     UPLOAD_DIR,
+    VPG_ASSET_URL,
 )
 from .storage import (
     add_note,
@@ -162,6 +166,35 @@ app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets"
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/clipskoru", StaticFiles(directory=CLIPS_DIR, check_dir=False), name="clipskoru")
 app.mount("/imageneskoru", StaticFiles(directory=IMAGES_DIR, check_dir=False), name="imageneskoru")
+
+
+@app.get("/api/tactical-avatar")
+async def tactical_avatar(source: str = Query(..., min_length=12, max_length=900)) -> Response:
+    """Serve VPG avatars same-origin so they can safely become WebGL textures."""
+    remote = urlparse(source)
+    allowed_host = urlparse(VPG_ASSET_URL).hostname
+    if (
+        remote.scheme != "https"
+        or remote.hostname != allowed_host
+        or remote.username
+        or remote.password
+    ):
+        raise HTTPException(status_code=400, detail="Origen de avatar no permitido")
+    try:
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS, follow_redirects=False) as client:
+            response = await client.get(source, headers={"User-Agent": "KoruDashboard/1.0"})
+    except httpx.HTTPError as error:
+        raise HTTPException(status_code=502, detail="No se pudo obtener el avatar") from error
+    if response.status_code != 200:
+        raise HTTPException(status_code=404, detail="Avatar no disponible")
+    media_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
+    if not media_type.startswith("image/"):
+        raise HTTPException(status_code=415, detail="El recurso no es una imagen")
+    return Response(
+        content=response.content,
+        media_type=media_type,
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
 
 
 @app.get("/")

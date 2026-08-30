@@ -77,6 +77,12 @@ function makeTextTexture(text, options = {}) {
   return texture;
 }
 
+function playerAvatarTextureUrl(avatarUrl) {
+  return avatarUrl.startsWith("https://")
+    ? `/api/tactical-avatar?source=${encodeURIComponent(avatarUrl)}`
+    : avatarUrl;
+}
+
 function makePlayerTexture(entity, team, anonymizePlayers) {
   const canvas = document.createElement("canvas");
   canvas.width = 256;
@@ -137,7 +143,7 @@ function makePlayerTexture(entity, team, anonymizePlayers) {
       drawFrame();
       texture.needsUpdate = true;
     };
-    image.src = avatarUrl;
+    image.src = playerAvatarTextureUrl(avatarUrl);
   }
   texture.userData = { label: anonymizePlayers ? `Jugador ${entity.number ?? ""}` : entity.name };
   return texture;
