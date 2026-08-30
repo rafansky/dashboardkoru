@@ -50,13 +50,15 @@ from .storage import (
     list_tactical_lineup_templates,
     list_tactical_play_templates,
     list_match_reports,
+    list_opponent_profiles,
     save_upload,
     upsert_match_report,
     upsert_match_callup,
     upsert_match_plan,
+    upsert_opponent_profile,
     update_tactical_board,
 )
-from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalPlayTemplateCreate, TacticalSquadPlayerCreate
+from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, OpponentProfileUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalPlayTemplateCreate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 
@@ -253,6 +255,16 @@ async def match_reports() -> list[dict]:
 @app.get("/api/match-history")
 async def match_history() -> list[dict]:
     return list_match_history()
+
+
+@app.get("/api/opponent-profiles")
+async def opponent_profiles() -> list[dict]:
+    return list_opponent_profiles()
+
+
+@app.put("/api/opponent-profiles")
+async def save_opponent_profile(payload: OpponentProfileUpsert) -> dict:
+    return upsert_opponent_profile(payload.model_dump(mode="json", by_alias=True))
 
 
 @app.get("/api/match-reports/{match_id}")

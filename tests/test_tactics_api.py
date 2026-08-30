@@ -157,6 +157,23 @@ class TacticalApiTests(unittest.TestCase):
         self.assertEqual(history_with_callup.json()[0]["callupCount"], 1)
         self.assertEqual(self.client.delete(f"/api/match-reports/{payload['matchId']}/callups/custom%3Aricky").status_code, 200)
 
+    def test_opponent_profile_is_saved_and_normalized(self) -> None:
+        payload = {
+            "name": "  Rival FC  ", "formation": "4-2-3-1", "playStyle": "Bloque medio y salida corta.",
+            "strengths": "Extremos rapidos.", "weaknesses": "Espalda de laterales.",
+            "setPieces": "Carga el primer palo.", "playerNotes": "El MCO recibe entre lineas.", "tags": ["presion", "transicion"],
+        }
+        saved = self.client.put("/api/opponent-profiles", json=payload)
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json()["name"], "Rival FC")
+        self.assertEqual(saved.json()["playStyle"], payload["playStyle"])
+
+        updated = {**payload, "name": "rival fc", "formation": "4-3-3"}
+        self.assertEqual(self.client.put("/api/opponent-profiles", json=updated).status_code, 200)
+        listed = self.client.get("/api/opponent-profiles")
+        self.assertEqual(len(listed.json()), 1)
+        self.assertEqual(listed.json()[0]["formation"], "4-3-3")
+
     def test_custom_player_crud(self) -> None:
         created = self.client.post(
             "/api/tactical-players",

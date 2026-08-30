@@ -332,6 +332,17 @@ class MatchPlanUpsert(TacticalModel):
     checklist: list[MatchPlanItem] = Field(default_factory=list, max_length=20)
 
 
+class OpponentProfileUpsert(TacticalModel):
+    name: str = Field(min_length=1, max_length=120)
+    formation: str = Field(default="", max_length=80)
+    play_style: str = Field(default="", alias="playStyle", max_length=2000)
+    strengths: str = Field(default="", max_length=2000)
+    weaknesses: str = Field(default="", max_length=2000)
+    set_pieces: str = Field(default="", alias="setPieces", max_length=2000)
+    player_notes: str = Field(default="", alias="playerNotes", max_length=2000)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+
+
 class MatchEventCreate(TacticalModel):
     type: Literal["goal", "conceded", "substitution", "card", "adjustment", "note"]
     minute: int | None = Field(default=None, ge=0, le=180)

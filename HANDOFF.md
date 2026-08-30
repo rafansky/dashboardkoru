@@ -184,3 +184,12 @@ Fecha: 2026-08-30
 - Entrar en `/tactics` sin parametro recupera la ultima pizarra utilizada o, si no hay preferencia local, la pizarra guardada mas reciente. El boton **Nueva pizarra** sigue creando un documento vacio de forma explicita.
 - La carga inicial usa resultados independientes: un fallo del dashboard externo ya no impide cargar pizarras, jugadores, alineaciones o biblioteca tactica.
 - Cobertura E2E: umbral y cancelacion del rectangulo, recuperacion de la pizarra y jugador guardados, escritorio, movil, flechas, trayectorias y exportacion grafica.
+
+# Relevo - Fase 12: Perfil acumulado de rival
+
+Fecha: 2026-08-30
+
+- El historial de partidos incorpora un perfil persistente por rival: sistema habitual, estilo, fortalezas, debilidades, balon parado, notas de jugadores y etiquetas.
+- Desde cualquier expediente se puede guardar el perfil y pulsar **Usar en plan** para copiarlo al plan del partido actual. Los antecedentes del mismo rival quedan visibles y permiten navegar entre partidos.
+- Persistencia: tabla `opponent_profiles`; API `GET` y `PUT /api/opponent-profiles`. La identidad se normaliza sin distinguir mayusculas o espacios repetidos para evitar duplicados.
+- Cobertura: API valida actualizacion sin duplicar perfiles y E2E guarda un perfil y lo aplica al plan de partido.

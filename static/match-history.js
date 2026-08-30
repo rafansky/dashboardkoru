@@ -2,6 +2,8 @@ const $ = (selector) => document.querySelector(selector);
 let dossiers = [];
 let selectedId = "";
 const planDrafts = new Map();
+let opponentProfiles = [];
+const opponentProfileDrafts = new Map();
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -14,13 +16,9 @@ async function init() {
 async function loadHistory() {
   $("#refresh-history").disabled = true;
   try {
-    const response = await fetch("/api/match-history");
-    if (response.status === 401) {
-      window.location.href = "/login";
-      return;
-    }
-    if (!response.ok) throw new Error("No se pudo cargar el historial");
-    dossiers = await response.json();
+    const [history, profiles] = await Promise.all([request("/api/match-history"), request("/api/opponent-profiles")]);
+    dossiers = history;
+    opponentProfiles = profiles;
     populateFilters();
     if (!dossiers.some((item) => item.matchId === selectedId)) selectedId = dossiers[0]?.matchId || "";
     render();
@@ -95,6 +93,7 @@ function renderDetail(item) {
       <article class="detail-block"><div class="block-heading"><i data-lucide="users"></i><strong>Convocatoria</strong></div><p>${(item.lineup || []).length ? item.lineup.map(escapeHtml).join(" · ") : "Sin convocatoria registrada."}</p></article>
       <article class="detail-block stats-block"><div><span>Pizarras</span><b>${item.boardCount}</b></div><div><span>Sesiones</span><b>${item.sessionCount}</b></div><div><span>Anotaciones</span><b>${item.entryCount}</b></div></article>
     </section>
+    ${renderOpponentProfile(item)}
     ${renderMatchPlan(item)}
     ${renderEventTimeline(item.events || [])}
     <section class="linked-section"><div class="section-heading"><div><span>Pizarras vinculadas</span><strong>${item.boardCount}</strong></div></div><div class="linked-list">${item.boards.length ? item.boards.map((board) => `<a class="linked-board" href="/tactics?board=${encodeURIComponent(board.id)}"><i data-lucide="clipboard-pen-line"></i><span><strong>${escapeHtml(board.name)}</strong><small>${escapeHtml(board.category)} · ${board.sceneCount} escenas</small></span><i data-lucide="arrow-up-right"></i></a>`).join("") : `<div class="empty-list">Aun no hay pizarras vinculadas.</div>`}</div></section>
@@ -109,6 +108,63 @@ function renderDetail(item) {
   $("[data-add-plan-item]").addEventListener("click", () => addPlanItem(item.matchId));
   $("[data-template-plan]").addEventListener("click", () => applyPlanTemplate(item.matchId));
   $("[data-save-plan]").addEventListener("click", () => saveMatchPlan(item.matchId));
+  target.querySelectorAll("[data-opponent-field]").forEach((input) => input.addEventListener("input", () => updateOpponentProfileField(item, input.dataset.opponentField, input.value)));
+  $("[data-save-opponent-profile]")?.addEventListener("click", () => saveOpponentProfile(item));
+  $("[data-use-opponent-profile]")?.addEventListener("click", () => applyOpponentProfileToPlan(item));
+  target.querySelectorAll("[data-opponent-match-id]").forEach((button) => button.addEventListener("click", () => { selectedId = button.dataset.opponentMatchId; render(); }));
+}
+
+function opponentKey(name) { return String(name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase("es"); }
+
+function emptyOpponentProfile(name) {
+  return { name: String(name || "").trim(), formation: "", playStyle: "", strengths: "", weaknesses: "", setPieces: "", playerNotes: "", tags: [] };
+}
+
+function opponentProfileFor(item) {
+  const key = opponentKey(item.opponent);
+  if (!key) return null;
+  if (!opponentProfileDrafts.has(key)) {
+    const saved = opponentProfiles.find((profile) => opponentKey(profile.name) === key);
+    opponentProfileDrafts.set(key, JSON.parse(JSON.stringify(saved || emptyOpponentProfile(item.opponent))));
+  }
+  return opponentProfileDrafts.get(key);
+}
+
+function renderOpponentProfile(item) {
+  const profile = opponentProfileFor(item);
+  if (!profile) return "";
+  const meetings = dossiers.filter((dossier) => opponentKey(dossier.opponent) === opponentKey(item.opponent));
+  const meetingRows = meetings.map((meeting) => `<button class="opponent-meeting${meeting.matchId === item.matchId ? " active" : ""}" type="button" data-opponent-match-id="${escapeHtml(meeting.matchId)}"><span>${formatDate(meeting.matchDate || meeting.lastActivity)}</span><strong>${escapeHtml(meeting.competition || "Partido")}</strong><b>${meeting.scoreFor === null || meeting.scoreAgainst === null ? "-" : `${meeting.scoreFor} - ${meeting.scoreAgainst}`}</b></button>`).join("");
+  return `<section class="linked-section opponent-profile-section"><div class="section-heading"><div><span>Perfil acumulado del rival</span><strong>${meetings.length} ${meetings.length === 1 ? "partido" : "partidos"}</strong></div><div class="plan-actions"><button class="compact-button" type="button" data-use-opponent-profile title="Copiar al plan de partido"><i data-lucide="copy"></i><span>Usar en plan</span></button><button class="compact-button plan-save" type="button" data-save-opponent-profile><i data-lucide="save"></i><span>Guardar perfil</span></button></div></div><div class="opponent-profile-grid"><label>Sistema habitual<input data-opponent-field="formation" maxlength="80" placeholder="4-2-3-1" value="${escapeHtml(profile.formation)}" /></label><label>Etiquetas<input data-opponent-field="tags" maxlength="200" placeholder="presion, transicion" value="${escapeHtml((profile.tags || []).join(", "))}" /></label><label>Estilo de juego<textarea data-opponent-field="playStyle" rows="3" maxlength="2000" placeholder="Ritmo, altura, salida, comportamientos...">${escapeHtml(profile.playStyle)}</textarea></label><label>Fortalezas<textarea data-opponent-field="strengths" rows="3" maxlength="2000" placeholder="Que les hace dano al rival...">${escapeHtml(profile.strengths)}</textarea></label><label>Debilidades<textarea data-opponent-field="weaknesses" rows="3" maxlength="2000" placeholder="Donde podemos atacarles...">${escapeHtml(profile.weaknesses)}</textarea></label><label>Balon parado<textarea data-opponent-field="setPieces" rows="3" maxlength="2000" placeholder="Corners, faltas, saques...">${escapeHtml(profile.setPieces)}</textarea></label><label class="opponent-notes">Jugadores y notas<textarea data-opponent-field="playerNotes" rows="3" maxlength="2000" placeholder="Dorsales, roles, emparejamientos, tendencias...">${escapeHtml(profile.playerNotes)}</textarea></label></div><div class="opponent-meetings"><span>Antecedentes</span>${meetingRows}</div></section>`;
+}
+
+function updateOpponentProfileField(item, field, value) {
+  const profile = opponentProfileFor(item);
+  if (!profile) return;
+  profile[field] = field === "tags" ? value.split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 20) : value;
+}
+
+async function saveOpponentProfile(item) {
+  const profile = opponentProfileFor(item);
+  if (!profile) return;
+  try {
+    const saved = await request("/api/opponent-profiles", jsonOptions("PUT", profile));
+    const key = opponentKey(saved.name);
+    opponentProfiles = [saved, ...opponentProfiles.filter((entry) => opponentKey(entry.name) !== key)];
+    opponentProfileDrafts.set(key, JSON.parse(JSON.stringify(saved)));
+    toast("Perfil de rival guardado");
+  } catch (error) { toast(error.message || "No se pudo guardar el perfil"); }
+}
+
+function applyOpponentProfileToPlan(item) {
+  const profile = opponentProfileFor(item);
+  if (!profile) return;
+  const plan = planFor(item);
+  plan.opponentProfile = [profile.formation && `Sistema ${profile.formation}.`, profile.playStyle, profile.playerNotes && `Notas: ${profile.playerNotes}`].filter(Boolean).join("\n");
+  plan.threats = [profile.strengths && `Fortalezas: ${profile.strengths}`, profile.weaknesses && `Debilidades a explotar: ${profile.weaknesses}`].filter(Boolean).join("\n");
+  plan.setPieces = profile.setPieces;
+  render();
+  toast("Perfil aplicado al plan actual");
 }
 
 function emptyPlan(matchId) {

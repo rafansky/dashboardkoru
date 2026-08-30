@@ -172,6 +172,24 @@ def init_storage() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_match_plans_updated ON match_plans(updated_at DESC)")
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS opponent_profiles (
+                name_key TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                formation TEXT NOT NULL DEFAULT '',
+                play_style TEXT NOT NULL DEFAULT '',
+                strengths TEXT NOT NULL DEFAULT '',
+                weaknesses TEXT NOT NULL DEFAULT '',
+                set_pieces TEXT NOT NULL DEFAULT '',
+                player_notes TEXT NOT NULL DEFAULT '',
+                tags_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_opponent_profiles_updated ON opponent_profiles(updated_at DESC)")
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS match_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 match_id TEXT NOT NULL,
@@ -604,6 +622,51 @@ def upsert_match_plan(payload: dict[str, Any]) -> dict[str, Any]:
         )
         conn.commit()
     return get_match_plan(payload["matchId"])  # type: ignore[return-value]
+
+
+def opponent_name_key(name: str) -> str:
+    return " ".join(name.casefold().split())
+
+
+def _opponent_profile_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    profile = _row_to_dict(row)
+    profile.pop("name_key", None)
+    profile["playStyle"] = profile.pop("play_style")
+    profile["setPieces"] = profile.pop("set_pieces")
+    profile["playerNotes"] = profile.pop("player_notes")
+    profile["tags"] = json.loads(profile.pop("tags_json"))
+    return profile
+
+
+def list_opponent_profiles(limit: int = 100) -> list[dict[str, Any]]:
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT * FROM opponent_profiles ORDER BY updated_at DESC LIMIT ?", (max(1, min(limit, 200)),)).fetchall()
+    return [_opponent_profile_from_row(row) for row in rows]
+
+
+def upsert_opponent_profile(payload: dict[str, Any]) -> dict[str, Any]:
+    name = " ".join(payload["name"].split())
+    key = opponent_name_key(name)
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.execute(
+            """
+            INSERT INTO opponent_profiles (name_key, name, formation, play_style, strengths, weaknesses, set_pieces, player_notes, tags_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name_key) DO UPDATE SET
+                name = excluded.name, formation = excluded.formation, play_style = excluded.play_style,
+                strengths = excluded.strengths, weaknesses = excluded.weaknesses, set_pieces = excluded.set_pieces,
+                player_notes = excluded.player_notes, tags_json = excluded.tags_json, updated_at = excluded.updated_at
+            """,
+            (key, name, payload.get("formation", ""), payload.get("playStyle", ""), payload.get("strengths", ""),
+             payload.get("weaknesses", ""), payload.get("setPieces", ""), payload.get("playerNotes", ""),
+             json.dumps(payload.get("tags", []), ensure_ascii=False), now, now),
+        )
+        conn.commit()
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM opponent_profiles WHERE name_key = ?", (key,)).fetchone()
+    return _opponent_profile_from_row(row)  # type: ignore[arg-type]
 
 
 def _match_event_from_row(row: sqlite3.Row) -> dict[str, Any]:
