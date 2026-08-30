@@ -193,3 +193,11 @@ Fecha: 2026-08-30
 - Desde cualquier expediente se puede guardar el perfil y pulsar **Usar en plan** para copiarlo al plan del partido actual. Los antecedentes del mismo rival quedan visibles y permiten navegar entre partidos.
 - Persistencia: tabla `opponent_profiles`; API `GET` y `PUT /api/opponent-profiles`. La identidad se normaliza sin distinguir mayusculas o espacios repetidos para evitar duplicados.
 - Cobertura: API valida actualizacion sin duplicar perfiles y E2E guarda un perfil y lo aplica al plan de partido.
+
+# Relevo - Seleccion multiple y borrado
+
+Fecha: 2026-08-30
+
+- En la pizarra, `Ctrl + clic` (tambien `Cmd` en macOS) suma o quita jugadores, balones, flechas, zonas y textos de la seleccion. `Supr`/`Backspace` borra todo el conjunto seleccionado.
+- El borrado admite selecciones mixtas de entidades y anotaciones en una sola operacion. Las filas del panel de anotaciones respetan el mismo modificador.
+- E2E cubre seleccionar dos anotaciones con Ctrl y borrarlas sin eliminar al jugador del campo.

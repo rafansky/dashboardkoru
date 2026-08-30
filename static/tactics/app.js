@@ -1186,7 +1186,12 @@ function handleAnnotationAction(event) {
   const duplicateButton = event.target.closest("[data-duplicate-annotation]");
   const row = event.target.closest("[data-annotation-row]");
   if (!deleteButton && !editButton && !duplicateButton) {
-    if (row && !event.target.closest("input")) store.setSelection([row.dataset.annotationRow]);
+    if (row && !event.target.closest("input")) {
+      const id = row.dataset.annotationRow;
+      const selection = store.getState().selection;
+      const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+      store.setSelection(additive ? (selection.includes(id) ? selection.filter((item) => item !== id) : [...selection, id]) : [id]);
+    }
     return;
   }
   const action = deleteButton || editButton || duplicateButton;
@@ -1381,12 +1386,6 @@ function deleteSelection() {
   const document = state.board.document;
   const sceneIndex = currentSceneIndex(state);
   const selectedAnnotations = new Set((document.scenes[sceneIndex].annotations || []).filter((annotation) => selected.has(annotation.id)).map((annotation) => annotation.id));
-  if (selectedAnnotations.size) {
-    store.update(["board", "document", "scenes", sceneIndex, "annotations"], document.scenes[sceneIndex].annotations.filter((annotation) => !selectedAnnotations.has(annotation.id)), "Eliminar anotacion");
-    store.setSelection([]);
-    afterDocumentChange();
-    return;
-  }
   const sessions = document.analysis.sessions.map((session) => ({
     ...session,
     entries: session.entries.map((entry) => ({ ...entry, entityIds: entry.entityIds.filter((id) => !selected.has(id)) })),
@@ -1394,7 +1393,11 @@ function deleteSelection() {
   store.updateMany([
     { path: ["board", "document", "entities"], value: document.entities.filter((entity) => !selected.has(entity.id)) },
     { path: ["board", "document", "groups"], value: document.groups.map((group) => ({ ...group, entityIds: group.entityIds.filter((id) => !selected.has(id)) })) },
-    { path: ["board", "document", "scenes"], value: document.scenes.map((scene) => ({ ...scene, entityStates: scene.entityStates.filter((item) => !selected.has(item.entityId)) })) },
+    { path: ["board", "document", "scenes"], value: document.scenes.map((scene, index) => ({
+      ...scene,
+      entityStates: scene.entityStates.filter((item) => !selected.has(item.entityId)),
+      annotations: index === sceneIndex ? (scene.annotations || []).filter((annotation) => !selectedAnnotations.has(annotation.id)) : scene.annotations,
+    })) },
     { path: ["board", "document", "analysis", "sessions"], value: sessions },
   ], "Eliminar seleccion");
   store.setSelection([]);
@@ -1404,8 +1407,16 @@ function deleteSelection() {
 function renderSelection() {
   const state = store.getState();
   const entities = state.selection.map((id) => state.board.document.entities.find((entity) => entity.id === id)).filter(Boolean);
-  const annotation = (currentScene(state)?.annotations || []).find((item) => state.selection.includes(item.id));
-  $("#selection-section").hidden = !entities.length && !annotation;
+  const annotations = (currentScene(state)?.annotations || []).filter((item) => state.selection.includes(item.id));
+  const annotation = annotations[0];
+  const selectedCount = entities.length + annotations.length;
+  $("#selection-section").hidden = !selectedCount;
+  if (selectedCount > 1) {
+    const labels = [...entities.map((entity) => entity.name || entity.type), ...annotations.map((item) => item.type === "arrow" ? "Flecha" : item.type === "zone" ? "Zona" : item.text || "Texto")];
+    $("#selection-summary").textContent = `${selectedCount} objetos`;
+    $("#selection-detail").innerHTML = `<strong>Seleccion multiple</strong><small>${labels.map(escapeHtml).join(", ")}</small>`;
+    return;
+  }
   if (annotation) {
     $("#selection-summary").textContent = "Anotacion";
     $("#selection-detail").innerHTML = `<strong>${annotation.type === "arrow" ? "Flecha" : annotation.type === "zone" ? "Zona" : escapeHtml(annotation.text || "Texto")}</strong><small>Arrastra sobre el campo para moverla.</small>`;

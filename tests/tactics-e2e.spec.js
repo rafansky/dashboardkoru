@@ -134,7 +134,10 @@ test("annotation rows select and arrows preview their drag", async ({ page }, te
             transition: "ease-in-out",
             notes: "",
             entityStates: [],
-            annotations: [{ id: "arrow-1", type: "arrow", start: { x: 20, y: 20 }, end: { x: 60, y: 40 }, color: "#f95516", text: "" }],
+            annotations: [
+              { id: "arrow-1", type: "arrow", start: { x: 20, y: 20 }, end: { x: 60, y: 40 }, color: "#f95516", text: "" },
+              { id: "zone-1", type: "zone", start: { x: 65, y: 18 }, end: { x: 85, y: 42 }, color: "#12d6df", text: "" },
+            ],
           }],
         },
       }),
@@ -166,6 +169,13 @@ test("annotation rows select and arrows preview their drag", async ({ page }, te
   await expect.poll(async () => Number(await arrow.getAttribute("x1"))).not.toBe(initialX);
   await page.screenshot({ path: testInfo.outputPath("arrow-drag-preview.png"), fullPage: true });
   await page.mouse.up();
+
+  await page.locator('[data-annotation-row="arrow-1"] strong').click();
+  await page.locator('[data-annotation-row="zone-1"] strong').click({ modifiers: ["Control"] });
+  await expect(page.locator(".tactical-annotation-item.selected")).toHaveCount(2);
+  await page.keyboard.press("Delete");
+  await expect(page.locator(".tactical-annotation-item")).toHaveCount(0);
+  await expect(page.locator('[data-entity-id="player-1"]')).toBeVisible();
 
   await page.locator('[data-entity-id="player-1"]').click();
   await page.getByRole("button", { name: "Trayectoria" }).click();

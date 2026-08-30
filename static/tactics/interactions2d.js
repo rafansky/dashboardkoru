@@ -119,7 +119,12 @@ export class Pitch2DInteractions {
 
     if (annotationElement) {
       const id = annotationElement.dataset.annotationId;
-      this.onSelection([id]);
+      const additive = event.shiftKey || event.ctrlKey || event.metaKey;
+      const selection = additive
+        ? (state.selection.includes(id) ? state.selection.filter((item) => item !== id) : [...state.selection, id])
+        : [id];
+      this.onSelection(selection);
+      if (additive) return;
       this.mode = {
         type: "annotation-drag",
         id,
