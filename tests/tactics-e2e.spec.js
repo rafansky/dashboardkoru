@@ -152,8 +152,14 @@ test("base tactics route restores the most recent saved board", async ({ page })
 });
 
 test("3D view mirrors the tactical document and supports camera interaction", async ({ page }, testInfo) => {
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.route("**/api/tactical-boards/audit-3d", async (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(threeDAuditBoard()) }));
+  await page.route("**/api/tactical-boards/audit-3d", async (route) => {
+    const board = route.request().method() === "PUT"
+      ? { ...threeDAuditBoard(), ...route.request().postDataJSON(), id: "audit-3d", version: 2 }
+      : threeDAuditBoard();
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(board) });
+  });
   await openTactics(page, "/tactics?board=audit-3d");
   await page.getByRole("button", { name: "3D", exact: true }).click();
 

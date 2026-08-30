@@ -120,7 +120,7 @@ function makePlayerTexture(entity, team, anonymizePlayers) {
   texture.minFilter = THREE.LinearFilter;
 
   const avatarUrl = entity.metadata?.avatarUrl;
-  if (avatarUrl && /^(\/uploads\/|\/imageneskoru\/|\/assets\/)/.test(avatarUrl)) {
+  if (avatarUrl && /^(\/uploads\/|\/imageneskoru\/|\/assets\/|https:\/\/)/.test(avatarUrl)) {
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
@@ -212,19 +212,38 @@ function makeStadiumBannerTexture(text) {
   return texture;
 }
 
-function crowdTextureVariant(source, repeatX) {
+function makeFloodlightGlowTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  const glow = context.createRadialGradient(128, 64, 3, 128, 64, 120);
+  glow.addColorStop(0, "rgba(255, 250, 224, .95)");
+  glow.addColorStop(0.18, "rgba(255, 228, 164, .5)");
+  glow.addColorStop(0.56, "rgba(255, 174, 84, .12)");
+  glow.addColorStop(1, "rgba(255, 150, 52, 0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  return texture;
+}
+
+function crowdTextureVariant(source, repeatX, flipX = false) {
   const texture = source.clone();
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.RepeatWrapping;
-  texture.repeat.set(repeatX, 1);
+  texture.repeat.set(flipX ? -repeatX : repeatX, 1);
+  texture.offset.x = flipX ? 1 : 0;
   texture.needsUpdate = true;
   return texture;
 }
 
-function addCrowdPanel(group, size, position, rotation, texture, repeatX) {
+function addCrowdPanel(group, size, position, rotation, texture, repeatX, flipX = false) {
   const panel = new THREE.Mesh(
     new THREE.PlaneGeometry(...size),
-    new THREE.MeshStandardMaterial({ map: crowdTextureVariant(texture, repeatX), roughness: 0.94, metalness: 0, emissive: 0x1d0d06, emissiveIntensity: 0.45, side: THREE.DoubleSide }),
+    new THREE.MeshStandardMaterial({ map: crowdTextureVariant(texture, repeatX, flipX), roughness: 0.94, metalness: 0, emissive: 0x1d0d06, emissiveIntensity: 0.45, side: THREE.FrontSide }),
   );
   panel.position.set(...position);
   panel.rotation.set(...rotation);
@@ -235,14 +254,14 @@ function addCrowdPanel(group, size, position, rotation, texture, repeatX) {
 function addLogoBanner(group, size, position, rotation, logoTexture) {
   const background = new THREE.Mesh(
     new THREE.PlaneGeometry(...size),
-    new THREE.MeshStandardMaterial({ color: 0x14191c, roughness: 0.68, metalness: 0.18, side: THREE.DoubleSide }),
+    new THREE.MeshStandardMaterial({ color: 0x14191c, roughness: 0.68, metalness: 0.18, side: THREE.FrontSide }),
   );
   background.position.set(...position);
   background.rotation.set(...rotation);
   group.add(background);
   const logo = new THREE.Mesh(
     new THREE.PlaneGeometry(size[1] * 0.74, size[1] * 0.74),
-    new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, side: THREE.DoubleSide }),
+    new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, side: THREE.FrontSide }),
   );
   const normal = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(...rotation));
   logo.position.copy(background.position).addScaledVector(normal, 0.025);
@@ -281,15 +300,15 @@ function addStadiumBackdrop(group, pitch) {
   }
 
   const crowdDepth = pitch.height / 2 + 4.86;
-  addCrowdPanel(group, [sideLength, 8.6], [0, 5.9, crowdDepth], [0, 0, 0], crowdTexture, 6);
-  addCrowdPanel(group, [sideLength, 8.6], [0, 5.9, -crowdDepth], [0, Math.PI, 0], crowdTexture, 6);
+  addCrowdPanel(group, [sideLength, 8.6], [0, 5.9, crowdDepth], [0, Math.PI, 0], crowdTexture, 6);
+  addCrowdPanel(group, [sideLength, 8.6], [0, 5.9, -crowdDepth], [0, 0, 0], crowdTexture, 6);
   const endDepth = pitch.width / 2 + 4.86;
   addCrowdPanel(group, [endLength, 10.5], [endDepth, 6.6, 0], [0, -Math.PI / 2, 0], crowdTexture, 4);
   addCrowdPanel(group, [endLength, 10.5], [-endDepth, 6.6, 0], [0, Math.PI / 2, 0], crowdTexture, 4);
 
   const bannerTexture = makeStadiumBannerTexture("KORU eCLUB");
-  addCrowdPanel(group, [sideLength * 0.42, 1.25], [-sideLength * 0.23, 2.15, crowdDepth - 0.08], [0, 0, 0], bannerTexture, 1);
-  addCrowdPanel(group, [sideLength * 0.42, 1.25], [sideLength * 0.23, 2.15, -crowdDepth + 0.08], [0, Math.PI, 0], bannerTexture, 1);
+  addCrowdPanel(group, [sideLength * 0.42, 1.25], [-sideLength * 0.23, 2.15, crowdDepth - 0.08], [0, Math.PI, 0], bannerTexture, 1, true);
+  addCrowdPanel(group, [sideLength * 0.42, 1.25], [sideLength * 0.23, 2.15, -crowdDepth + 0.08], [0, 0, 0], bannerTexture, 1);
   addLogoBanner(group, [8.6, 3.5], [-endDepth + 0.08, 4.15, 0], [0, Math.PI / 2, 0], logoTexture);
 
   const towerPositions = [
@@ -298,11 +317,39 @@ function addStadiumBackdrop(group, pitch) {
     [-pitch.width / 2 - 12, 0, pitch.height / 2 + 12],
     [-pitch.width / 2 - 12, 0, -pitch.height / 2 - 12],
   ];
+  const floodlightGlow = makeFloodlightGlowTexture();
   towerPositions.forEach(([x, y, z]) => {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 15, 10), new THREE.MeshStandardMaterial({ color: 0x667278, roughness: 0.72, metalness: 0.42 }));
     pole.position.set(x, y + 7.5, z);
     group.add(pole);
-    addStadiumBox(group, [2.5, 0.12, 0.12], [x, 15.1, z], 0xfff4c7, { emissive: 0xff9b39, emissiveIntensity: 2.2, roughness: 0.35 });
+    const head = new THREE.Group();
+    head.position.set(x, 15.4, z);
+    head.lookAt(new THREE.Vector3(0, 2, 0));
+    addStadiumBox(head, [4.2, 1.7, 0.28], [0, 0, 0], 0x313b40, { roughness: 0.42, metalness: 0.52 });
+    const bulbMaterial = new THREE.MeshBasicMaterial({ color: 0xfff4d6, toneMapped: false });
+    for (let column = -2; column <= 2; column += 1) {
+      for (let row = -1; row <= 1; row += 1) {
+        const bulb = new THREE.Mesh(new THREE.CircleGeometry(0.24, 16), bulbMaterial.clone());
+        bulb.position.set(column * 0.72, row * 0.52, 0.16);
+        head.add(bulb);
+      }
+    }
+    group.add(head);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: floodlightGlow,
+      color: 0xffe7b0,
+      transparent: true,
+      opacity: 0.42,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }));
+    glow.position.set(x, 15.4, z);
+    glow.scale.set(8.5, 4.2, 1);
+    group.add(glow);
+    const spotlight = new THREE.SpotLight(0xfff1d6, 820, 175, Math.PI * 0.23, 0.58, 1.45);
+    spotlight.position.set(x, 15.1, z);
+    spotlight.target.position.set(x * 0.08, 0, z * 0.08);
+    group.add(spotlight, spotlight.target);
   });
 }
 
@@ -547,6 +594,12 @@ export class Pitch3DRenderer {
     playerSprite.userData.entityId = entity.id;
     group.add(playerSprite);
 
+    const hitTarget = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
+    hitTarget.scale.set(7.2, 7.2, 1);
+    hitTarget.position.y = 3.1;
+    hitTarget.userData.entityId = entity.id;
+    group.add(hitTarget);
+
     const labelText = documentData.settings.anonymizePlayers ? `Jugador ${entity.number ?? ""}` : entity.name;
     const label = createSprite(makeTextTexture(labelText), 9.5, 2.38, false);
     label.position.y = 6.05;
@@ -567,7 +620,7 @@ export class Pitch3DRenderer {
     group.position.copy(point3(entity.position, documentData.pitch, 0));
     (entity.teamId === "away" ? this.awayGroup : this.homeGroup).add(group);
     this.entities.set(entity.id, group);
-    this.pickables.push(base, playerSprite);
+    this.pickables.push(base, playerSprite, hitTarget);
   }
 
   addBall(entity, pitch) {

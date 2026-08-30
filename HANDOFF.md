@@ -249,6 +249,9 @@ Fecha: 2026-08-30
 - Las anotaciones tambien se pueden seleccionar y desplazar en 3D: flechas, zonas y textos se mueven como un bloque y se guardan con la misma accion de mover anotacion que en 2D.
 - El escenario 3D incluye gradas escalonadas, detalles de asientos en naranja KORU y torres de iluminacion alrededor del campo. En movil las gradas se ocultan y la niebla se ajusta para conservar un encuadre limpio y legible.
 - La grada de escritorio usa `static/assets/stadium/koru-crowd-stand.png`, una textura de publico nocturno con acentos naranja, junto con pancartas renderizadas y una lona central que usa el logo real `static/assets/koru-logo.png`. El asset se genero con ImageGen y queda versionado en el repositorio, por lo que no depende de servicios externos en produccion.
+- Las superficies de publico y las pancartas renderizan solo hacia el interior: al orbitar la camara por fuera desaparecen y no tapan el terreno. La pancarta KORU de la banda opuesta invierte su textura para que el texto se lea correctamente desde el campo.
+- Las fichas 3D admiten las mismas fotos locales y remotas `https://` que la vista 2D. Mantienen dorsal, nombre, halo de seleccion y un area de agarre invisible algo mayor para facilitar su edicion.
+- Las cuatro torres incorporan matrices de 15 bombillas, halo calido y focos `SpotLight` reales dirigidos al cesped. No se dibujan conos opacos ni elementos que crucen el campo.
 - Al activar 3D se recalcula la camara si el canvas cambia de relacion de aspecto, evitando que el primer arrastre quede desalineado despues de abrir la vista o cambiar a movil.
 - Cobertura: 19 pruebas de logica y 7 E2E pasan. Las nuevas pruebas comprueban canvas no vacio en escritorio/movil, encuadre, interaccion real de camara, equivalencia 2D/3D y reproduccion de escenas.
 - Siguiente fase sugerida: sincronizar la vista 3D en el visor publico de espectador y exportar una captura/video de la pizarra desde el modo presentacion.
