@@ -177,6 +177,59 @@ function createArrow(start, end, color) {
   return group;
 }
 
+function addStadiumBox(group, size, position, color, options = {}) {
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness: options.roughness ?? 0.86,
+    metalness: options.metalness ?? 0.04,
+    emissive: options.emissive || 0x000000,
+    emissiveIntensity: options.emissiveIntensity || 0,
+  });
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  mesh.position.set(...position);
+  group.add(mesh);
+  return mesh;
+}
+
+function addStadiumBackdrop(group, pitch) {
+  const seatDark = 0x1b2428;
+  const seatMid = 0x283237;
+  const seatOrange = 0xd94917;
+  const sideRows = 4;
+  const endRows = 3;
+  const sideLength = pitch.width + 30;
+  const endLength = pitch.height + 18;
+
+  // Low stepped stands keep the horizon grounded without competing with the tactics.
+  for (let row = 0; row < sideRows; row += 1) {
+    const depth = pitch.height / 2 + 5 + row * 2.05;
+    const height = 1.15 + row * 0.08;
+    addStadiumBox(group, [sideLength, height, 2.1], [0, height / 2 + row * 0.95, depth], row === 2 ? seatMid : seatDark);
+    addStadiumBox(group, [sideLength, height, 2.1], [0, height / 2 + row * 0.95, -depth], row === 2 ? seatMid : seatDark);
+    addStadiumBox(group, [sideLength * 0.28, 0.16, 0.12], [-sideLength * 0.22, 1.15 + row * 0.95, depth - 1.08], seatOrange, { emissive: 0x5b1608, emissiveIntensity: 0.35 });
+    addStadiumBox(group, [sideLength * 0.28, 0.16, 0.12], [sideLength * 0.22, 1.15 + row * 0.95, -depth + 1.08], seatOrange, { emissive: 0x5b1608, emissiveIntensity: 0.35 });
+  }
+  for (let row = 0; row < endRows; row += 1) {
+    const depth = pitch.width / 2 + 5 + row * 2.05;
+    const height = 1.1 + row * 0.1;
+    addStadiumBox(group, [2.1, height, endLength], [depth, height / 2 + row * 0.95, 0], row === 1 ? seatMid : seatDark);
+    addStadiumBox(group, [2.1, height, endLength], [-depth, height / 2 + row * 0.95, 0], row === 1 ? seatMid : seatDark);
+  }
+
+  const towerPositions = [
+    [pitch.width / 2 + 12, 0, pitch.height / 2 + 12],
+    [pitch.width / 2 + 12, 0, -pitch.height / 2 - 12],
+    [-pitch.width / 2 - 12, 0, pitch.height / 2 + 12],
+    [-pitch.width / 2 - 12, 0, -pitch.height / 2 - 12],
+  ];
+  towerPositions.forEach(([x, y, z]) => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 15, 10), new THREE.MeshStandardMaterial({ color: 0x667278, roughness: 0.72, metalness: 0.42 }));
+    pole.position.set(x, y + 7.5, z);
+    group.add(pole);
+    addStadiumBox(group, [2.5, 0.12, 0.12], [x, 15.1, z], 0xfff4c7, { emissive: 0xff9b39, emissiveIntensity: 2.2, roughness: 0.35 });
+  });
+}
+
 function currentViewRect(pitch) {
   const source = VIEW_RECTS[pitch.view] || VIEW_RECTS.full;
   return {
@@ -274,6 +327,10 @@ export class Pitch3DRenderer {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.webgl.setSize(width, height, false);
+    const compact = this.camera.aspect <= 0.8;
+    if (this.stadiumGroup) this.stadiumGroup.visible = !compact;
+    this.scene.fog.near = compact ? 175 : 105;
+    this.scene.fog.far = compact ? 320 : 210;
   }
 
   render(documentData, annotations = [], movementPaths = []) {
@@ -291,7 +348,8 @@ export class Pitch3DRenderer {
     this.homeGroup = new THREE.Group();
     this.awayGroup = new THREE.Group();
     this.ballGroup = new THREE.Group();
-    this.world.add(this.surfaceGroup, this.markingsGroup, this.annotationsGroup, this.homeGroup, this.awayGroup, this.ballGroup);
+    this.stadiumGroup = new THREE.Group();
+    this.world.add(this.surfaceGroup, this.stadiumGroup, this.markingsGroup, this.annotationsGroup, this.homeGroup, this.awayGroup, this.ballGroup);
 
     this.addSurface(documentData.pitch);
     this.addMarkings(documentData.pitch);
@@ -329,6 +387,7 @@ export class Pitch3DRenderer {
       stripe.position.set(-pitch.width / 2 + stripeWidth * (index + 0.5), 0, 0);
       this.surfaceGroup.add(stripe);
     }
+    addStadiumBackdrop(this.stadiumGroup, pitch);
   }
 
   addMarkings(pitch) {

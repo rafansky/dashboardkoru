@@ -247,6 +247,7 @@ Fecha: 2026-08-30
 - Se han incluido `three.module.min.js`, `three.core.min.js` y `OrbitControls.js` en `static/vendor/three/` para que la vista funcione tambien en el mini PC sin internet.
 - La vista 3D tambien permite editar: arrastra jugadores o balon directamente sobre el campo, con seleccion multiple mediante Ctrl/Cmd/Shift. El renderer convierte el punto del plano 3D a coordenadas tacticas, usa el mismo comando de movimiento que 2D y conserva deshacer/rehacer y guardado.
 - Las anotaciones tambien se pueden seleccionar y desplazar en 3D: flechas, zonas y textos se mueven como un bloque y se guardan con la misma accion de mover anotacion que en 2D.
+- El escenario 3D incluye gradas escalonadas, detalles de asientos en naranja KORU y torres de iluminacion alrededor del campo. En movil las gradas se ocultan y la niebla se ajusta para conservar un encuadre limpio y legible.
 - Al activar 3D se recalcula la camara si el canvas cambia de relacion de aspecto, evitando que el primer arrastre quede desalineado despues de abrir la vista o cambiar a movil.
 - Cobertura: 19 pruebas de logica y 7 E2E pasan. Las nuevas pruebas comprueban canvas no vacio en escritorio/movil, encuadre, interaccion real de camara, equivalencia 2D/3D y reproduccion de escenas.
 - Siguiente fase sugerida: sincronizar la vista 3D en el visor publico de espectador y exportar una captura/video de la pizarra desde el modo presentacion.
