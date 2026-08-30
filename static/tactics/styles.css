@@ -308,6 +308,7 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .pitch-entity { cursor: grab; }
 .pitch-entity:active { cursor: grabbing; }
 .pitch-entity.locked { cursor: not-allowed; }
+.pitch-viewport, .pitch-viewport * { -webkit-user-drag: none; user-select: none; }
 .selection-ring { fill: none; stroke: rgba(18, 214, 223, 0.78); stroke-width: 0.22; opacity: 0; vector-effect: non-scaling-stroke; }
 .pitch-entity.selected .selection-ring { opacity: 0.82; }
 .orientation-indicator { fill: var(--orange); stroke: #111; stroke-width: 0.1; }

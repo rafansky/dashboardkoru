@@ -35,6 +35,8 @@ export class Pitch2DInteractions {
     this.viewport.addEventListener("pointerup", (event) => this.pointerUp(event));
     this.viewport.addEventListener("pointercancel", () => this.cancelInteraction());
     this.viewport.addEventListener("wheel", (event) => this.wheel(event), { passive: false });
+    this.viewport.addEventListener("dragstart", (event) => event.preventDefault());
+    this.viewport.addEventListener("selectstart", (event) => event.preventDefault());
     this.viewport.addEventListener("dragover", (event) => event.preventDefault());
     this.viewport.addEventListener("drop", (event) => this.drop(event));
     window.addEventListener("blur", () => this.cancelInteraction());
@@ -47,6 +49,7 @@ export class Pitch2DInteractions {
   pointerDown(event) {
     if (!this.renderer.svg) return;
     if (event.button !== 0 && event.button !== 1) return;
+    event.preventDefault();
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.viewport.setPointerCapture(event.pointerId);
     const state = this.getState();
