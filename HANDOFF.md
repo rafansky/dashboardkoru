@@ -212,3 +212,13 @@ Fecha: 2026-08-30
 - Los ficheros se separan automaticamente por tipo: los videos usan `CLIPS_DIR` y las imagenes `IMAGES_DIR`. Por defecto son `uploads/clipskoru` y `uploads/imageneskoru`; las URL publicas son `/clipskoru/...` y `/imageneskoru/...`.
 - En el mini PC no se detecto todavia el disco externo ni los puntos `/clipskoru` y `/imageneskoru`. Cuando este montado de verdad, configurar el servicio con `KORU_CLIPS_DIR=/clipskoru` y `KORU_IMAGES_DIR=/imageneskoru`; no crear esas rutas sobre el disco del sistema como sustituto.
 - Cobertura: API para clip, nota y subida de video al directorio de clips; E2E para controles del reproductor y anotacion temporal.
+
+# Relevo - Fase 14: Enlace de espectador para ponencias
+
+Fecha: 2026-08-30
+
+- Desde la cabecera de una pizarra guardada, el boton de pantalla compartida crea y copia un enlace privado de solo lectura (`/watch/{token}`).
+- El visitante ve una pantalla limpia con el campo, jugadores, balon, flechas, zonas, trayectorias y escenas, sin contraseña general, paneles ni herramientas de edicion.
+- El visor consulta la pizarra cada segundo. El guardado automatico del editor hace que los movimientos y cambios lleguen a los espectadores durante la ponencia; la escena activa se guarda en `document.metadata.activeSceneIndex` para que todos vean la misma.
+- Persistencia: `tactical_share_links` guarda un hash SHA-256 del token, nunca el enlace en claro. Solo el endpoint publico de lectura conoce ese token y las APIs de edicion siguen requiriendo la sesion del manager.
+- Siguiente mejora posible: WebSocket para sincronizacion cuadro a cuadro durante animaciones y un visor de clips integrado en la misma sala.

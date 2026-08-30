@@ -67,9 +67,26 @@ class TacticalApiTests(unittest.TestCase):
 
         conflict = self.client.put(f"/api/tactical-boards/{board['id']}", json=update)
         self.assertEqual(conflict.status_code, 409)
-
         deleted = self.client.delete(f"/api/tactical-boards/{board['id']}")
         self.assertEqual(deleted.status_code, 200)
+
+    def test_read_only_share_link_exposes_only_the_selected_board(self) -> None:
+        created = self.client.post("/api/tactical-boards", json=self.payload())
+        self.assertEqual(created.status_code, 201)
+        board_id = created.json()["id"]
+
+        share = self.client.post(f"/api/tactical-boards/{board_id}/share")
+        self.assertEqual(share.status_code, 200)
+        token = share.json()["token"]
+
+        self.client.post("/api/logout")
+        viewer_page = self.client.get(share.json()["url"])
+        viewer_data = self.client.get(f"/api/public/tactics/{token}")
+        self.assertEqual(viewer_page.status_code, 200)
+        self.assertEqual(viewer_data.status_code, 200)
+        self.assertEqual(viewer_data.json()["id"], board_id)
+        self.assertEqual(self.client.get("/api/tactical-boards").status_code, 401)
+        self.assertEqual(self.client.get("/api/public/tactics/invalid-token").status_code, 404)
 
     def test_match_report_upsert_and_list(self) -> None:
         payload = {

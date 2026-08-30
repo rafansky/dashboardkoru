@@ -1,6 +1,7 @@
 import sqlite3
 import json
 import uuid
+import hashlib
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -80,6 +81,18 @@ def init_storage() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_tactical_boards_match ON tactical_boards(match_id)"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tactical_share_links (
+                token_hash TEXT PRIMARY KEY,
+                board_id TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                last_used_at TEXT,
+                FOREIGN KEY (board_id) REFERENCES tactical_boards(id)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tactical_share_links_board ON tactical_share_links(board_id)")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS tactical_players (
@@ -489,6 +502,37 @@ def get_tactical_board(board_id: str) -> dict[str, Any] | None:
         conn.row_factory = sqlite3.Row
         row = conn.execute("SELECT * FROM tactical_boards WHERE id = ?", (board_id,)).fetchone()
     return _tactical_board_from_row(row) if row else None
+
+
+def _share_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def create_tactical_share_link(board_id: str, token: str) -> bool:
+    now = datetime.now(timezone.utc).isoformat()
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        exists = conn.execute("SELECT 1 FROM tactical_boards WHERE id = ?", (board_id,)).fetchone()
+        if not exists:
+            return False
+        conn.execute(
+            "INSERT OR REPLACE INTO tactical_share_links (token_hash, board_id, created_at, last_used_at) VALUES (?, ?, ?, NULL)",
+            (_share_token_hash(token), board_id, now),
+        )
+        conn.commit()
+    return True
+
+
+def get_tactical_board_by_share_token(token: str) -> dict[str, Any] | None:
+    token_hash = _share_token_hash(token)
+    with closing(sqlite3.connect(DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT board_id FROM tactical_share_links WHERE token_hash = ?", (token_hash,)).fetchone()
+        if not row:
+            return None
+        conn.execute("UPDATE tactical_share_links SET last_used_at = ? WHERE token_hash = ?", (datetime.now(timezone.utc).isoformat(), token_hash))
+        conn.commit()
+        board_row = conn.execute("SELECT * FROM tactical_boards WHERE id = ?", (row["board_id"],)).fetchone()
+    return _tactical_board_from_row(board_row) if board_row else None
 
 
 def create_tactical_board(payload: dict[str, Any]) -> dict[str, Any]:

@@ -24,6 +24,7 @@ export const tacticsApi = {
   getBoard: (id) => request(`/api/tactical-boards/${encodeURIComponent(id)}`),
   createBoard: (payload) => request("/api/tactical-boards", jsonOptions("POST", payload)),
   updateBoard: (id, payload) => request(`/api/tactical-boards/${encodeURIComponent(id)}`, jsonOptions("PUT", payload)),
+  createShareLink: (id) => request(`/api/tactical-boards/${encodeURIComponent(id)}/share`, { method: "POST" }),
   deleteBoard: (id) => request(`/api/tactical-boards/${encodeURIComponent(id)}`, { method: "DELETE" }),
   listMatchReports: () => request("/api/match-reports"),
   getMatchReport: (matchId) => request(`/api/match-reports/${encodeURIComponent(matchId)}`),

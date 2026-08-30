@@ -169,6 +169,7 @@ function bindControls() {
   $("#fullscreen-button").addEventListener("click", toggleFullscreen);
   $("#presentation-button").addEventListener("click", togglePresentationMode);
   $("#lineup-graphic-button").addEventListener("click", openLineupGraphicDialog);
+  $("#share-viewer-button").addEventListener("click", shareViewerLink);
   $("#close-lineup-graphic-dialog").addEventListener("click", () => $("#lineup-graphic-dialog").close());
   $("#preview-lineup-graphic-button").addEventListener("click", previewLineupGraphic);
   $("#download-lineup-graphic-button").addEventListener("click", () => downloadLineupGraphic().catch((error) => toast(error.message || "No se pudo crear la grafica")));
@@ -234,6 +235,24 @@ function bindControls() {
 
   document.addEventListener("keydown", handleShortcut);
   window.addEventListener("beforeunload", persistRecoveryDraft);
+}
+
+async function shareViewerLink() {
+  const state = store.getState();
+  if (!state.board.id) {
+    try { await saveBoard(false); } catch { return; }
+  }
+  const boardId = store.getState().board.id;
+  if (!boardId) return;
+  try {
+    const result = await tacticsApi.createShareLink(boardId);
+    const url = new URL(result.url, window.location.origin).href;
+    await navigator.clipboard?.writeText(url);
+    toast("Enlace de espectador copiado");
+    window.prompt("Enlace de solo lectura", url);
+  } catch (error) {
+    toast(error.message || "No se pudo crear el enlace");
+  }
 }
 
 function togglePanel(side, closeOtherOnMobile = false) {
@@ -869,6 +888,8 @@ function activateScene(index) {
   cancelPlayback();
   const entities = applySceneToEntities(state.board.document.entities, scenes[index]);
   store.applyScene(index, entities);
+  store.update(["board", "document", "metadata", "activeSceneIndex"], index, "Cambiar escena compartida");
+  afterDocumentChange();
   toast(`Escena ${index + 1}: ${scenes[index].name}`);
 }
 
@@ -1329,6 +1350,8 @@ function playSceneTransition(fromIndex, token) {
       playbackFrame = null;
       const hasNext = targetIndex < scenes.length - 1;
       store.applyScene(targetIndex, targetEntities, { playing: hasNext, time: 0 });
+      store.update(["board", "document", "metadata", "activeSceneIndex"], targetIndex, "Actualizar escena compartida");
+      afterDocumentChange();
       if (hasNext) playbackFrame = requestAnimationFrame(() => playSceneTransition(targetIndex, token));
     }
   };

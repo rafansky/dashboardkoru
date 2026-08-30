@@ -27,6 +27,7 @@ from .storage import (
     create_tactical_lineup_template,
     create_tactical_play_template,
     create_tactical_board,
+    create_tactical_share_link,
     create_match_event,
     create_match_video_clip,
     create_match_video_note,
@@ -41,6 +42,7 @@ from .storage import (
     delete_tactical_lineup_template,
     delete_tactical_play_template,
     get_tactical_board,
+    get_tactical_board_by_share_token,
     get_tactical_play_template,
     get_match_report,
     get_match_plan,
@@ -110,6 +112,12 @@ def _public_path(path: str) -> bool:
         return True
     if path.startswith("/static/login"):
         return True
+    if path.startswith("/static/viewer"):
+        return True
+    if path.startswith("/static/tactics/"):
+        return True
+    if path.startswith("/watch/") or path.startswith("/api/public/tactics/"):
+        return True
     return False
 
 
@@ -147,6 +155,13 @@ async def tactics_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "tactics.html")
 
 
+@app.get("/watch/{token}")
+async def tactics_viewer_page(token: str) -> FileResponse:
+    if not get_tactical_board_by_share_token(token):
+        raise HTTPException(status_code=404, detail="Enlace de visualizacion no valido")
+    return FileResponse(STATIC_DIR / "tactics-viewer.html")
+
+
 @app.get("/match-history")
 async def match_history_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "match-history.html")
@@ -162,6 +177,14 @@ async def login_page(request: Request):
 @app.get("/api/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/public/tactics/{token}")
+async def public_tactical_board(token: str) -> dict:
+    board = get_tactical_board_by_share_token(token)
+    if not board:
+        raise HTTPException(status_code=404, detail="Enlace de visualizacion no valido")
+    return board
 
 
 @app.post("/api/login")
@@ -254,6 +277,14 @@ async def remove_board(board_id: str) -> dict[str, bool]:
     if not delete_tactical_board(board_id):
         raise HTTPException(status_code=404, detail="Pizarra no encontrada")
     return {"deleted": True}
+
+
+@app.post("/api/tactical-boards/{board_id}/share")
+async def share_tactical_board(board_id: str) -> dict[str, str]:
+    token = secrets.token_urlsafe(32)
+    if not create_tactical_share_link(board_id, token):
+        raise HTTPException(status_code=404, detail="Pizarra no encontrada")
+    return {"token": token, "url": f"/watch/{token}"}
 
 
 @app.get("/api/match-reports")
