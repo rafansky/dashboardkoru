@@ -176,6 +176,7 @@ function addEntities(group, document) {
       item.append(
         svgElement("circle", { class: "selection-ring", r: 1.8 }),
         svgElement("image", { class: "ball-image", href: "/assets/tactical-ball.png", x: -1.6, y: -1.6, width: 3.2, height: 3.2, preserveAspectRatio: "xMidYMid meet" }),
+        svgElement("circle", { class: "ball-hit-area", r: 1.6, fill: "#fff", opacity: 0, "pointer-events": "all" }),
       );
     }
     group.append(item);

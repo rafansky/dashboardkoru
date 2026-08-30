@@ -283,6 +283,8 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .tactical-pitch[data-show-annotations="false"] .movement-path-layer,
 .tactical-pitch[data-show-markings="false"] .pitch-markings { display: none; }
 .entity-ball .ball-image { pointer-events: none; }
+.entity-ball .ball-hit-area { cursor: grab; }
+.entity-ball:active .ball-hit-area { cursor: grabbing; }
 .analysis-line { stroke: rgba(250, 204, 21, 0.62); stroke-width: 0.22; stroke-dasharray: 1.4 1; vector-effect: non-scaling-stroke; }
 .analysis-line.lanes { stroke: rgba(18, 214, 223, 0.5); }
 .grid-line { stroke: rgba(255, 255, 255, 0.18); stroke-width: 0.15; stroke-dasharray: 0.5 1; vector-effect: non-scaling-stroke; }
