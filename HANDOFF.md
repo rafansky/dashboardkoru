@@ -147,7 +147,7 @@ Fecha: 2026-08-30
 - Cada escena puede guardar trayectorias de varios puntos vinculadas a un jugador o al balon (`movementPaths`). El esquema tactico ahora es la version 4 y migra automaticamente las pizarras anteriores.
 - Flujo: selecciona un jugador o balon, pulsa el icono de ruta en la barra izquierda, marca los puntos del recorrido y confirma. El panel derecho permite cambiar el color o eliminar cada trayectoria.
 - Las rutas usan una linea gruesa discontinua, puntos intermedios y flecha final; se incluyen en exportacion y se ocultan con la capa de anotaciones durante presentacion.
-- El boton de confirmar/cancelar bloquea el evento del campo para evitar anadir un punto accidental. E2E cubre crear y confirmar una ruta.
+- El boton de confirmar/cancelar bloquea el evento del campo para evitar anadir un punto accidental. `Enter` confirma y `Esc` descarta un borrador. E2E cubre crear y confirmar una ruta.
 
 # Relevo - Fase 9: Capas y modo presentacion
 

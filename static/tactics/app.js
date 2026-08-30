@@ -1691,9 +1691,11 @@ function handleShortcut(event) {
   else if (command && event.key.toLowerCase() === "a") { event.preventDefault(); store.setSelection(store.getState().board.document.entities.map((entity) => entity.id)); }
   else if (["Delete", "Backspace"].includes(event.key)) { event.preventDefault(); deleteSelection(); }
   else if (event.key === "Escape") {
-    if (store.getState().ui.presentationMode) setPresentationMode(false);
+    if (pathDraft) cancelPathDraft();
+    else if (store.getState().ui.presentationMode) setPresentationMode(false);
     else store.setSelection([]);
   }
+  else if (event.key === "Enter" && pathDraft) { event.preventDefault(); finishPathDraft(); }
   else if (event.key.toLowerCase() === "p") togglePresentationMode();
   else if (event.key.toLowerCase() === "f") $("#fit-pitch").click();
   else if (event.key.toLowerCase() === "v") store.setUI({ activeTool: "select" });

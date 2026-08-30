@@ -85,6 +85,8 @@ La linea de tiempo permite capturar el estado del campo como escena, duplicarlo,
 
 En **Presentacion**, el boton de la cabecera o la tecla `P` deja el campo limpio para explicarlo. Las capas de KORU, rival, balon, nombres, anotaciones y lineas del campo se pueden encender o apagar sin modificar ni guardar la pizarra. `Esc` sale de ese modo.
 
+Para una **trayectoria**, selecciona un jugador o el balon, pulsa el icono de ruta de la barra izquierda, marca los puntos del recorrido y confirma. `Enter` confirma y `Esc` descarta el borrador. Las trayectorias pertenecen a la escena abierta.
+
 ## Historial de partidos
 
 `/match-history` es el espacio de consulta para managers. Agrupa cada informe con sus pizarras y sesiones vinculadas por partido, y permite filtrar por rival, competicion, estado y etiquetas. Desde cada elemento se puede volver directamente a la pizarra correspondiente.
