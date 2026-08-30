@@ -160,7 +160,7 @@ function addEntities(group, document) {
       const team = teams[entity.teamId] || teams.home;
       const avatarUrl = safeAvatarUrl(entity.metadata?.avatarUrl);
       item.append(
-        svgElement("circle", { class: "selection-ring", r: 2.7 }),
+        svgElement("circle", { class: "selection-ring", r: 4.05 }),
         svgElement("path", { class: "orientation-indicator", d: "M 0 -3.25 L -0.75 -2.25 L 0.75 -2.25 Z", transform: `rotate(${entity.rotation || 0})` }),
         svgElement("circle", { class: "player-disc", r: 2.35, fill: team?.primaryColor || "#f95516", stroke: team?.secondaryColor || "#fff", "stroke-width": 0.38 }),
       );
@@ -174,7 +174,7 @@ function addEntities(group, document) {
       item.append(name);
     } else if (entity.type === "ball") {
       item.append(
-        svgElement("circle", { class: "selection-ring", r: 1.5 }),
+        svgElement("circle", { class: "selection-ring", r: 2.75 }),
         svgElement("image", { class: "ball-image", href: "/assets/tactical-ball.png", x: -1.6, y: -1.6, width: 3.2, height: 3.2, preserveAspectRatio: "xMidYMid meet" }),
         svgElement("circle", { class: "ball-hit-area", r: 1.6, fill: "#fff", opacity: 0, "pointer-events": "all" }),
       );
