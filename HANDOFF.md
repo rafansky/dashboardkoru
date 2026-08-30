@@ -84,7 +84,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Next phase
 
-- Phase 11: graphical lineups, export sequences and sharing.
+- Phase 12: export sequences, sharing and staff roles.
 
 ## Repo / workflow notes
 
@@ -94,8 +94,8 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Likely next steps
 
-1. Tactical board Phase 11: graphical lineups and reusable visual exports.
-2. Tactical board Phase 12+: export sequences, sharing and staff roles.
+1. Tactical board Phase 12: export sequences and sharing.
+2. Tactical board Phase 13+: staff roles and collaborative workspaces.
 3. Add staff roles/permissions before team sharing is implemented; keep 3D/video work for later phases.
 
 ## Relevo - Auditoria integral posterior a Fase 8B
@@ -140,6 +140,14 @@ Fecha: 2026-08-29
 - Persistencia: tabla `tactical_play_templates`. API `GET /api/tactical-play-templates`, `GET/DELETE /api/tactical-play-templates/{id}`, `POST /api/tactical-play-templates`.
 - Una jugada conserva documento táctico (jugadores, campo, flechas, anotaciones y escenas), pero al guardarse se limpian análisis y metadatos. Al usarla genera una nueva pizarra sin `matchId` y con bitácora nueva, dejando la maestra intacta.
 - Siguiente fase sugerida: formaciones rápidas base (`4-2-3-1`, `4-3-3`, `3-5-2`, etc.) que se puedan completar con una alineación guardada.
+# Relevo - Fase 11: Fichas graficas de alineacion
+
+Fecha: 2026-08-30
+
+- El boton de imagen de la cabecera abre una ficha de alineacion 16:9 para compartir. Toma los jugadores KORU visibles en el campo, con su dorsal y posicion.
+- Se pueden completar rival, competicion, sistema y banquillo. Descarga PNG a 1920x1080; si la conversion no esta disponible, descarga SVG como respaldo.
+- La prueba E2E abre la ficha y valida que la descarga se inicia con el nombre esperado.
+
 # Relevo - Fase 10: Trayectorias de movimiento
 
 Fecha: 2026-08-30

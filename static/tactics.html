@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830e" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830f" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -25,6 +25,7 @@
           <button class="icon-button" id="fit-pitch" type="button" aria-label="Encajar campo" title="Encajar campo"><i data-lucide="maximize"></i></button>
           <button class="icon-button" id="fullscreen-button" type="button" aria-label="Pantalla completa" title="Pantalla completa"><i data-lucide="expand"></i></button>
           <button class="icon-button" id="presentation-button" type="button" aria-label="Abrir modo presentacion" title="Modo presentacion (P)"><i data-lucide="monitor-up"></i></button>
+          <button class="icon-button" id="lineup-graphic-button" type="button" aria-label="Crear grafica de alineacion" title="Grafica de alineacion"><i data-lucide="image-down"></i></button>
           <button class="icon-button" data-toggle-panel="right" type="button" aria-label="Mostrar u ocultar propiedades" title="Propiedades"><i data-lucide="panel-right"></i></button>
         </div>
         <div class="header-actions">
@@ -204,7 +205,14 @@
         <footer><button class="secondary-button" id="cancel-player-button" type="button">Cancelar</button><button class="primary-button" id="save-player-button" type="submit"><i data-lucide="user-plus"></i><span>Crear jugador</span></button></footer>
       </form>
     </dialog>
+    <dialog class="player-dialog lineup-graphic-dialog" id="lineup-graphic-dialog">
+      <form id="lineup-graphic-form" method="dialog">
+        <header><div><span>Alineacion grafica</span><strong>Ficha para compartir</strong></div><button class="icon-button small" id="close-lineup-graphic-dialog" type="button" aria-label="Cerrar" title="Cerrar"><i data-lucide="x"></i></button></header>
+        <div class="player-form-body"><label>Rival<input id="graphic-opponent" maxlength="80" placeholder="Rival FC" /></label><div class="player-form-grid"><label>Competicion<input id="graphic-competition" maxlength="80" placeholder="VPG Zero" /></label><label>Sistema<input id="graphic-formation" maxlength="32" placeholder="4-2-3-1" /></label></div><label>Banquillo<textarea id="graphic-bench" rows="3" maxlength="500" placeholder="Un jugador por linea"></textarea></label><p class="koru-kit-note" id="graphic-lineup-count"></p></div>
+        <footer><button class="secondary-button" id="preview-lineup-graphic-button" type="button"><i data-lucide="eye"></i><span>Vista previa</span></button><button class="primary-button" id="download-lineup-graphic-button" type="button"><i data-lucide="image-down"></i><span>Descargar PNG</span></button></footer>
+      </form>
+    </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260830e"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260830f"></script>
   </body>
 </html>

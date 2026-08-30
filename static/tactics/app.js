@@ -11,8 +11,8 @@ import {
   createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260830b";
-import { Pitch2DInteractions } from "./interactions2d.js?v=20260830e";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260830e";
+import { Pitch2DInteractions } from "./interactions2d.js?v=20260830f";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260830f";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -158,6 +158,10 @@ function bindControls() {
   $("#fit-pitch").addEventListener("click", () => store.setUI({ zoom: 1, pan: { x: 0, y: 0 } }));
   $("#fullscreen-button").addEventListener("click", toggleFullscreen);
   $("#presentation-button").addEventListener("click", togglePresentationMode);
+  $("#lineup-graphic-button").addEventListener("click", openLineupGraphicDialog);
+  $("#close-lineup-graphic-dialog").addEventListener("click", () => $("#lineup-graphic-dialog").close());
+  $("#preview-lineup-graphic-button").addEventListener("click", previewLineupGraphic);
+  $("#download-lineup-graphic-button").addEventListener("click", () => downloadLineupGraphic().catch((error) => toast(error.message || "No se pudo crear la grafica")));
   $("#open-presentation-button").addEventListener("click", () => setPresentationMode(true));
   $("#exit-presentation-button").addEventListener("click", () => setPresentationMode(false));
   $("#reset-layer-button").addEventListener("click", resetPresentationLayers);
@@ -927,6 +931,66 @@ function exportFilename() {
   const scene = currentScene();
   const clean = (value) => String(value || "escena").trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
   return `${clean(board.name)}-${clean(scene?.name) || "escena"}`;
+}
+
+function graphicLineupPlayers() {
+  return store.getState().board.document.entities.filter((entity) => entity.type === "player" && entity.teamId === "home" && entity.visible);
+}
+
+function openLineupGraphicDialog() {
+  const players = graphicLineupPlayers();
+  if (!players.length) return toast("Coloca al menos un jugador KORU en el campo");
+  const match = selectedMatch();
+  $("#graphic-opponent").value = match?.opponent || matchReport?.opponent || "";
+  $("#graphic-competition").value = match?.platform || matchReport?.competition || "";
+  $("#graphic-formation").value = store.getState().board.document.metadata?.formation || "";
+  $("#graphic-bench").value = "";
+  $("#graphic-lineup-count").textContent = `${players.length} jugadores KORU del campo apareceran en la ficha.`;
+  $("#lineup-graphic-dialog").showModal();
+  $("#graphic-opponent").focus();
+}
+
+function lineupGraphicSvg() {
+  const players = graphicLineupPlayers();
+  const pitch = store.getState().board.document.pitch;
+  const opponent = escapeHtml($("#graphic-opponent").value.trim() || "PROXIMO RIVAL");
+  const competition = escapeHtml($("#graphic-competition").value.trim() || "KORU eCLUB");
+  const formation = escapeHtml($("#graphic-formation").value.trim() || "ONCE TITULAR");
+  const bench = $("#graphic-bench").value.split("\n").map((item) => item.trim()).filter(Boolean).slice(0, 9);
+  const cards = players.map((player) => {
+    const x = 400 + (player.position.x / pitch.width) * 1120;
+    const y = 225 + (player.position.y / pitch.height) * 690;
+    const name = escapeHtml(player.name || "KORU");
+    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)})"><circle r="34" fill="#f7f8fb" stroke="#f95516" stroke-width="7"/><text y="8" text-anchor="middle" fill="#16181e" font-size="26" font-weight="900">${player.number ?? ""}</text><text y="60" text-anchor="middle" fill="#fff" font-size="20" font-weight="900" paint-order="stroke" stroke="#101217" stroke-width="6">${name}</text></g>`;
+  }).join("");
+  const benchText = bench.length ? bench.map((name, index) => `<text x="80" y="${870 + index * 28}" fill="#dce1e9" font-size="20">${index + 1}. ${escapeHtml(name)}</text>`).join("") : `<text x="80" y="870" fill="#77808d" font-size="20">Banquillo por confirmar</text>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="#0b0d11"/><rect x="40" y="40" width="1840" height="1000" rx="18" fill="#12161c" stroke="#2b313b"/><text x="80" y="115" fill="#f95516" font-size="26" font-family="Arial" font-weight="900">KORU eCLUB</text><text x="80" y="175" fill="#fff" font-size="52" font-family="Arial" font-weight="900">ONCE TITULAR</text><text x="80" y="215" fill="#aab2bf" font-size="25" font-family="Arial">${competition} · vs ${opponent}</text><text x="1730" y="120" text-anchor="end" fill="#f95516" font-size="38" font-family="Arial" font-weight="900">${formation}</text><rect x="350" y="130" width="1230" height="850" rx="12" fill="#1d6b43"/><g opacity=".32" stroke="#d9f1df" fill="none" stroke-width="3"><rect x="380" y="160" width="1170" height="790"/><line x1="965" y1="160" x2="965" y2="950"/><circle cx="965" cy="555" r="105"/><rect x="380" y="405" width="170" height="300"/><rect x="1380" y="405" width="170" height="300"/></g><text x="80" y="820" fill="#f95516" font-size="20" font-family="Arial" font-weight="900">BANQUILLO</text>${benchText}${cards}<text x="1840" y="1000" text-anchor="end" fill="#77808d" font-size="18" font-family="Arial">KORU eCLUB · FC26 PRO CLUBS</text></svg>`;
+}
+
+function previewLineupGraphic() {
+  const blob = new Blob([lineupGraphicSvg()], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function downloadLineupGraphic() {
+  const svg = lineupGraphicSvg();
+  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const image = new Image();
+  try {
+    await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; image.src = url; });
+    const canvas = document.createElement("canvas"); canvas.width = 1920; canvas.height = 1080;
+    canvas.getContext("2d").drawImage(image, 0, 0);
+    const png = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("No se pudo crear PNG")), "image/png"));
+    downloadBlob(png, `${exportFilename()}-alineacion.png`);
+    $("#lineup-graphic-dialog").close();
+    toast("Alineacion descargada como PNG");
+  } catch {
+    downloadBlob(blob, `${exportFilename()}-alineacion.svg`);
+    toast("Alineacion descargada como SVG");
+  } finally { URL.revokeObjectURL(url); }
 }
 
 function downloadBlob(blob, filename) {

@@ -128,4 +128,11 @@ test("annotation rows select and arrows preview their drag", async ({ page }, te
   await expect(page.locator(".movement-path-line")).toHaveCount(1);
   await expect(page.locator("#path-list .path-row")).toHaveCount(1);
   await page.screenshot({ path: testInfo.outputPath("movement-path.png"), fullPage: true });
+  await page.getByRole("button", { name: "Crear grafica de alineacion" }).click();
+  await expect(page.locator("#lineup-graphic-dialog")).toBeVisible();
+  await expect(page.locator("#graphic-lineup-count")).toContainText("jugadores KORU");
+  await page.locator("#graphic-opponent").fill("Rival FC");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Descargar PNG" }).click();
+  expect((await download).suggestedFilename()).toMatch(/alineacion\.(png|svg)$/);
 });
