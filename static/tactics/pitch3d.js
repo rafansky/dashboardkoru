@@ -191,6 +191,66 @@ function addStadiumBox(group, size, position, color, options = {}) {
   return mesh;
 }
 
+function makeStadiumBannerTexture(text) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 160;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#11171a";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#f95516";
+  context.fillRect(0, 0, canvas.width, 13);
+  context.fillRect(0, canvas.height - 13, canvas.width, 13);
+  context.fillStyle = "#f7f8fb";
+  context.font = "900 78px Inter, Arial";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(text, canvas.width / 2, canvas.height / 2 + 3);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  return texture;
+}
+
+function crowdTextureVariant(source, repeatX) {
+  const texture = source.clone();
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.repeat.set(repeatX, 1);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function addCrowdPanel(group, size, position, rotation, texture, repeatX) {
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(...size),
+    new THREE.MeshStandardMaterial({ map: crowdTextureVariant(texture, repeatX), roughness: 0.94, metalness: 0, emissive: 0x1d0d06, emissiveIntensity: 0.45, side: THREE.DoubleSide }),
+  );
+  panel.position.set(...position);
+  panel.rotation.set(...rotation);
+  group.add(panel);
+  return panel;
+}
+
+function addLogoBanner(group, size, position, rotation, logoTexture) {
+  const background = new THREE.Mesh(
+    new THREE.PlaneGeometry(...size),
+    new THREE.MeshStandardMaterial({ color: 0x14191c, roughness: 0.68, metalness: 0.18, side: THREE.DoubleSide }),
+  );
+  background.position.set(...position);
+  background.rotation.set(...rotation);
+  group.add(background);
+  const logo = new THREE.Mesh(
+    new THREE.PlaneGeometry(size[1] * 0.74, size[1] * 0.74),
+    new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, side: THREE.DoubleSide }),
+  );
+  const normal = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(...rotation));
+  logo.position.copy(background.position).addScaledVector(normal, 0.025);
+  logo.rotation.copy(background.rotation);
+  group.add(logo);
+  return logo;
+}
+
 function addStadiumBackdrop(group, pitch) {
   const seatDark = 0x1b2428;
   const seatMid = 0x283237;
@@ -199,6 +259,10 @@ function addStadiumBackdrop(group, pitch) {
   const endRows = 3;
   const sideLength = pitch.width + 30;
   const endLength = pitch.height + 18;
+  const crowdTexture = new THREE.TextureLoader().load("/assets/stadium/koru-crowd-stand.png");
+  crowdTexture.colorSpace = THREE.SRGBColorSpace;
+  const logoTexture = new THREE.TextureLoader().load("/assets/koru-logo.png");
+  logoTexture.colorSpace = THREE.SRGBColorSpace;
 
   // Low stepped stands keep the horizon grounded without competing with the tactics.
   for (let row = 0; row < sideRows; row += 1) {
@@ -215,6 +279,18 @@ function addStadiumBackdrop(group, pitch) {
     addStadiumBox(group, [2.1, height, endLength], [depth, height / 2 + row * 0.95, 0], row === 1 ? seatMid : seatDark);
     addStadiumBox(group, [2.1, height, endLength], [-depth, height / 2 + row * 0.95, 0], row === 1 ? seatMid : seatDark);
   }
+
+  const crowdDepth = pitch.height / 2 + 4.86;
+  addCrowdPanel(group, [sideLength, 8.6], [0, 5.9, crowdDepth], [0, 0, 0], crowdTexture, 6);
+  addCrowdPanel(group, [sideLength, 8.6], [0, 5.9, -crowdDepth], [0, Math.PI, 0], crowdTexture, 6);
+  const endDepth = pitch.width / 2 + 4.86;
+  addCrowdPanel(group, [endLength, 10.5], [endDepth, 6.6, 0], [0, -Math.PI / 2, 0], crowdTexture, 4);
+  addCrowdPanel(group, [endLength, 10.5], [-endDepth, 6.6, 0], [0, Math.PI / 2, 0], crowdTexture, 4);
+
+  const bannerTexture = makeStadiumBannerTexture("KORU eCLUB");
+  addCrowdPanel(group, [sideLength * 0.42, 1.25], [-sideLength * 0.23, 2.15, crowdDepth - 0.08], [0, 0, 0], bannerTexture, 1);
+  addCrowdPanel(group, [sideLength * 0.42, 1.25], [sideLength * 0.23, 2.15, -crowdDepth + 0.08], [0, Math.PI, 0], bannerTexture, 1);
+  addLogoBanner(group, [8.6, 3.5], [-endDepth + 0.08, 4.15, 0], [0, Math.PI / 2, 0], logoTexture);
 
   const towerPositions = [
     [pitch.width / 2 + 12, 0, pitch.height / 2 + 12],
