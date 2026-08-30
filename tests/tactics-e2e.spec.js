@@ -170,6 +170,20 @@ test("annotation rows select and arrows preview their drag", async ({ page }, te
   await page.screenshot({ path: testInfo.outputPath("arrow-drag-preview.png"), fullPage: true });
   await page.mouse.up();
 
+  await page.getByRole("button", { name: "Flecha" }).click();
+  const drawBox = await page.locator("#pitch-shell svg").boundingBox();
+  expect(drawBox).not.toBeNull();
+  await page.mouse.move(drawBox.x + drawBox.width * 0.28, drawBox.y + drawBox.height * 0.72);
+  await page.mouse.down();
+  await page.mouse.move(drawBox.x + drawBox.width * 0.5, drawBox.y + drawBox.height * 0.48, { steps: 6 });
+  await expect(page.locator('[data-annotation-id="draft-annotation"] .tactical-arrow')).toBeVisible();
+  await page.mouse.up();
+  await expect(page.locator(".tactical-arrow")).toHaveCount(2);
+  await page.getByRole("button", { name: "Seleccion" }).click();
+  await page.locator(".tactical-arrow").last().click();
+  await page.keyboard.press("Delete");
+  await expect(page.locator(".tactical-arrow")).toHaveCount(1);
+
   await page.locator('[data-annotation-row="arrow-1"] strong').click();
   await page.locator('[data-annotation-row="zone-1"] strong').click({ modifiers: ["Control"] });
   await expect(page.locator(".tactical-annotation-item.selected")).toHaveCount(2);

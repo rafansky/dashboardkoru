@@ -196,7 +196,7 @@ export class Pitch2DInteractions {
     if (this.mode.type === "drag") {
       this.onMove(this.mode.starts, this.mode.positions);
     } else if (this.mode.type === "draw") {
-      this.renderer.setAnnotationDraft(null);
+      this.renderer.setAnnotationDraft?.(null);
       this.onDraw?.(this.mode.tool, this.mode.startPitch, this.mode.endPitch);
     } else if (this.mode.type === "annotation-drag") {
       this.onAnnotationMove?.(this.mode.id, this.mode.startPitch, this.mode.endPitch);
