@@ -16,6 +16,7 @@ export function createEditorStore(initialBoard, initialDirty = false) {
       rightCollapsed: false,
       activeTeam: "home",
       activeTool: "select",
+      viewMode: "2d",
       zoom: 1,
       pan: { x: 0, y: 0 },
       presentationMode: false,

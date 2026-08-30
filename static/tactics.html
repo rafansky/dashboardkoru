@@ -8,7 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830n" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830o" />
+    <script type="importmap">{"imports":{"three":"/static/vendor/three/three.module.min.js","three/addons/":"/static/vendor/three/addons/"}}</script>
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -21,7 +22,7 @@
         </div>
         <div class="header-center" role="toolbar" aria-label="Vista del editor">
           <button class="icon-button" data-toggle-panel="left" type="button" aria-label="Mostrar u ocultar plantilla" title="Plantilla"><i data-lucide="panel-left"></i></button>
-          <div class="segmented compact"><button class="active" type="button" aria-pressed="true">2D</button><button type="button" disabled title="Disponible en la fase 3D">3D</button></div>
+          <div class="segmented compact" id="view-mode-switch"><button class="active" data-view-mode="2d" type="button" aria-pressed="true">2D</button><button data-view-mode="3d" type="button" aria-pressed="false">3D</button></div>
           <button class="icon-button" id="fit-pitch" type="button" aria-label="Encajar campo" title="Encajar campo"><i data-lucide="maximize"></i></button>
           <button class="icon-button" id="fullscreen-button" type="button" aria-label="Pantalla completa" title="Pantalla completa"><i data-lucide="expand"></i></button>
           <button class="icon-button" id="presentation-button" type="button" aria-label="Abrir modo presentacion" title="Modo presentacion (P)"><i data-lucide="monitor-up"></i></button>
@@ -79,7 +80,7 @@
             <button data-tool="zone" type="button" aria-label="Zona" title="Zona tactica"><i data-lucide="square-dashed"></i></button>
             <button data-tool="text" type="button" aria-label="Texto" title="Texto tactico"><i data-lucide="type"></i></button>
           </nav>
-          <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="path-draft-controls" id="path-draft-controls" hidden><span id="path-draft-label">Trayectoria</span><button class="secondary-button" id="finish-path-button" type="button"><i data-lucide="check"></i><span>Confirmar</span></button><button class="icon-button small" id="cancel-path-button" type="button" aria-label="Cancelar trayectoria" title="Cancelar"><i data-lucide="x"></i></button></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span></div></div>
+          <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"><div class="pitch-render-layer pitch-2d-layer" id="pitch-2d-layer"></div><div class="pitch-render-layer pitch-3d-layer" id="pitch-3d-layer" hidden></div></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="path-draft-controls" id="path-draft-controls" hidden><span id="path-draft-label">Trayectoria</span><button class="secondary-button" id="finish-path-button" type="button"><i data-lucide="check"></i><span>Confirmar</span></button><button class="icon-button small" id="cancel-path-button" type="button" aria-label="Cancelar trayectoria" title="Cancelar"><i data-lucide="x"></i></button></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span></div></div>
           <div class="presentation-dock" id="presentation-dock" aria-label="Controles de presentacion">
             <button class="presentation-layer-button" type="button" data-presentation-layer="home" aria-label="Mostrar KORU" title="KORU"><i data-lucide="users-round"></i></button>
             <button class="presentation-layer-button" type="button" data-presentation-layer="away" aria-label="Mostrar rival" title="Rival"><i data-lucide="user-round"></i></button>
@@ -214,6 +215,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260830k"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260830l"></script>
   </body>
 </html>

@@ -235,3 +235,15 @@ Fecha: 2026-08-30
 - Cobertura: la prueba API conecta un espectador, comprueba el estado inicial y verifica que recibe una actualizacion posterior al guardar desde el manager; se mantienen las 19 pruebas de logica y las pruebas E2E existentes.
 - El enlace de espectador se sigue generando desde el boton de compartir de la cabecera. Para una ponencia, el manager mantiene abierta la pizarra y los espectadores entran con el mismo enlace.
 - Siguiente fase sugerida: sincronizar tambien el estado efimero de arrastre y la reproduccion cuadro a cuadro, sin esperar al guardado automatico.
+
+# Relevo - Fase 16: Vista 3D equivalente a la pizarra 2D
+
+Fecha: 2026-08-30
+
+- La pizarra incorpora un modo **3D** basado en Three.js local, sin depender de CDN. El modo 2D sigue siendo la vista de edicion y el 3D es una vista de inspeccion/presentacion: ambos leen el mismo documento y las mismas coordenadas, por lo que cambiar de vista no mueve jugadores, balon ni anotaciones.
+- Se representan campo con perspectiva, lineas, areas, porterias, jugadores KORU/rival, dorsales, caras configuradas, balon realista, flechas, zonas, textos y trayectorias de movimiento. Las capas de presentacion y la reproduccion de escenas se reflejan tambien en 3D.
+- En 3D: arrastrar rota la camara, rueda/pellizco hace zoom, boton derecho desplaza y **Encajar campo** recupera un encuadre completo adaptado a escritorio o movil. La seleccion admite clic y Ctrl/Cmd/Shift; la edicion de objetos permanece en 2D para evitar desplazamientos accidentales.
+- En movil, la cabecera conserva accesibles los botones de paneles y el selector 2D/3D; los controles secundarios se ocultan para mantener una interfaz util en 390 px.
+- Se han incluido `three.module.min.js`, `three.core.min.js` y `OrbitControls.js` en `static/vendor/three/` para que la vista funcione tambien en el mini PC sin internet.
+- Cobertura: 19 pruebas de logica y 7 E2E pasan. Las nuevas pruebas comprueban canvas no vacio en escritorio/movil, encuadre, interaccion real de camara, equivalencia 2D/3D y reproduccion de escenas.
+- Siguiente fase sugerida: sincronizar la vista 3D en el visor publico de espectador y exportar una captura/video de la pizarra desde el modo presentacion.

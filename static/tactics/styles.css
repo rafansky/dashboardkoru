@@ -242,6 +242,7 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
   background-size: 16px 16px;
 }
 .pitch-shell {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 220px;
@@ -251,6 +252,17 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
   transform-origin: center;
   will-change: transform;
 }
+.pitch-render-layer { position: absolute; inset: 0; display: grid; place-items: center; min-width: 0; min-height: 0; }
+.pitch-render-layer[hidden] { display: none; }
+.pitch-2d-layer { width: 100%; height: 100%; }
+.pitch-3d-layer { overflow: hidden; background: #080b0e; }
+.tactical-pitch-3d, .tactical-pitch-3d-canvas { display: block; width: 100%; height: 100%; }
+.tactical-pitch-3d { position: absolute; inset: 0; }
+.tactical-pitch-3d-canvas { cursor: grab; touch-action: none; outline: 0; }
+.tactical-pitch-3d-canvas:active { cursor: grabbing; }
+body.view-3d .pitch-viewport { padding: 0; background: #080b0e; background-image: none; }
+body.view-3d .pitch-shell { filter: none; transform: none; }
+body.view-3d .tool-rail, body.view-3d .selection-marquee, body.view-3d .path-draft-controls { display: none; }
 .tactical-pitch {
   display: block;
   width: 100%;
@@ -270,7 +282,7 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
   background: transparent;
   background-image: none;
 }
-.pitch-shell[data-perspective="true"] .tactical-pitch {
+.pitch-2d-layer[data-perspective="true"] .tactical-pitch {
   max-width: none;
   max-height: none;
 }
@@ -489,11 +501,14 @@ body.presentation-mode .presentation-dock { display: flex; }
 
 @media (max-width: 760px) {
   :root { --header-height: 52px; --timeline-height: 78px; }
-  .editor-header { grid-template-columns: minmax(0, 1fr) auto auto; gap: 5px; padding: 6px 7px; }
+  .editor-header { grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; padding: 6px 7px; }
   .header-center { gap: 4px; }
-  .header-center .segmented, .header-center #fit-pitch, .header-center #fullscreen-button, .header-actions .icon-button, .editor-identity > span { display: none; }
-  .header-center .icon-button { width: 32px; height: 32px; }
-  .editor-identity input { width: min(48vw, 230px); font-size: 0.75rem; }
+  .header-center > .icon-button:not([data-toggle-panel]), .header-actions .icon-button, .editor-identity > span, .editor-identity input, .history-link { display: none; }
+  .header-center .segmented { display: flex; justify-self: center; }
+  .header-center .segmented button { min-width: 34px; padding-inline: 9px; }
+  .editor-identity { min-width: 0; gap: 4px; }
+  .editor-identity .back-link { width: 34px; height: 34px; }
+  .header-actions .primary-button { min-width: 0; padding-inline: 11px; }
   .editor-workspace,
   body.left-collapsed .editor-workspace,
   body.right-collapsed .editor-workspace,
@@ -507,6 +522,7 @@ body.presentation-mode .presentation-dock { display: flex; }
   .editor-stage { grid-column: 1; }
   .pitch-viewport { padding: 18px 10px 26px 48px; }
   .pitch-shell { height: auto; min-height: 0; aspect-ratio: var(--pitch-ratio, 105 / 68); }
+  body.view-3d .pitch-shell { height: 100%; min-height: 0; aspect-ratio: auto; }
   .tactical-pitch { height: auto; aspect-ratio: var(--pitch-ratio, 105 / 68); }
   .timeline-panel { grid-template-columns: 96px minmax(0, 1fr); padding: 6px 7px; }
   .playback-controls > span, .timeline-meta { display: none; }

@@ -11,8 +11,9 @@ import {
   createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260830b";
-import { Pitch2DInteractions } from "./interactions2d.js?v=20260830i";
+import { Pitch2DInteractions } from "./interactions2d.js?v=20260830j";
 import { Pitch2DRenderer } from "./pitch2d.js?v=20260830k";
+import { Pitch3DRenderer } from "./pitch3d.js?v=20260830a";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -36,7 +37,8 @@ const DEFAULT_PRESENTATION_LAYERS = { home: true, away: true, ball: true, names:
 
 const recoveryDraft = loadRecoveryDraft();
 const store = createEditorStore(recoveryDraft || createNewBoard(), Boolean(recoveryDraft));
-const renderer = new Pitch2DRenderer($("#pitch-shell"));
+const renderer = new Pitch2DRenderer($("#pitch-2d-layer"));
+const renderer3d = new Pitch3DRenderer($("#pitch-3d-layer"), { onSelection: (selection) => store.setSelection(selection) });
 let boards = [];
 let dashboardRoster = [];
 let customRoster = [];
@@ -162,11 +164,18 @@ function bindControls() {
   });
 
   $$('[data-tool]').forEach((button) => button.addEventListener("click", () => button.dataset.tool === "path" ? enablePathTool() : store.setUI({ activeTool: button.dataset.tool })));
+  $("#view-mode-switch").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-view-mode]");
+    if (button) setViewMode(button.dataset.viewMode);
+  });
   $$('[data-add-entity]').forEach((button) => button.addEventListener("click", () => addEntity(button.dataset.addEntity)));
   $$('[data-collapse]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.collapse)));
   $$('[data-toggle-panel]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.togglePanel, true)));
 
-  $("#fit-pitch").addEventListener("click", () => store.setUI({ zoom: 1, pan: { x: 0, y: 0 } }));
+  $("#fit-pitch").addEventListener("click", () => {
+    if (store.getState().ui.viewMode === "3d") renderer3d.resetCamera();
+    else store.setUI({ zoom: 1, pan: { x: 0, y: 0 } });
+  });
   $("#fullscreen-button").addEventListener("click", toggleFullscreen);
   $("#presentation-button").addEventListener("click", togglePresentationMode);
   $("#lineup-graphic-button").addEventListener("click", openLineupGraphicDialog);
@@ -286,6 +295,12 @@ function resetPresentationLayers() {
   toast("Capas restablecidas");
 }
 
+function setViewMode(viewMode) {
+  if (!new Set(["2d", "3d"]).has(viewMode) || store.getState().ui.viewMode === viewMode) return;
+  if (pathDraft) cancelPathDraft();
+  store.setUI({ viewMode, activeTool: "select", zoom: 1, pan: { x: 0, y: 0 } });
+}
+
 function change(path, value, label) {
   store.update(path, value, label);
   afterDocumentChange();
@@ -301,6 +316,7 @@ function render(state) {
   const renderKey = `${state.documentRevision}:${currentSceneIndex(state)}`;
   if (renderKey !== lastDocumentRevision) {
     renderer.render(board.document, currentScene(state)?.annotations || [], currentScene(state)?.movementPaths || []);
+    renderer3d.render(board.document, currentScene(state)?.annotations || [], currentScene(state)?.movementPaths || []);
     lastDocumentRevision = renderKey;
     renderRoster();
     renderAnalysis();
@@ -309,6 +325,7 @@ function render(state) {
   renderAnnotationList(state);
   renderPathList(state);
   renderer.setSelection(state.selection);
+  renderer3d.setSelection(state.selection);
   const selectionRenderKey = `${state.documentRevision}:${state.selection.join("|")}`;
   if (selectionRenderKey !== lastSelectionRenderKey) {
     renderSelection();
@@ -318,9 +335,19 @@ function render(state) {
   document.body.classList.toggle("left-collapsed", ui.leftCollapsed);
   document.body.classList.toggle("right-collapsed", ui.rightCollapsed);
   document.body.classList.toggle("presentation-mode", ui.presentationMode);
+  document.body.classList.toggle("view-3d", ui.viewMode === "3d");
+  $("#pitch-2d-layer").hidden = ui.viewMode === "3d";
+  $("#pitch-3d-layer").hidden = ui.viewMode !== "3d";
+  renderer3d.setActive(ui.viewMode === "3d");
   $("#pitch-viewport").dataset.tool = ui.activeTool;
-  $("#pitch-shell").style.transform = `translate(${ui.pan.x}px, ${ui.pan.y}px) scale(${ui.zoom})`;
+  $("#pitch-shell").style.transform = ui.viewMode === "3d" ? "none" : `translate(${ui.pan.x}px, ${ui.pan.y}px) scale(${ui.zoom})`;
   renderer.setLayers(ui.layers);
+  renderer3d.setLayers(ui.layers);
+  $$('[data-view-mode]').forEach((button) => {
+    const active = button.dataset.viewMode === ui.viewMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
   $$('[data-tool]').forEach((button) => button.classList.toggle("active", button.dataset.tool === ui.activeTool));
   $$('[data-presentation-layer]').forEach((control) => {
     const visible = ui.layers[control.dataset.presentationLayer] !== false;
@@ -349,7 +376,7 @@ function render(state) {
   $("#save-state").textContent = state.saving ? "Guardando..." : state.error ? "Error al guardar" : state.dirty ? "Cambios pendientes" : board.id ? "Guardado" : "Sin guardar";
   $("#save-state").className = `save-state${state.error ? " error" : state.saving ? " saving" : ""}`;
   $("#pitch-readout").textContent = `${board.document.pitch.width} x ${board.document.pitch.height} m`;
-  $("#zoom-readout").textContent = `Zoom ${Math.round(ui.zoom * 100)}%`;
+  $("#zoom-readout").textContent = ui.viewMode === "3d" ? "Camara 3D" : `Zoom ${Math.round(ui.zoom * 100)}%`;
   $("#timeline-time").textContent = formatTimelineTime(state.playback.time);
   renderMatchReport();
   persistRecoveryDraft();
@@ -359,8 +386,11 @@ function restoreRenderer() {
   const state = store.getState();
   const scene = currentScene(state);
   renderer.render(state.board.document, scene?.annotations || [], scene?.movementPaths || []);
+  renderer3d.render(state.board.document, scene?.annotations || [], scene?.movementPaths || []);
   renderer.setSelection(state.selection);
+  renderer3d.setSelection(state.selection);
   renderer.setLayers(state.ui.layers);
+  renderer3d.setLayers(state.ui.layers);
 }
 
 function syncValue(selector, value) {
@@ -1356,6 +1386,7 @@ function playSceneTransition(fromIndex, token) {
       }];
     }));
     renderer.previewEntityPositions(positions);
+    renderer3d.previewEntityPositions(positions);
     store.setPlayback({ time: (now - startedAt) / 1000 });
     if (progress < 1) playbackFrame = requestAnimationFrame(tick);
     else {
@@ -1377,7 +1408,9 @@ function cancelPlayback() {
   const playback = store.getState().playback;
   if (playback.playing) {
     const entities = store.getState().board.document.entities;
-    renderer.previewEntityPositions(Object.fromEntries(entities.map((entity) => [entity.id, entity.position])));
+    const positions = Object.fromEntries(entities.map((entity) => [entity.id, entity.position]));
+    renderer.previewEntityPositions(positions);
+    renderer3d.previewEntityPositions(positions);
     store.setPlayback({ playing: false, time: 0 });
   }
 }

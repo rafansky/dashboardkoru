@@ -20,6 +20,65 @@ async function openTactics(page, path = "/tactics", options = {}) {
   await expect(page.locator("#pitch-shell svg")).toBeVisible();
 }
 
+function threeDAuditBoard() {
+  const entities = [
+    { id: "home-1", type: "player", teamId: "home", name: "Ricky", number: 10, position: { x: 22, y: 34, z: 0 }, rotation: 90, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
+    { id: "home-2", type: "player", teamId: "home", name: "Pedro", number: 3, position: { x: 48, y: 22, z: 0 }, rotation: 90, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
+    { id: "away-1", type: "player", teamId: "away", name: "Rival", number: 9, position: { x: 76, y: 42, z: 0 }, rotation: 270, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
+    { id: "ball-1", type: "ball", teamId: null, name: "Balon", number: null, position: { x: 52.5, y: 34, z: 0 }, rotation: 0, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} },
+  ];
+  const annotations = [
+    { id: "arrow-3d", type: "arrow", start: { x: 24, y: 34 }, end: { x: 50, y: 26 }, color: "#f95516", text: "" },
+    { id: "zone-3d", type: "zone", start: { x: 62, y: 15 }, end: { x: 82, y: 32 }, color: "#12d6df", text: "" },
+  ];
+  return {
+    id: "audit-3d",
+    name: "Auditoria 3D",
+    category: "Ataque",
+    version: 1,
+    document: {
+      schemaVersion: 4,
+      pitch: { width: 105, height: 68, view: "full", orientation: "top-to-bottom", surface: "stripes", overlays: ["thirds"] },
+      teams: [
+        { id: "home", name: "KORU eClub", primaryColor: "#f7f8fb", secondaryColor: "#f95516" },
+        { id: "away", name: "Rival", primaryColor: "#12d6df", secondaryColor: "#101217" },
+      ],
+      entities,
+      settings: { showNames: true, anonymizePlayers: false },
+      timeline: { mode: "scenes", loop: false, speed: 8 },
+      scenes: [
+        { id: "scene-3d-1", name: "Base", duration: 0.5, transition: "linear", notes: "", entityStates: entities.map((entity) => ({ entityId: entity.id, position: entity.position, rotation: entity.rotation, scale: 1, opacity: 1 })), annotations, movementPaths: [{ id: "path-3d", entityId: "home-2", color: "#f95516", points: [{ x: 48, y: 22, z: 0 }, { x: 61, y: 18, z: 0 }, { x: 73, y: 23, z: 0 }] }] },
+        { id: "scene-3d-2", name: "Ataque", duration: 0.5, transition: "linear", notes: "", entityStates: entities.map((entity) => ({ entityId: entity.id, position: entity.id === "home-1" ? { x: 58, y: 31, z: 0 } : entity.position, rotation: entity.rotation, scale: 1, opacity: 1 })), annotations, movementPaths: [] },
+      ],
+    },
+  };
+}
+
+async function canvasPixelStats(canvas) {
+  await canvas.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  return canvas.evaluate((element) => {
+    const gl = element.getContext("webgl2") || element.getContext("webgl");
+    const width = gl.drawingBufferWidth;
+    const height = gl.drawingBufferHeight;
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    let colored = 0;
+    let bright = 0;
+    let hash = 17;
+    let sampled = 0;
+    for (let index = 0; index < pixels.length; index += 64) {
+      const red = pixels[index];
+      const green = pixels[index + 1];
+      const blue = pixels[index + 2];
+      if (green > red * 1.15 && green > blue * 1.12 && green > 35) colored += 1;
+      if (red + green + blue > 420) bright += 1;
+      hash = (hash * 33 + red * 3 + green * 5 + blue * 7 + index) % 2147483647;
+      sampled += 1;
+    }
+    return { width, height, colored, bright, sampled, hash };
+  });
+}
+
 test("desktop editor renders a usable tactical workspace", async ({ page }, testInfo) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -90,6 +149,56 @@ test("base tactics route restores the most recent saved board", async ({ page })
   await expect(page.locator("#board-name")).toHaveValue("Ultima pizarra");
   await expect(page.locator('[data-entity-id="saved-player"]')).toBeVisible();
   await expect(page).toHaveURL(/board=latest-board/);
+});
+
+test("3D view mirrors the tactical document and supports camera interaction", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route("**/api/tactical-boards/audit-3d", async (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(threeDAuditBoard()) }));
+  await openTactics(page, "/tactics?board=audit-3d");
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+
+  const canvas = page.locator("#pitch-3d-layer canvas");
+  await expect(canvas).toBeVisible();
+  await expect(page.locator("#pitch-2d-layer")).toBeHidden();
+  const before = await canvasPixelStats(canvas);
+  expect(before.width).toBeGreaterThan(900);
+  expect(before.height).toBeGreaterThan(600);
+  expect(before.colored).toBeGreaterThan(before.sampled * 0.08);
+  expect(before.bright).toBeGreaterThan(20);
+  await page.screenshot({ path: testInfo.outputPath("tactics-3d-desktop.png"), fullPage: true });
+
+  const bounds = await canvas.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width * 0.55, bounds.y + bounds.height * 0.52);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width * 0.68, bounds.y + bounds.height * 0.45, { steps: 8 });
+  await page.mouse.up();
+  const afterCamera = await canvasPixelStats(canvas);
+  expect(afterCamera.hash).not.toBe(before.hash);
+
+  await page.getByRole("button", { name: "2D", exact: true }).click();
+  await expect(page.locator('[data-entity-id="home-1"]')).toBeVisible();
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  await page.getByRole("button", { name: "Encajar campo" }).click();
+  await page.getByRole("button", { name: "Reproducir siguiente movimiento" }).click();
+  await expect.poll(async () => (await page.locator("#scene-counter").textContent())?.trim()).toBe("2 de 2");
+  const afterScene = await canvasPixelStats(canvas);
+  expect(afterScene.hash).not.toBe(afterCamera.hash);
+});
+
+test("3D view remains nonblank and framed on mobile", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/tactical-boards/audit-3d", async (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify(threeDAuditBoard()) }));
+  await openTactics(page, "/tactics?board=audit-3d");
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  const canvas = page.locator("#pitch-3d-layer canvas");
+  await expect(canvas).toBeVisible();
+  const bounds = await canvas.boundingBox();
+  expect(bounds.width).toBeGreaterThan(340);
+  expect(bounds.height).toBeGreaterThan(580);
+  const stats = await canvasPixelStats(canvas);
+  expect(stats.colored).toBeGreaterThan(stats.sampled * 0.05);
+  expect(stats.bright).toBeGreaterThan(8);
+  await page.screenshot({ path: testInfo.outputPath("tactics-3d-mobile.png"), fullPage: true });
 });
 
 test("mobile editor starts clear and opens one panel at a time", async ({ page }, testInfo) => {

@@ -49,6 +49,7 @@ export class Pitch2DInteractions {
   pointerDown(event) {
     if (!this.renderer.svg) return;
     if (event.button !== 0 && event.button !== 1) return;
+    if (this.getState().ui.viewMode === "3d") return;
     event.preventDefault();
     this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     this.viewport.setPointerCapture(event.pointerId);
