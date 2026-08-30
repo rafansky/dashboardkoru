@@ -175,9 +175,7 @@ function addEntities(group, document) {
     } else if (entity.type === "ball") {
       item.append(
         svgElement("circle", { class: "selection-ring", r: 1.8 }),
-        svgElement("circle", { class: "ball-surface", r: 1.35 }),
-        svgElement("polygon", { class: "ball-panel ball-panel-center", points: "0,-0.55 0.52,-0.17 0.32,0.48 -0.32,0.48 -0.52,-0.17" }),
-        svgElement("path", { class: "ball-panel ball-panel-line", d: "M 0 -0.55 L 0 -1.22 M 0.52 -0.17 L 1.12 0.2 M 0.32 0.48 L 0.7 1.05 M -0.32 0.48 L -0.7 1.05 M -0.52 -0.17 L -1.12 0.2" }),
+        svgElement("image", { class: "ball-image", href: "/assets/tactical-ball.png", x: -1.6, y: -1.6, width: 3.2, height: 3.2, preserveAspectRatio: "xMidYMid meet" }),
       );
     }
     group.append(item);

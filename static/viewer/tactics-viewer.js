@@ -1,5 +1,5 @@
 import { normalizeBoard } from "/static/tactics/model.js?v=20260830b";
-import { Pitch2DRenderer } from "/static/tactics/pitch2d.js?v=20260830f";
+import { Pitch2DRenderer } from "/static/tactics/pitch2d.js?v=20260830h";
 
 const token = decodeURIComponent(window.location.pathname.split("/").pop() || "");
 const pitch = new Pitch2DRenderer(document.querySelector("#viewer-pitch"));
