@@ -222,3 +222,4 @@ Fecha: 2026-08-30
 - El visor consulta la pizarra cada segundo. El guardado automatico del editor hace que los movimientos y cambios lleguen a los espectadores durante la ponencia; la escena activa se guarda en `document.metadata.activeSceneIndex` para que todos vean la misma.
 - Persistencia: `tactical_share_links` guarda un hash SHA-256 del token, nunca el enlace en claro. Solo el endpoint publico de lectura conoce ese token y las APIs de edicion siguen requiriendo la sesion del manager.
 - Siguiente mejora posible: WebSocket para sincronizacion cuadro a cuadro durante animaciones y un visor de clips integrado en la misma sala.
+- Correccion posterior: se versionaron las URLs de `app.js` y `api.js` para evitar que los navegadores mantengan en cache una version anterior sin `createShareLink`.

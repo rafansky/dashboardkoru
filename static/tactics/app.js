@@ -1,4 +1,4 @@
-import { tacticsApi } from "./api.js";
+import { tacticsApi } from "./api.js?v=20260830b";
 import {
   boardPayload,
   applySceneToEntities,
