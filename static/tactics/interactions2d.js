@@ -18,6 +18,8 @@ export class Pitch2DInteractions {
     this.onText = options.onText;
     this.onAnnotationMove = options.onAnnotationMove;
     this.onAnnotationResize = options.onAnnotationResize;
+    this.onPathPoint = options.onPathPoint;
+    this.onPathPreview = options.onPathPreview;
     this.mode = null;
     this.pointers = new Map();
     this.bind();
@@ -56,6 +58,11 @@ export class Pitch2DInteractions {
 
     if (state.ui.activeTool === "text") {
       this.onText?.(this.renderer.clientToPitch(event.clientX, event.clientY));
+      return;
+    }
+
+    if (state.ui.activeTool === "path") {
+      this.onPathPoint?.(this.renderer.clientToPitch(event.clientX, event.clientY));
       return;
     }
 
@@ -121,8 +128,11 @@ export class Pitch2DInteractions {
 
   pointerMove(event) {
     if (this.pointers.has(event.pointerId)) this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (!this.mode) return;
     const state = this.getState();
+    if (!this.mode) {
+      if (state.ui.activeTool === "path") this.onPathPreview?.(this.renderer.clientToPitch(event.clientX, event.clientY));
+      return;
+    }
 
     if (this.mode.type === "pinch" && this.pointers.size >= 2) {
       const [a, b] = [...this.pointers.values()];

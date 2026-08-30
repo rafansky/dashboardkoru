@@ -84,7 +84,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Next phase
 
-- Phase 10: advanced movement paths, presentation playback and graphical lineups.
+- Phase 11: graphical lineups, export sequences and sharing.
 
 ## Repo / workflow notes
 
@@ -94,8 +94,8 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Likely next steps
 
-1. Tactical board Phase 10: advanced movement paths and presentation playback.
-2. Tactical board Phase 11+: graphical lineups, export sequences and sharing.
+1. Tactical board Phase 11: graphical lineups and reusable visual exports.
+2. Tactical board Phase 12+: export sequences, sharing and staff roles.
 3. Add staff roles/permissions before team sharing is implemented; keep 3D/video work for later phases.
 
 ## Relevo - Auditoria integral posterior a Fase 8B
@@ -140,6 +140,15 @@ Fecha: 2026-08-29
 - Persistencia: tabla `tactical_play_templates`. API `GET /api/tactical-play-templates`, `GET/DELETE /api/tactical-play-templates/{id}`, `POST /api/tactical-play-templates`.
 - Una jugada conserva documento táctico (jugadores, campo, flechas, anotaciones y escenas), pero al guardarse se limpian análisis y metadatos. Al usarla genera una nueva pizarra sin `matchId` y con bitácora nueva, dejando la maestra intacta.
 - Siguiente fase sugerida: formaciones rápidas base (`4-2-3-1`, `4-3-3`, `3-5-2`, etc.) que se puedan completar con una alineación guardada.
+# Relevo - Fase 10: Trayectorias de movimiento
+
+Fecha: 2026-08-30
+
+- Cada escena puede guardar trayectorias de varios puntos vinculadas a un jugador o al balon (`movementPaths`). El esquema tactico ahora es la version 4 y migra automaticamente las pizarras anteriores.
+- Flujo: selecciona un jugador o balon, pulsa el icono de ruta en la barra izquierda, marca los puntos del recorrido y confirma. El panel derecho permite cambiar el color o eliminar cada trayectoria.
+- Las rutas usan una linea gruesa discontinua, puntos intermedios y flecha final; se incluyen en exportacion y se ocultan con la capa de anotaciones durante presentacion.
+- El boton de confirmar/cancelar bloquea el evento del campo para evitar anadir un punto accidental. E2E cubre crear y confirmar una ruta.
+
 # Relevo - Fase 9: Capas y modo presentacion
 
 Fecha: 2026-08-30

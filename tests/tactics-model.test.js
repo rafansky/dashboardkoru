@@ -10,10 +10,15 @@ test("IDs work when randomUUID is unavailable on public HTTP", () => {
 
 test("legacy documents migrate to the current tactical schema", () => {
   const migrated = migrateDocument({ schemaVersion: 1, pitch: { width: 105, height: 68 } });
-  assert.equal(migrated.schemaVersion, 3);
+  assert.equal(migrated.schemaVersion, 4);
   assert.deepEqual(migrated.analysis, { activeSessionId: null, sessions: [] });
   const board = normalizeBoard({ document: migrated });
   assert.equal(board.document.analysis.sessions.length, 1);
+});
+
+test("scene movement paths migrate with older boards", () => {
+  const board = normalizeBoard({ document: { schemaVersion: 3, entities: [], scenes: [{ id: "scene", name: "Base" }] } });
+  assert.deepEqual(board.document.scenes[0].movementPaths, []);
 });
 
 test("documents without scenes recover with a usable base scene", () => {

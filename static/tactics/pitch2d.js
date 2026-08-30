@@ -215,6 +215,25 @@ function addAnnotations(group, annotations, pitch) {
   });
 }
 
+function addMovementPaths(group, paths, pitch, draft = null) {
+  const allPaths = [...(paths || []), ...(draft ? [{ ...draft, id: "draft-path", draft: true }] : [])];
+  if (!allPaths.length) return;
+  const defs = svgElement("defs");
+  group.append(defs);
+  allPaths.forEach((path) => {
+    const color = path.color || "#f95516";
+    const markerId = `movement-arrow-${String(path.id).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+    const marker = svgElement("marker", { id: markerId, markerWidth: 4.7, markerHeight: 4.7, refX: 4.1, refY: 2.35, orient: "auto", markerUnits: "strokeWidth" });
+    marker.append(svgElement("path", { d: "M 0 0 L 4.7 2.35 L 0 4.7 Z", fill: color }));
+    defs.append(marker);
+    const projected = path.points.map((point) => projectPerspectivePoint(point, pitch));
+    const item = svgElement("g", { class: `movement-path${path.draft ? " draft" : ""}`, "data-path-id": path.id });
+    item.append(svgElement("polyline", { class: "movement-path-line", points: pointString(projected), fill: "none", stroke: color, "marker-end": `url(#${markerId})` }));
+    projected.slice(1, -1).forEach((point) => item.append(svgElement("circle", { class: "movement-path-point", cx: point.x, cy: point.y, r: 0.62, fill: color })));
+    group.append(item);
+  });
+}
+
 function addAnnotationHandles(group, annotations, selectedIds, pitch) {
   const selected = annotations.filter((annotation) => selectedIds.has(annotation.id) && annotation.type !== "text");
   if (!selected.length) return;
@@ -260,9 +279,10 @@ export class Pitch2DRenderer {
     this.annotations = [];
   }
 
-  render(document, annotations = []) {
+  render(document, annotations = [], movementPaths = []) {
     this.document = document;
     this.annotations = annotations;
+    this.movementPaths = movementPaths;
     const pitch = document.pitch;
     const viewport = pitchViewport(pitch);
     const svg = svgElement("svg", {
@@ -285,6 +305,9 @@ export class Pitch2DRenderer {
     const annotationLayer = svgElement("g", { class: "annotation-layer" });
     addAnnotations(annotationLayer, annotations, pitch);
     pitchWorld.append(annotationLayer);
+    const movementPathLayer = svgElement("g", { class: "movement-path-layer" });
+    addMovementPaths(movementPathLayer, movementPaths, pitch);
+    pitchWorld.append(movementPathLayer);
     const entityLayer = svgElement("g", { class: "entity-layer" });
     addEntities(entityLayer, document);
     svg.append(pitchWorld, entityLayer);
@@ -296,6 +319,7 @@ export class Pitch2DRenderer {
     this.svg = svg;
     this.entityLayer = entityLayer;
     this.annotationLayer = annotationLayer;
+    this.movementPathLayer = movementPathLayer;
     this.setLayers();
   }
 
@@ -323,6 +347,12 @@ export class Pitch2DRenderer {
       markings: layers.markings !== false,
     };
     Object.entries(values).forEach(([key, value]) => { this.svg.dataset[`show${key[0].toUpperCase()}${key.slice(1)}`] = String(value); });
+  }
+
+  setMovementPathDraft(path) {
+    if (!this.movementPathLayer || !this.document) return;
+    this.movementPathLayer.replaceChildren();
+    addMovementPaths(this.movementPathLayer, this.movementPaths || [], this.document.pitch, path);
   }
 
   previewEntityPositions(positions) {

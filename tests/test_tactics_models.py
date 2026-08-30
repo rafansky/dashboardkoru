@@ -35,9 +35,10 @@ class TacticalDocumentTests(unittest.TestCase):
     def test_document_round_trip_uses_public_aliases(self) -> None:
         document = TacticalBoardDocument.model_validate(self.document())
         serialized = document.model_dump(by_alias=True)
-        self.assertEqual(serialized["schemaVersion"], 3)
+        self.assertEqual(serialized["schemaVersion"], 4)
         self.assertIn("analysis", serialized)
         self.assertEqual(serialized["scenes"][0]["annotations"], [])
+        self.assertEqual(serialized["scenes"][0]["movementPaths"], [])
         self.assertEqual(serialized["entities"][0]["teamId"], "home")
         self.assertEqual(serialized["scenes"][0]["entityStates"][0]["entityId"], "player-1")
 
@@ -58,6 +59,18 @@ class TacticalDocumentTests(unittest.TestCase):
         payload["scenes"][0]["entityStates"].append(
             {"entityId": "player-1", "position": {"x": 45, "y": 34}}
         )
+        with self.assertRaises(ValidationError):
+            TacticalBoardDocument.model_validate(payload)
+
+    def test_movement_paths_require_existing_entities_and_stay_on_pitch(self) -> None:
+        payload = self.document()
+        payload["scenes"][0]["movementPaths"] = [{
+            "id": "path-1", "entityId": "player-1", "points": [{"x": 42, "y": 34}, {"x": 70, "y": 42}],
+        }]
+        document = TacticalBoardDocument.model_validate(payload)
+        self.assertEqual(len(document.scenes[0].movement_paths), 1)
+
+        payload["scenes"][0]["movementPaths"][0]["entityId"] = "missing"
         with self.assertRaises(ValidationError):
             TacticalBoardDocument.model_validate(payload)
 

@@ -76,7 +76,7 @@ test("annotation rows select and arrows preview their drag", async ({ page }, te
           schemaVersion: 3,
           pitch: { width: 105, height: 68, view: "full", orientation: "top-to-bottom", surface: "stripes", overlays: [] },
           teams: [],
-          entities: [],
+          entities: [{ id: "player-1", type: "player", teamId: "home", name: "Ricky", number: 10, position: { x: 30, y: 30, z: 0 }, rotation: 90, scale: 1, opacity: 1, locked: false, visible: true, metadata: {} }],
           scenes: [{
             id: "scene-1",
             name: "Escena base",
@@ -116,4 +116,16 @@ test("annotation rows select and arrows preview their drag", async ({ page }, te
   await expect.poll(async () => Number(await arrow.getAttribute("x1"))).not.toBe(initialX);
   await page.screenshot({ path: testInfo.outputPath("arrow-drag-preview.png"), fullPage: true });
   await page.mouse.up();
+
+  await page.locator('[data-entity-id="player-1"]').click();
+  await page.getByRole("button", { name: "Trayectoria" }).click();
+  const svgBox = await page.locator("#pitch-shell svg").boundingBox();
+  expect(svgBox).not.toBeNull();
+  await page.mouse.click(svgBox.x + svgBox.width * 0.56, svgBox.y + svgBox.height * 0.54);
+  await expect(page.locator("#path-draft-controls")).toBeVisible();
+  await page.mouse.click(svgBox.x + svgBox.width * 0.68, svgBox.y + svgBox.height * 0.66);
+  await page.getByRole("button", { name: "Confirmar" }).click();
+  await expect(page.locator(".movement-path-line")).toHaveCount(1);
+  await expect(page.locator("#path-list .path-row")).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath("movement-path.png"), fullPage: true });
 });

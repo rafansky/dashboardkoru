@@ -11,8 +11,8 @@ import {
   createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260830b";
-import { Pitch2DInteractions } from "./interactions2d.js?v=20260830d";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260830d";
+import { Pitch2DInteractions } from "./interactions2d.js?v=20260830e";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260830e";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -54,6 +54,7 @@ let matchReport = null;
 let loadedReportMatchId = "";
 let matchEvents = [];
 let matchCallups = [];
+let pathDraft = null;
 
 new Pitch2DInteractions({
   viewport: $("#pitch-viewport"),
@@ -68,6 +69,8 @@ new Pitch2DInteractions({
   onText: addTextAnnotation,
   onAnnotationMove: moveTacticalAnnotation,
   onAnnotationResize: resizeTacticalAnnotation,
+  onPathPoint: addPathPoint,
+  onPathPreview: previewPathPoint,
 });
 
 document.addEventListener("DOMContentLoaded", init);
@@ -147,7 +150,7 @@ function bindControls() {
     renderRoster();
   });
 
-  $$('[data-tool]').forEach((button) => button.addEventListener("click", () => store.setUI({ activeTool: button.dataset.tool })));
+  $$('[data-tool]').forEach((button) => button.addEventListener("click", () => button.dataset.tool === "path" ? enablePathTool() : store.setUI({ activeTool: button.dataset.tool })));
   $$('[data-add-entity]').forEach((button) => button.addEventListener("click", () => addEntity(button.dataset.addEntity)));
   $$('[data-collapse]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.collapse)));
   $$('[data-toggle-panel]').forEach((button) => button.addEventListener("click", () => togglePanel(button.dataset.togglePanel, true)));
@@ -187,6 +190,10 @@ function bindControls() {
   $("#scene-forward-button").addEventListener("click", () => moveActiveScene(1));
   $("#annotation-list").addEventListener("change", updateAnnotationColor);
   $("#annotation-list").addEventListener("click", handleAnnotationAction);
+  $("#path-list").addEventListener("click", handlePathAction);
+  $("#path-list").addEventListener("change", updatePathColor);
+  $("#finish-path-button").addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); finishPathDraft(); });
+  $("#cancel-path-button").addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); cancelPathDraft(); });
 
   $("#new-session-button").addEventListener("click", createSession);
   $("#analysis-session").addEventListener("change", (event) => change(["board", "document", "analysis", "activeSessionId"], event.target.value, "Cambiar sesion"));
@@ -259,13 +266,14 @@ function render(state) {
   const { board, ui } = state;
   const renderKey = `${state.documentRevision}:${currentSceneIndex(state)}`;
   if (renderKey !== lastDocumentRevision) {
-    renderer.render(board.document, currentScene(state)?.annotations || []);
+    renderer.render(board.document, currentScene(state)?.annotations || [], currentScene(state)?.movementPaths || []);
     lastDocumentRevision = renderKey;
     renderRoster();
     renderAnalysis();
   }
   renderSceneUi(state);
   renderAnnotationList(state);
+  renderPathList(state);
   renderer.setSelection(state.selection);
   const selectionRenderKey = `${state.documentRevision}:${state.selection.join("|")}`;
   if (selectionRenderKey !== lastSelectionRenderKey) {
@@ -290,6 +298,8 @@ function render(state) {
   });
   $("#presentation-button").classList.toggle("active", ui.presentationMode);
   $("#presentation-button").setAttribute("aria-label", ui.presentationMode ? "Salir de modo presentacion" : "Abrir modo presentacion");
+  $("#path-draft-controls").hidden = !pathDraft;
+  if (pathDraft) $("#path-draft-label").textContent = `${pathDraft.name}: ${pathDraft.points.length - 1} punto${pathDraft.points.length === 2 ? "" : "s"}`;
 
   syncValue("#board-name", board.name);
   syncValue("#board-description", board.description);
@@ -953,6 +963,86 @@ function addTextAnnotation(position) {
   const annotation = { id: createTacticalId(), type: "text", position: { x: position.x, y: position.y }, text: text.trim(), color: "#f7f8fb" };
   const annotations = [...(state.board.document.scenes[index].annotations || []), annotation];
   store.update(["board", "document", "scenes", index, "annotations"], annotations, "Anadir texto tactico");
+  afterDocumentChange();
+}
+
+function enablePathTool() {
+  const state = store.getState();
+  const selected = state.selection.map((id) => state.board.document.entities.find((entity) => entity.id === id)).filter(Boolean);
+  if (selected.length !== 1 || !["player", "ball"].includes(selected[0].type)) {
+    toast("Selecciona un jugador o el balon antes de dibujar una trayectoria");
+    return;
+  }
+  store.setUI({ activeTool: "path" });
+  toast("Marca los puntos en el campo y confirma la trayectoria");
+}
+
+function addPathPoint(point) {
+  const state = store.getState();
+  if (!pathDraft) {
+    const entity = state.selection.map((id) => state.board.document.entities.find((item) => item.id === id)).find(Boolean);
+    if (!entity || !["player", "ball"].includes(entity.type)) return enablePathTool();
+    pathDraft = {
+      entityId: entity.id,
+      name: entity.name || (entity.type === "ball" ? "Balon" : "Jugador"),
+      color: entity.type === "ball" ? "#f7f8fb" : entity.teamId === "home" ? "#f95516" : "#12d6df",
+      points: [{ ...entity.position }, { x: point.x, y: point.y, z: 0 }],
+    };
+  } else if (pathDraft.points.length < 24) pathDraft = { ...pathDraft, points: [...pathDraft.points, { x: point.x, y: point.y, z: 0 }] };
+  renderer.setMovementPathDraft(pathDraft);
+  render(store.getState());
+}
+
+function previewPathPoint(point) {
+  if (!pathDraft) return;
+  renderer.setMovementPathDraft({ ...pathDraft, points: [...pathDraft.points, { x: point.x, y: point.y, z: 0 }] });
+}
+
+function finishPathDraft() {
+  if (!pathDraft || pathDraft.points.length < 2) return;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const path = { id: createTacticalId(), entityId: pathDraft.entityId, points: pathDraft.points, color: pathDraft.color, label: "" };
+  store.update(["board", "document", "scenes", index, "movementPaths"], [...(currentScene(state).movementPaths || []), path], "Crear trayectoria");
+  pathDraft = null;
+  store.setUI({ activeTool: "select" });
+  afterDocumentChange();
+  toast("Trayectoria guardada en esta escena");
+}
+
+function cancelPathDraft() {
+  pathDraft = null;
+  renderer.setMovementPathDraft(null);
+  store.setUI({ activeTool: "select" });
+}
+
+function renderPathList(state) {
+  const paths = currentScene(state)?.movementPaths || [];
+  $("#path-count").textContent = String(paths.length);
+  $("#path-list").innerHTML = paths.length ? paths.map((path, index) => {
+    const entity = state.board.document.entities.find((item) => item.id === path.entityId);
+    const label = path.label || entity?.name || `Trayectoria ${index + 1}`;
+    return `<div class="path-row"><i data-lucide="route"></i><strong>${escapeHtml(label)}</strong><small>${path.points.length - 1} punto${path.points.length === 2 ? "" : "s"}</small><input type="color" value="${escapeHtml(path.color)}" data-path-color="${path.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" data-delete-path="${path.id}" aria-label="Eliminar trayectoria" title="Eliminar trayectoria"><i data-lucide="trash-2"></i></button></div>`;
+  }).join("") : `<div class="compact-empty">Selecciona un jugador, pulsa ruta y marca su recorrido.</div>`;
+  refreshIcons();
+}
+
+function updatePathColor(event) {
+  const input = event.target.closest("[data-path-color]");
+  if (!input) return;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  const paths = currentScene(state).movementPaths.map((path) => path.id === input.dataset.pathColor ? { ...path, color: input.value } : path);
+  store.update(["board", "document", "scenes", index, "movementPaths"], paths, "Cambiar color de trayectoria");
+  afterDocumentChange();
+}
+
+function handlePathAction(event) {
+  const button = event.target.closest("[data-delete-path]");
+  if (!button) return;
+  const state = store.getState();
+  const index = currentSceneIndex(state);
+  store.update(["board", "document", "scenes", index, "movementPaths"], currentScene(state).movementPaths.filter((path) => path.id !== button.dataset.deletePath), "Eliminar trayectoria");
   afterDocumentChange();
 }
 

@@ -280,6 +280,7 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .tactical-pitch[data-show-names="false"] .player-label,
 .tactical-pitch[data-show-annotations="false"] .annotation-layer,
 .tactical-pitch[data-show-annotations="false"] .annotation-handle-layer,
+.tactical-pitch[data-show-annotations="false"] .movement-path-layer,
 .tactical-pitch[data-show-markings="false"] .pitch-markings { display: none; }
 .analysis-line { stroke: rgba(250, 204, 21, 0.62); stroke-width: 0.22; stroke-dasharray: 1.4 1; vector-effect: non-scaling-stroke; }
 .analysis-line.lanes { stroke: rgba(18, 214, 223, 0.5); }
@@ -296,6 +297,10 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .tactical-arrow { stroke-width: 3.4; stroke-linecap: round; }
 .tactical-zone { fill-opacity: 0.18; stroke-width: 0.35; stroke-dasharray: 1.2 0.8; }
 .tactical-text { font-size: 2.3px; font-weight: 900; paint-order: stroke; stroke: rgba(7, 9, 12, 0.86); stroke-width: 0.7px; stroke-linejoin: round; }
+.movement-path-line { stroke-width: 3.8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 9 5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.55)); }
+.movement-path.draft .movement-path-line { opacity: 0.82; stroke-dasharray: 4 4; animation: path-draft-pulse 800ms linear infinite; }
+.movement-path-point { stroke: #101217; stroke-width: 0.22; vector-effect: non-scaling-stroke; }
+@keyframes path-draft-pulse { to { stroke-dashoffset: -18; } }
 .pitch-entity text { fill: #fff; font-size: 1.8px; font-weight: 900; pointer-events: none; }
 .pitch-entity { cursor: grab; }
 .pitch-entity:active { cursor: grabbing; }
@@ -308,6 +313,9 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .pitch-entity .player-number.has-avatar { font-size: 1.05px; }
 .pitch-entity .player-label { font-size: 1.55px; paint-order: stroke; stroke: rgba(7, 9, 12, 0.92); stroke-width: 0.75px; stroke-linejoin: round; }
 .selection-marquee { position: absolute; z-index: 3; border: 1px dashed var(--cyan); background: rgba(18, 214, 223, 0.12); pointer-events: none; }
+.path-draft-controls { position: absolute; left: 50%; bottom: 15px; z-index: 7; display: flex; align-items: center; gap: 7px; padding: 6px 7px 6px 10px; border: 1px solid rgba(249,85,22,.42); border-radius: 7px; background: rgba(15,17,22,.96); box-shadow: 0 12px 30px rgba(0,0,0,.35); transform: translateX(-50%); }
+.path-draft-controls > span { color: var(--text); font-size: .63rem; font-weight: 800; white-space: nowrap; }
+.path-draft-controls .secondary-button { min-height: 29px; }
 .pitch-viewport[data-tool="hand"] { cursor: grab; }
 .pitch-viewport[data-tool="hand"]:active { cursor: grabbing; }
 .stage-hud { position: absolute; right: 10px; bottom: 8px; display: flex; gap: 10px; color: var(--soft); font-size: 0.6rem; }
@@ -396,6 +404,9 @@ body.presentation-mode .presentation-dock { display: flex; }
 .annotation-row button:hover { background: var(--surface-3); color: var(--text); }
 .annotation-row .annotation-delete:hover { color: var(--red); background: rgba(255, 88, 101, 0.12); }
 .annotation-row button svg { width: 13px; height: 13px; }
+.path-list { display: grid; gap: 5px; }
+.path-row { display: grid; grid-template-columns: 15px minmax(0, 1fr) auto 24px 24px; align-items: center; gap: 5px; padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: #0c0e13; }
+.path-row > i { width: 14px; height: 14px; color: var(--orange); }.path-row strong { overflow: hidden; font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }.path-row small { color: var(--soft); font-size: .54rem; white-space: nowrap; }.path-row input[type="color"] { width: 24px; min-height: 24px; height: 24px; padding: 1px; border-radius: 4px; cursor: pointer; }.path-row button { width:24px; height:24px; display:grid; place-items:center; border-radius:4px; background:transparent; color:var(--soft); cursor:pointer; }.path-row button:hover { color:var(--red); background:rgba(255,88,101,.12); }.path-row button svg { width:13px; height:13px; }
 .session-fields input, .session-fields select, .analysis-meta-fields input, .analysis-meta-fields select { min-width: 0; }
 .analysis-form { display: grid; gap: 6px; }
 .analysis-list { display: grid; gap: 5px; max-height: 270px; overflow-y: auto; }

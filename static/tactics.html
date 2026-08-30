@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830d" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830e" />
   </head>
   <body>
     <main class="tactics-app" id="tactics-app">
@@ -73,10 +73,11 @@
             <button data-add-entity="ball" type="button" aria-label="Añadir balon" title="Añadir balon"><i data-lucide="circle-dot"></i></button>
             <span></span>
             <button data-tool="arrow" type="button" aria-label="Flecha" title="Flecha de movimiento"><i data-lucide="move-up-right"></i></button>
+            <button data-tool="path" type="button" aria-label="Trayectoria" title="Trayectoria de jugador o balon"><i data-lucide="route"></i></button>
             <button data-tool="zone" type="button" aria-label="Zona" title="Zona tactica"><i data-lucide="square-dashed"></i></button>
             <button data-tool="text" type="button" aria-label="Texto" title="Texto tactico"><i data-lucide="type"></i></button>
           </nav>
-          <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span></div></div>
+          <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="path-draft-controls" id="path-draft-controls" hidden><span id="path-draft-label">Trayectoria</span><button class="secondary-button" id="finish-path-button" type="button"><i data-lucide="check"></i><span>Confirmar</span></button><button class="icon-button small" id="cancel-path-button" type="button" aria-label="Cancelar trayectoria" title="Cancelar"><i data-lucide="x"></i></button></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span></div></div>
           <div class="presentation-dock" id="presentation-dock" aria-label="Controles de presentacion">
             <button class="presentation-layer-button" type="button" data-presentation-layer="home" aria-label="Mostrar KORU" title="KORU"><i data-lucide="users-round"></i></button>
             <button class="presentation-layer-button" type="button" data-presentation-layer="away" aria-label="Mostrar rival" title="Rival"><i data-lucide="user-round"></i></button>
@@ -158,6 +159,10 @@
             <div class="section-title"><strong>Anotaciones</strong><span id="annotation-count">0</span></div>
             <div class="annotation-list" id="annotation-list"></div>
           </div>
+          <div class="property-section path-section">
+            <div class="section-title"><strong>Trayectorias</strong><span id="path-count">0</span></div>
+            <div class="path-list" id="path-list"></div>
+          </div>
           <div class="property-section analysis-log-section">
             <div class="section-title"><strong>Bitacora</strong><button class="icon-button small" id="new-session-button" type="button" title="Nueva sesion" aria-label="Nueva sesion"><i data-lucide="plus"></i></button></div>
             <label>Sesion<select id="analysis-session"></select></label>
@@ -200,6 +205,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260830d"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260830e"></script>
   </body>
 </html>

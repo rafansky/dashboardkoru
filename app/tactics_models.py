@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-LATEST_TACTICAL_SCHEMA = 3
+LATEST_TACTICAL_SCHEMA = 4
 
 
 def migrate_tactical_document(payload: Any) -> Any:
@@ -22,6 +22,9 @@ def migrate_tactical_document(payload: Any) -> Any:
     if version <= 2:
         migrated["scenes"] = [{**scene, "annotations": scene.get("annotations", [])} for scene in migrated.get("scenes", [])]
         migrated["schemaVersion"] = 3
+    if version <= 3:
+        migrated["scenes"] = [{**scene, "movementPaths": scene.get("movementPaths", [])} for scene in migrated.get("scenes", [])]
+        migrated["schemaVersion"] = 4
     return migrated
 
 
@@ -129,6 +132,14 @@ class SceneAnnotation(TacticalModel):
         return self
 
 
+class SceneMovementPath(TacticalModel):
+    id: str
+    entity_id: str = Field(alias="entityId")
+    points: list[PitchPoint] = Field(min_length=2, max_length=24)
+    color: str = Field(default="#f95516", pattern=r"^#[0-9a-fA-F]{6}$")
+    label: str = Field(default="", max_length=120)
+
+
 class TacticalScene(TacticalModel):
     id: str
     name: str = Field(min_length=1, max_length=80)
@@ -137,6 +148,7 @@ class TacticalScene(TacticalModel):
     notes: str = Field(default="", max_length=4000)
     entity_states: list[EntityState] = Field(default_factory=list, alias="entityStates")
     annotations: list[SceneAnnotation] = Field(default_factory=list)
+    movement_paths: list[SceneMovementPath] = Field(default_factory=list, alias="movementPaths")
 
 
 class TimelineConfig(TacticalModel):
@@ -255,6 +267,15 @@ class TacticalBoardDocument(TacticalModel):
                 for point in (item for item in points if item is not None):
                     if point.x > self.pitch.width or point.y > self.pitch.height:
                         raise ValueError(f"La anotacion {annotation.id} esta fuera del campo")
+            path_ids = [path.id for path in scene.movement_paths]
+            if len(path_ids) != len(set(path_ids)):
+                raise ValueError(f"La escena {scene.id} contiene trayectorias duplicadas")
+            for path in scene.movement_paths:
+                if path.entity_id not in known_entities:
+                    raise ValueError(f"La trayectoria {path.id} referencia una entidad inexistente")
+                for point in path.points:
+                    if point.x > self.pitch.width or point.y > self.pitch.height:
+                        raise ValueError(f"La trayectoria {path.id} esta fuera del campo")
         for session in self.analysis.sessions:
             for entry in session.entries:
                 if not set(entry.entity_ids).issubset(known_entities):

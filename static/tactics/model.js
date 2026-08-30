@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const PITCH_WIDTH = 105;
 export const PITCH_HEIGHT = 68;
 
@@ -45,6 +45,7 @@ export function createSceneFromEntities(name, entities, source = {}) {
     notes: source.notes || "",
     entityStates: captureSceneEntityStates(entities),
     annotations: structuredClone(source.annotations || []),
+    movementPaths: structuredClone(source.movementPaths || []),
   };
 }
 
@@ -82,7 +83,7 @@ export function createDefaultDocument() {
     drawings: [],
     zones: [],
     groups: [],
-    scenes: [{ id: createTacticalId(), name: "Escena base", duration: 3, transition: "ease-in-out", notes: "", entityStates: [], annotations: [] }],
+    scenes: [{ id: createTacticalId(), name: "Escena base", duration: 3, transition: "ease-in-out", notes: "", entityStates: [], annotations: [], movementPaths: [] }],
     timeline: { mode: "scenes", loop: false, speed: 1 },
     camera: {
       preset: "tactical",
@@ -161,11 +162,15 @@ export function migrateDocument(source) {
     document.scenes = (document.scenes || []).map((scene) => ({ ...scene, annotations: scene.annotations || [] }));
     document.schemaVersion = 3;
   }
+  if (version <= 3) {
+    document.scenes = (document.scenes || []).map((scene) => ({ ...scene, movementPaths: scene.movementPaths || [] }));
+    document.schemaVersion = 4;
+  }
   return document;
 }
 
 function normalizeScenes(scenes, entities = []) {
-  const normalized = structuredClone(scenes || []).map((scene) => ({ ...scene, entityStates: scene.entityStates || [], annotations: scene.annotations || [] }));
+  const normalized = structuredClone(scenes || []).map((scene) => ({ ...scene, entityStates: scene.entityStates || [], annotations: scene.annotations || [], movementPaths: scene.movementPaths || [] }));
   return normalized.length ? normalized : [createSceneFromEntities("Escena base", entities)];
 }
 

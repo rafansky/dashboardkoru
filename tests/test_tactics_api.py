@@ -53,7 +53,7 @@ class TacticalApiTests(unittest.TestCase):
         created = self.client.post("/api/tactical-boards", json=self.payload())
         self.assertEqual(created.status_code, 201)
         board = created.json()
-        self.assertEqual(board["document"]["schemaVersion"], 3)
+        self.assertEqual(board["document"]["schemaVersion"], 4)
         self.assertIn("analysis", board["document"])
 
         listed = self.client.get("/api/tactical-boards")
@@ -215,7 +215,7 @@ class TacticalApiTests(unittest.TestCase):
         created = self.client.post("/api/tactical-play-templates", json=payload)
         self.assertEqual(created.status_code, 201)
         template = created.json()
-        self.assertEqual(template["document"]["schemaVersion"], 3)
+        self.assertEqual(template["document"]["schemaVersion"], 4)
 
         listed = self.client.get("/api/tactical-play-templates")
         self.assertEqual(listed.status_code, 200)
