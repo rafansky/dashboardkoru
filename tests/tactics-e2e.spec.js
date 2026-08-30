@@ -192,6 +192,8 @@ test("annotation rows select and arrows preview their drag", async ({ page }, te
   await expect(page.locator('[data-entity-id="player-1"]')).toBeVisible();
 
   await page.locator('[data-entity-id="player-1"]').click();
+  await expect(page.locator('[data-entity-id="player-1"]')).toHaveClass(/selected/);
+  await expect(page.locator('[data-entity-id="player-1"] .selection-ring')).toHaveCSS("animation-name", "selection-ring-pulse");
   await page.getByRole("button", { name: "Trayectoria" }).click();
   const svgBox = await page.locator("#pitch-shell svg").boundingBox();
   expect(svgBox).not.toBeNull();

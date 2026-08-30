@@ -309,8 +309,12 @@ button:disabled { opacity: 0.34; cursor: not-allowed; }
 .pitch-entity:active { cursor: grabbing; }
 .pitch-entity.locked { cursor: not-allowed; }
 .pitch-viewport, .pitch-viewport * { -webkit-user-drag: none; user-select: none; }
-.selection-ring { fill: none; stroke: rgba(18, 214, 223, 0.78); stroke-width: 0.22; opacity: 0; vector-effect: non-scaling-stroke; }
-.pitch-entity.selected .selection-ring { opacity: 0.82; }
+.selection-ring { fill: rgba(249, 85, 22, 0.08); stroke: var(--orange); stroke-width: 0.3; opacity: 0; vector-effect: non-scaling-stroke; }
+.pitch-entity.selected .selection-ring { opacity: 1; animation: selection-ring-pulse 1.35s ease-in-out infinite; }
+@keyframes selection-ring-pulse {
+  0%, 100% { fill-opacity: 0.05; filter: drop-shadow(0 0 1px rgba(249, 85, 22, 0.45)); stroke-opacity: 0.68; }
+  50% { fill-opacity: 0.16; filter: drop-shadow(0 0 4px rgba(249, 85, 22, 0.95)); stroke-opacity: 1; }
+}
 .orientation-indicator { fill: var(--orange); stroke: #111; stroke-width: 0.1; }
 .player-avatar { clip-path: circle(2.02px at 2.08px 2.08px); pointer-events: none; }
 .player-number-badge { fill: var(--orange); stroke: #fff; stroke-width: 0.15; }
