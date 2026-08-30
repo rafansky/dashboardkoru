@@ -5,7 +5,7 @@ import secrets
 import time
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -74,6 +74,25 @@ app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 _SECRET = AUTH_SECRET or os.getenv("KORU_AUTH_SECRET") or secrets.token_urlsafe(32)
 _PASSWORD = AUTH_PASSWORD or os.getenv("KORU_ACCESS_PASSWORD")
 _SESSION_SECONDS = max(1, AUTH_SESSION_HOURS) * 3600
+_viewer_connections: dict[str, set[WebSocket]] = {}
+
+
+async def _broadcast_tactical_board(board: dict) -> None:
+    """Send the latest saved board to every read-only viewer of that board."""
+    board_id = str(board.get("id", ""))
+    connections = _viewer_connections.get(board_id)
+    if not connections:
+        return
+    disconnected: list[WebSocket] = []
+    for websocket in tuple(connections):
+        try:
+            await websocket.send_json({"type": "board", "board": board})
+        except Exception:
+            disconnected.append(websocket)
+    for websocket in disconnected:
+        connections.discard(websocket)
+    if not connections:
+        _viewer_connections.pop(board_id, None)
 
 
 def _token_signature(payload: str) -> str:
@@ -116,7 +135,7 @@ def _public_path(path: str) -> bool:
         return True
     if path.startswith("/static/tactics/"):
         return True
-    if path.startswith("/watch/") or path.startswith("/api/public/tactics/"):
+    if path.startswith("/watch/") or path.startswith("/api/public/tactics/") or path.startswith("/ws/tactical/"):
         return True
     return False
 
@@ -185,6 +204,28 @@ async def public_tactical_board(token: str) -> dict:
     if not board:
         raise HTTPException(status_code=404, detail="Enlace de visualizacion no valido")
     return board
+
+
+@app.websocket("/ws/tactical/{token}")
+async def tactical_viewer_socket(websocket: WebSocket, token: str) -> None:
+    board = get_tactical_board_by_share_token(token)
+    if not board:
+        await websocket.close(code=1008)
+        return
+    await websocket.accept()
+    board_id = str(board["id"])
+    connections = _viewer_connections.setdefault(board_id, set())
+    connections.add(websocket)
+    try:
+        await websocket.send_json({"type": "board", "board": board})
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        connections.discard(websocket)
+        if not connections:
+            _viewer_connections.pop(board_id, None)
 
 
 @app.post("/api/login")
@@ -266,6 +307,7 @@ async def tactical_board(board_id: str) -> dict:
 async def save_board(board_id: str, payload: TacticalBoardUpdate) -> dict:
     board = update_tactical_board(board_id, payload.model_dump(mode="json", by_alias=True))
     if board:
+        await _broadcast_tactical_board(board)
         return board
     if not get_tactical_board(board_id):
         raise HTTPException(status_code=404, detail="Pizarra no encontrada")

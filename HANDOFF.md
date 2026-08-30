@@ -223,3 +223,15 @@ Fecha: 2026-08-30
 - Persistencia: `tactical_share_links` guarda un hash SHA-256 del token, nunca el enlace en claro. Solo el endpoint publico de lectura conoce ese token y las APIs de edicion siguen requiriendo la sesion del manager.
 - Siguiente mejora posible: WebSocket para sincronizacion cuadro a cuadro durante animaciones y un visor de clips integrado en la misma sala.
 - Correccion posterior: se versionaron las URLs de `app.js` y `api.js` para evitar que los navegadores mantengan en cache una version anterior sin `createShareLink`.
+
+# Relevo - Fase 15: Sincronizacion WebSocket del espectador
+
+Fecha: 2026-08-30
+
+- El visor de `/watch/{token}` ya no depende de una consulta cada segundo: abre un WebSocket de solo lectura en `/ws/tactical/{token}`.
+- Al conectar recibe la pizarra actual y cada guardado del manager se emite de inmediato a todos los espectadores conectados a esa pizarra, incluyendo cambios de escena, jugadores, balon, flechas, zonas y anotaciones.
+- El visor muestra estado de conexion, reconecta automaticamente tras un corte y conserva un refresco HTTP de respaldo cada cinco segundos si no recibe mensajes.
+- El WebSocket valida el token privado antes de aceptar la conexion. Los visitantes no pueden enviar cambios ni acceder a las APIs autenticadas.
+- Cobertura: la prueba API conecta un espectador, comprueba el estado inicial y verifica que recibe una actualizacion posterior al guardar desde el manager; se mantienen las 19 pruebas de logica y las pruebas E2E existentes.
+- El enlace de espectador se sigue generando desde el boton de compartir de la cabecera. Para una ponencia, el manager mantiene abierta la pizarra y los espectadores entran con el mismo enlace.
+- Siguiente fase sugerida: sincronizar tambien el estado efimero de arrastre y la reproduccion cuadro a cuadro, sin esperar al guardado automatico.

@@ -79,6 +79,16 @@ class TacticalApiTests(unittest.TestCase):
         self.assertEqual(share.status_code, 200)
         token = share.json()["token"]
 
+        with self.client.websocket_connect(f"/ws/tactical/{token}") as viewer:
+            initial = viewer.receive_json()
+            self.assertEqual(initial["type"], "board")
+            self.assertEqual(initial["board"]["id"], board_id)
+            update = {**self.payload(), "name": "Presentacion en directo", "version": 1}
+            saved = self.client.put(f"/api/tactical-boards/{board_id}", json=update)
+            self.assertEqual(saved.status_code, 200)
+            pushed = viewer.receive_json()
+            self.assertEqual(pushed["board"]["name"], "Presentacion en directo")
+
         self.client.post("/api/logout")
         viewer_page = self.client.get(share.json()["url"])
         viewer_data = self.client.get(f"/api/public/tactics/{token}")
