@@ -85,3 +85,5 @@ Solo quedan decisiones futuras, no trabajo incompleto:
 - recoger correcciones de uso real de los managers, que pueden entrar como mejoras nuevas sobre esta base cerrada.
 
 No he incluido la password activa ni el secreto de sesion en Git; siguen viviendo solo en la configuracion del servicio del miniPC.
+
+Aviso de seguridad: durante la comprobacion del servicio, `systemctl` imprimio sus variables de entorno en el registro local de esta sesion de Codex. No se han subido al repositorio ni aparecen en los commits, pero conviene rotar manana `KORU_ACCESS_PASSWORD` y `KORU_AUTH_SECRET` en la unidad de systemd y reiniciar el servicio.
