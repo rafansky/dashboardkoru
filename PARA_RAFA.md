@@ -84,4 +84,4 @@ Solo quedan decisiones futuras, no trabajo incompleto:
 - decidir si algun dia hacen falta cuentas individuales, roles de staff o salas colaborativas persistentes, porque eso implica redisenar la autenticacion multiusuario;
 - recoger correcciones de uso real de los managers, que pueden entrar como mejoras nuevas sobre esta base cerrada.
 
-No he incluido ni mostrado la password activa ni el secreto de sesion; siguen viviendo solo en la configuracion del servicio del miniPC.
+No he incluido la password activa ni el secreto de sesion en Git; siguen viviendo solo en la configuracion del servicio del miniPC.
