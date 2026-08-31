@@ -14,6 +14,7 @@ export class Pitch2DInteractions {
     this.getState = options.getState;
     this.onSelection = options.onSelection;
     this.onMove = options.onMove;
+    this.onMovePreview = options.onMovePreview;
     this.onDropPlayer = options.onDropPlayer;
     this.onViewportChange = options.onViewportChange;
     this.onDraw = options.onDraw;
@@ -173,6 +174,7 @@ export class Pitch2DInteractions {
         clampToPitch({ x: start.x + delta.x, y: start.y + delta.y, z: start.z || 0 }, pitch),
       ]));
       this.renderer.previewEntityPositions(this.mode.positions);
+      this.onMovePreview?.(this.mode.positions);
     } else if (this.mode.type === "draw") {
       this.mode.endPitch = this.renderer.clientToPitch(event.clientX, event.clientY);
       this.onDrawPreview?.(this.mode.tool, this.mode.startPitch, this.mode.endPitch);

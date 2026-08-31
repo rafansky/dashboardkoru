@@ -321,20 +321,47 @@ def list_files(limit: int = 30) -> list[dict[str, Any]]:
     return files
 
 
-async def save_upload(file: UploadFile) -> dict[str, Any]:
+def _uploaded_image_type(content: bytes) -> str | None:
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if content.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if content.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+async def save_upload(file: UploadFile, max_bytes: int = 1024 * 1024 * 1024) -> dict[str, Any]:
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     original = Path(file.filename or "archivo").name
-    suffix = Path(original).suffix[:16]
+    declared_type = str(file.content_type or "application/octet-stream").lower()
+    image_suffixes = {"image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp"}
+    if declared_type.startswith("image/") and declared_type not in image_suffixes:
+        raise ValueError("Formato de imagen no permitido")
+    suffix = image_suffixes.get(declared_type, Path(original).suffix[:16])
     stored = f"{uuid.uuid4().hex}{suffix}"
     storage_kind, directory = upload_destination(file.content_type)
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / stored
 
     size = 0
-    with target.open("wb") as handle:
-        while chunk := await file.read(1024 * 1024):
-            size += len(chunk)
-            handle.write(chunk)
+    signature = b""
+    try:
+        with target.open("wb") as handle:
+            while chunk := await file.read(1024 * 1024):
+                size += len(chunk)
+                if size > max_bytes:
+                    raise ValueError("El archivo supera el limite permitido")
+                if len(signature) < 32:
+                    signature = (signature + chunk)[:32]
+                handle.write(chunk)
+        if declared_type.startswith("image/") and _uploaded_image_type(signature) != declared_type:
+            raise ValueError("El contenido no coincide con una imagen valida")
+    except Exception:
+        target.unlink(missing_ok=True)
+        raise
 
     created_at = datetime.now(timezone.utc).isoformat()
     with closing(sqlite3.connect(DB_PATH)) as conn:
@@ -343,7 +370,7 @@ async def save_upload(file: UploadFile) -> dict[str, Any]:
             INSERT INTO files (original_name, stored_name, content_type, size, created_at, storage_kind)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (original, stored, file.content_type, size, created_at, storage_kind),
+            (original, stored, declared_type, size, created_at, storage_kind),
         )
         conn.commit()
         file_id = cursor.lastrowid
@@ -352,7 +379,7 @@ async def save_upload(file: UploadFile) -> dict[str, Any]:
         "id": file_id,
         "original_name": original,
         "stored_name": stored,
-        "content_type": file.content_type,
+        "content_type": declared_type,
         "size": size,
         "created_at": created_at,
         "url": file_url(stored, storage_kind),

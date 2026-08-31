@@ -5,15 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#090b0f" />
     <title>Presentacion tactica | KORU eClub</title>
-    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260830n" />
-    <link rel="stylesheet" href="/static/viewer/tactics-viewer.css?v=2" />
+    <link rel="stylesheet" href="/static/tactics/styles.css?v=20260831d" />
+    <link rel="stylesheet" href="/static/viewer/tactics-viewer.css?v=20260831d" />
+    <script type="importmap">{"imports":{"three":"/static/vendor/three/three.module.min.js","three/addons/":"/static/vendor/three/addons/"}}</script>
   </head>
   <body>
     <main class="viewer-app">
-      <header class="viewer-header"><img src="/assets/koru-mark.svg" alt="KORU" /><div><span>KORU eClub</span><strong id="board-title">Cargando pizarra...</strong></div><i class="live-dot" title="Actualizacion automatica"></i></header>
-      <section class="viewer-stage"><div id="viewer-pitch" aria-label="Pizarra tactica en modo espectador"></div></section>
+      <header class="viewer-header">
+        <img src="/assets/koru-mark.svg" alt="KORU" />
+        <div class="viewer-title"><span>KORU eClub</span><strong id="board-title">Cargando pizarra...</strong></div>
+        <div class="viewer-controls" aria-label="Controles del visor">
+          <div class="viewer-switch"><button class="active" type="button" data-view-mode="2d" aria-pressed="true">2D</button><button type="button" data-view-mode="3d" aria-pressed="false">3D</button></div>
+          <button class="viewer-action" id="follow-presenter" type="button" aria-pressed="true">Siguiendo</button>
+          <button class="viewer-action" id="fit-view" type="button">Encajar</button>
+          <button class="viewer-action" id="download-view" type="button">Captura</button>
+        </div>
+        <i class="live-dot" id="live-dot" title="Actualizacion automatica"></i>
+      </header>
+      <section class="viewer-stage">
+        <div class="viewer-pitch-layer" id="viewer-pitch-2d" aria-label="Pizarra tactica 2D en modo espectador"></div>
+        <div class="viewer-pitch-layer" id="viewer-pitch-3d" aria-label="Pizarra tactica 3D en modo espectador" hidden></div>
+      </section>
       <p class="viewer-status" id="viewer-status">Conectando...</p>
     </main>
-    <script type="module" src="/static/viewer/tactics-viewer.js?v=2"></script>
+    <script type="module" src="/static/viewer/tactics-viewer.js?v=20260831d"></script>
   </body>
 </html>

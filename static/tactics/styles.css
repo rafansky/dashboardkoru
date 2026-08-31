@@ -81,7 +81,10 @@ a { color: inherit; text-decoration: none; }
 .icon-button:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .icon-button svg, .tool-rail svg, .play-button svg, .primary-button svg { width: 17px; height: 17px; }
 .icon-button.small { width: 30px; height: 30px; }
+.icon-button.recording { color: #fff; border-color: #ef4444; background: #ef4444; animation: recording-pulse 1s ease-in-out infinite; }
 button:disabled { opacity: 0.34; cursor: not-allowed; }
+
+@keyframes recording-pulse { 50% { box-shadow: 0 0 0 5px #ef44442a; } }
 
 .primary-button {
   min-height: 36px;

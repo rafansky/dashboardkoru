@@ -414,6 +414,6 @@ class TacticalSquadPlayerCreate(TacticalModel):
     def validate_avatar_url(cls, value: str | None) -> str | None:
         if value is None or value == "":
             return None
-        if not (value.startswith("/uploads/") or value.startswith("https://")):
+        if not (value.startswith("/uploads/") or value.startswith("/imageneskoru/") or value.startswith("https://")):
             raise ValueError("La imagen debe ser una subida local o una URL HTTPS")
         return value

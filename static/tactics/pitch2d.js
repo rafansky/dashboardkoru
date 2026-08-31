@@ -17,7 +17,7 @@ function svgElement(name, attributes = {}) {
 
 function safeAvatarUrl(value) {
   const url = String(value || "");
-  return url.startsWith("/uploads/") || url.startsWith("https://") ? url : null;
+  return url.startsWith("/uploads/") || url.startsWith("/imageneskoru/") || url.startsWith("/assets/") || url.startsWith("https://") ? url : null;
 }
 
 function addFlatPitchMarkings(group, width, height) {

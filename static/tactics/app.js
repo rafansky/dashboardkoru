@@ -11,9 +11,9 @@ import {
   createTacticalId,
   normalizeBoard,
 } from "./model.js?v=20260830b";
-import { Pitch2DInteractions } from "./interactions2d.js?v=20260830j";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260830k";
-import { Pitch3DRenderer } from "./pitch3d.js?v=20260831b";
+import { Pitch2DInteractions } from "./interactions2d.js?v=20260831d";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260831d";
+import { Pitch3DRenderer } from "./pitch3d.js?v=20260831d";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -38,7 +38,7 @@ const DEFAULT_PRESENTATION_LAYERS = { home: true, away: true, ball: true, names:
 const recoveryDraft = loadRecoveryDraft();
 const store = createEditorStore(recoveryDraft || createNewBoard(), Boolean(recoveryDraft));
 const renderer = new Pitch2DRenderer($("#pitch-2d-layer"));
-const renderer3d = new Pitch3DRenderer($("#pitch-3d-layer"), { onSelection: (selection) => store.setSelection(selection), onMove: commitEntityMove, onAnnotationMove: moveTacticalAnnotation });
+const renderer3d = new Pitch3DRenderer($("#pitch-3d-layer"), { onSelection: (selection) => store.setSelection(selection), onMove: commitEntityMove, onMovePreview: queueLivePreview, onAnnotationMove: moveTacticalAnnotation });
 let boards = [];
 let dashboardRoster = [];
 let customRoster = [];
@@ -58,6 +58,12 @@ let loadedReportMatchId = "";
 let matchEvents = [];
 let matchCallups = [];
 let pathDraft = null;
+let liveSocket = null;
+let liveSocketBoardId = "";
+let liveReconnectTimer = null;
+let livePreviewTimer = null;
+let pendingLivePositions = null;
+let sequenceRecording = false;
 
 new Pitch2DInteractions({
   viewport: $("#pitch-viewport"),
@@ -66,6 +72,7 @@ new Pitch2DInteractions({
   getState: store.getState,
   onSelection: (selection) => store.setSelection(selection),
   onMove: commitEntityMove,
+  onMovePreview: queueLivePreview,
   onDropPlayer: (reference, position) => addRosterPlayer(reference.playerKey, position),
   onViewportChange: (patch) => store.setUI(patch),
   onDraw: addTacticalAnnotation,
@@ -83,7 +90,10 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   bindControls();
   if (window.matchMedia("(max-width: 760px)").matches) store.setUI({ leftCollapsed: true, rightCollapsed: true });
-  store.subscribe(render);
+  store.subscribe((state) => {
+    render(state);
+    queueLivePreview();
+  });
   render(store.getState());
   refreshIcons();
 
@@ -180,6 +190,7 @@ function bindControls() {
   $("#fullscreen-button").addEventListener("click", toggleFullscreen);
   $("#presentation-button").addEventListener("click", togglePresentationMode);
   $("#lineup-graphic-button").addEventListener("click", openLineupGraphicDialog);
+  $("#sequence-export-button").addEventListener("click", () => exportTacticalSequence().catch((error) => toast(error.message || "No se pudo grabar la secuencia")));
   $("#share-viewer-button").addEventListener("click", shareViewerLink);
   $("#close-lineup-graphic-dialog").addEventListener("click", () => $("#lineup-graphic-dialog").close());
   $("#preview-lineup-graphic-button").addEventListener("click", previewLineupGraphic);
@@ -246,6 +257,7 @@ function bindControls() {
 
   document.addEventListener("keydown", handleShortcut);
   window.addEventListener("beforeunload", persistRecoveryDraft);
+  window.addEventListener("beforeunload", closeLiveSocket);
 }
 
 async function shareViewerLink() {
@@ -264,6 +276,75 @@ async function shareViewerLink() {
   } catch (error) {
     toast(error.message || "No se pudo crear el enlace");
   }
+}
+
+function closeLiveSocket() {
+  window.clearTimeout(liveReconnectTimer);
+  window.clearTimeout(livePreviewTimer);
+  liveReconnectTimer = null;
+  livePreviewTimer = null;
+  const socket = liveSocket;
+  liveSocket = null;
+  liveSocketBoardId = "";
+  socket?.close();
+}
+
+function ensureLiveSocket() {
+  const boardId = store.getState().board.id;
+  if (!boardId) return null;
+  if (liveSocketBoardId === boardId && liveSocket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(liveSocket.readyState)) return liveSocket;
+  if (liveSocket) liveSocket.close();
+  window.clearTimeout(liveReconnectTimer);
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(`${protocol}//${window.location.host}/ws/tactical-control/${encodeURIComponent(boardId)}`);
+  liveSocket = socket;
+  liveSocketBoardId = boardId;
+  socket.addEventListener("open", () => queueLivePreview(null, true));
+  socket.addEventListener("close", (event) => {
+    if (liveSocket !== socket) return;
+    liveSocket = null;
+    if (event.code !== 1008 && store.getState().board.id === boardId) liveReconnectTimer = window.setTimeout(ensureLiveSocket, 1500);
+  });
+  socket.addEventListener("error", () => socket.close());
+  return socket;
+}
+
+function liveBoardPayload(positions = null) {
+  const state = store.getState();
+  const document = structuredClone(state.board.document);
+  if (positions) {
+    document.entities = document.entities.map((entity) => positions[entity.id] ? { ...entity, position: positions[entity.id] } : entity);
+  }
+  document.metadata = { ...(document.metadata || {}), activeSceneIndex: currentSceneIndex(state) };
+  const board = boardPayload({ ...state.board, document });
+  delete board.version;
+  return {
+    type: "presentation",
+    board,
+    presentation: {
+      viewMode: state.ui.viewMode,
+      sceneIndex: currentSceneIndex(state),
+      layers: state.ui.layers,
+      playing: state.playback.playing,
+    },
+  };
+}
+
+function queueLivePreview(positions = null, immediate = false) {
+  if (positions) pendingLivePositions = { ...(pendingLivePositions || {}), ...positions };
+  if (!store.getState().board.id) return;
+  const socket = ensureLiveSocket();
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  window.clearTimeout(livePreviewTimer);
+  const flush = () => {
+    livePreviewTimer = null;
+    if (socket !== liveSocket || socket.readyState !== WebSocket.OPEN) return;
+    const payload = liveBoardPayload(pendingLivePositions);
+    pendingLivePositions = null;
+    socket.send(JSON.stringify(payload));
+  };
+  if (immediate) flush();
+  else livePreviewTimer = window.setTimeout(flush, 80);
 }
 
 function togglePanel(side, closeOtherOnMobile = false) {
@@ -392,6 +473,7 @@ function restoreRenderer() {
   renderer3d.setSelection(state.selection);
   renderer.setLayers(state.ui.layers);
   renderer3d.setLayers(state.ui.layers);
+  queueLivePreview();
 }
 
 function syncValue(selector, value) {
@@ -964,6 +1046,12 @@ function captureActiveScene() {
 }
 
 async function exportScenePng() {
+  if (store.getState().ui.viewMode === "3d") {
+    const png = await new Promise((resolve, reject) => renderer3d.webgl.domElement.toBlob((output) => output ? resolve(output) : reject(new Error("No se pudo crear el PNG 3D")), "image/png"));
+    downloadBlob(png, `${exportFilename()}-3d.png`);
+    toast("Escena 3D exportada como PNG");
+    return;
+  }
   const source = renderer.svg;
   if (!source) throw new Error("No hay campo para exportar");
   const selectedElements = [...source.querySelectorAll(".selected")];
@@ -1003,6 +1091,134 @@ async function exportScenePng() {
     toast("La escena se ha descargado como SVG");
   } finally {
     URL.revokeObjectURL(url);
+  }
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function nextAnimationFrame() {
+  return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+function preferredRecordingType() {
+  if (!window.MediaRecorder) return "";
+  return ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"]
+    .find((type) => MediaRecorder.isTypeSupported(type)) || "";
+}
+
+async function animateRecordedTransition(startEntities, targetEntities, duration, transition) {
+  const startedAt = performance.now();
+  await new Promise((resolve) => {
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = easing(progress, transition);
+      const positions = Object.fromEntries(targetEntities.map((target, index) => {
+        const start = startEntities[index] || target;
+        return [target.id, {
+          x: start.position.x + (target.position.x - start.position.x) * eased,
+          y: start.position.y + (target.position.y - start.position.y) * eased,
+          z: start.position.z + (target.position.z - start.position.z) * eased,
+        }];
+      }));
+      renderer3d.previewEntityPositions(positions);
+      if (progress < 1) requestAnimationFrame(tick);
+      else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+function exportSequenceJson() {
+  const state = store.getState();
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    format: "koru-tactical-sequence",
+    version: 1,
+    board: boardPayload(state.board),
+  };
+  downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }), `${exportFilename()}-secuencia.json`);
+  toast("El navegador no graba video; se ha exportado la secuencia JSON");
+}
+
+async function exportTacticalSequence() {
+  if (sequenceRecording) return;
+  const initialState = store.getState();
+  const scenes = structuredClone(initialState.board.document.scenes || []);
+  if (scenes.length < 2) {
+    toast("Crea al menos dos escenas para grabar una secuencia");
+    return;
+  }
+  const mimeType = preferredRecordingType();
+  const canvas = renderer3d.webgl.domElement;
+  if (!mimeType || typeof canvas.captureStream !== "function") {
+    exportSequenceJson();
+    return;
+  }
+
+  sequenceRecording = true;
+  const button = $("#sequence-export-button");
+  button.disabled = true;
+  button.classList.add("recording");
+  const previousUi = {
+    viewMode: initialState.ui.viewMode,
+    presentationMode: initialState.ui.presentationMode,
+    leftCollapsed: initialState.ui.leftCollapsed,
+    rightCollapsed: initialState.ui.rightCollapsed,
+    activeTool: initialState.ui.activeTool,
+  };
+  const previousSelection = [...initialState.selection];
+  let stream;
+  try {
+    store.setSelection([]);
+    store.setUI({ viewMode: "3d", presentationMode: true, leftCollapsed: true, rightCollapsed: true, activeTool: "hand" });
+    await nextAnimationFrame();
+    await nextAnimationFrame();
+    renderer3d.resetCamera();
+
+    const chunks = [];
+    stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 8_000_000 });
+    recorder.addEventListener("dataavailable", (event) => { if (event.data.size) chunks.push(event.data); });
+    const stopped = new Promise((resolve, reject) => {
+      recorder.addEventListener("stop", resolve, { once: true });
+      recorder.addEventListener("error", () => reject(recorder.error || new Error("Fallo al grabar")), { once: true });
+    });
+
+    const documentData = structuredClone(initialState.board.document);
+    let activeEntities = applySceneToEntities(documentData.entities, scenes[0]);
+    documentData.entities = activeEntities;
+    renderer3d.render(documentData, scenes[0].annotations || [], scenes[0].movementPaths || []);
+    renderer3d.setLayers(initialState.ui.layers);
+    recorder.start(250);
+    toast("Grabando secuencia tactica...");
+    await wait(650);
+
+    for (let index = 1; index < scenes.length; index += 1) {
+      const targetEntities = applySceneToEntities(activeEntities, scenes[index]);
+      renderer3d.render({ ...documentData, entities: activeEntities }, scenes[index].annotations || [], scenes[index].movementPaths || []);
+      renderer3d.setLayers(initialState.ui.layers);
+      const speed = Math.max(0.25, Number(documentData.timeline?.speed || 1));
+      const duration = Math.max(500, Number(scenes[index].duration || 3) * 1000 / speed);
+      await animateRecordedTransition(activeEntities, targetEntities, duration, scenes[index].transition);
+      activeEntities = targetEntities;
+      await wait(350);
+    }
+    await wait(650);
+    recorder.stop();
+    await stopped;
+    const extension = mimeType.includes("mp4") ? "mp4" : "webm";
+    downloadBlob(new Blob(chunks, { type: mimeType }), `${exportFilename()}-secuencia.${extension}`);
+    toast("Secuencia tactica exportada");
+  } finally {
+    stream?.getTracks().forEach((track) => track.stop());
+    sequenceRecording = false;
+    button.disabled = false;
+    button.classList.remove("recording");
+    store.setUI(previousUi);
+    store.setSelection(previousSelection);
+    restoreRenderer();
   }
 }
 
@@ -1408,6 +1624,7 @@ function playSceneTransition(fromIndex, token) {
     }));
     renderer.previewEntityPositions(positions);
     renderer3d.previewEntityPositions(positions);
+    queueLivePreview(positions);
     store.setPlayback({ time: (now - startedAt) / 1000 });
     if (progress < 1) playbackFrame = requestAnimationFrame(tick);
     else {
@@ -1432,6 +1649,7 @@ function cancelPlayback() {
     const positions = Object.fromEntries(entities.map((entity) => [entity.id, entity.position]));
     renderer.previewEntityPositions(positions);
     renderer3d.previewEntityPositions(positions);
+    queueLivePreview(positions, true);
     store.setPlayback({ playing: false, time: 0 });
   }
 }

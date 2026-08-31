@@ -4,12 +4,29 @@ html, body { min-height: 100%; margin: 0; background: radial-gradient(circle at 
 .viewer-app { min-height: 100vh; display: flex; flex-direction: column; }
 .viewer-header { height: 58px; display: flex; align-items: center; gap: 11px; padding: 8px 18px; border-bottom: 1px solid #252a31; background: #0d1015; }
 .viewer-header img { width: 30px; height: 30px; }
-.viewer-header div { display: grid; gap: 1px; }
+.viewer-title { display: grid; gap: 1px; min-width: 0; }
 .viewer-header span { color: #ff5b20; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .viewer-header strong { font-size: 15px; }
-.live-dot { margin-left: auto; width: 9px; height: 9px; border-radius: 50%; background: #24d17d; box-shadow: 0 0 0 4px #24d17d22; }
-.viewer-stage { flex: 1; min-height: 0; display: grid; place-items: center; padding: 18px; }
-#viewer-pitch { width: min(100%, 1500px); aspect-ratio: 105 / 68; max-height: calc(100vh - 95px); }
-#viewer-pitch svg { display: block; width: 100%; height: 100%; border-radius: 6px; box-shadow: 0 18px 60px #0008; }
+.viewer-controls { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+.viewer-switch { display: flex; padding: 3px; border: 1px solid #303640; border-radius: 9px; background: #090c10; }
+.viewer-switch button, .viewer-action { min-height: 30px; padding: 5px 10px; border: 0; border-radius: 6px; color: #aeb7c5; background: transparent; font: 800 11px/1 Inter, system-ui, sans-serif; cursor: pointer; }
+.viewer-switch button.active, .viewer-action[aria-pressed="true"] { color: #fff; background: #f95516; }
+.viewer-action { border: 1px solid #303640; background: #151920; }
+.live-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: #24d17d; box-shadow: 0 0 0 4px #24d17d22; }
+.live-dot.reconnecting { background: #f3ad39; box-shadow: 0 0 0 4px #f3ad3922; }
+.viewer-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; padding: 18px; overflow: hidden; }
+.viewer-pitch-layer { grid-area: 1 / 1; width: min(100%, 1500px); aspect-ratio: 105 / 68; max-height: calc(100vh - 95px); }
+#viewer-pitch-2d svg { display: block; width: 100%; height: 100%; border-radius: 6px; box-shadow: 0 18px 60px #0008; }
+#viewer-pitch-3d { align-self: stretch; width: min(100%, 1600px); height: 100%; max-height: none; aspect-ratio: auto; }
+#viewer-pitch-3d .tactical-pitch-3d { width: 100%; height: 100%; min-height: 420px; border-radius: 8px; overflow: hidden; box-shadow: 0 18px 60px #0008; }
+#viewer-pitch-3d canvas { display: block; width: 100%; height: 100%; }
 .viewer-status { position: fixed; bottom: 10px; left: 14px; margin: 0; color: #9da7b6; font-size: 11px; opacity: .8; }
-@media (max-width: 700px) { .viewer-stage { padding: 8px; } .viewer-header { padding: 8px 12px; } #viewer-pitch { width: 100%; } }
+@media (max-width: 800px) {
+  .viewer-header { height: auto; min-height: 58px; padding: 8px 12px; flex-wrap: wrap; }
+  .viewer-title { flex: 1; }
+  .viewer-controls { width: 100%; order: 3; margin: 2px 0 0; overflow-x: auto; }
+  .viewer-controls > * { flex: 0 0 auto; }
+  .viewer-stage { padding: 8px; }
+  .viewer-pitch-layer { width: 100%; }
+  #viewer-pitch-3d .tactical-pitch-3d { min-height: 560px; }
+}

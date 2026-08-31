@@ -32,6 +32,9 @@ Variables:
 - `KORU_AUTH_SECRET` (recomendada): secreto para firmar la cookie de sesion.
 - `KORU_AUTH_SESSION_HOURS` (opcional, por defecto `12`): duracion de sesion.
 - `KORU_COOKIE_SECURE` (opcional): `true` en HTTPS para enviar cookie solo por TLS.
+- `KORU_DB_PATH` (opcional): ruta de la base SQLite; por defecto `data/koru.db`.
+- `KORU_CLIPS_DIR` y `KORU_IMAGES_DIR` (opcionales): almacenamiento separado para videos e imagenes.
+- `KORU_MAX_UPLOAD_MB` (opcional, por defecto `1024`): limite por archivo subido.
 
 ## Ejecutar con Docker
 
@@ -75,7 +78,7 @@ Guarda cualquier pizarra como jugada reutilizable con nombre, categoría y descr
 
 El selector **Formación rápida** añade los puestos vacíos de KORU para `4-2-3-1`, `4-3-3`, `4-4-2`, `3-5-2` y `5-2-1-2`. Después carga una alineación guardada para ocupar esos puestos: se asigna por posición cuando existe coincidencia y conserva rival, balón, anotaciones y escenas.
 
-El editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard. Incluye las fases 1 a 11: editor 2D, escenas y reproduccion, anotaciones, trayectorias de varios puntos, fichas graficas de alineacion, expedientes de partido, trabajo en directo, plantillas de alineacion, convocatorias, biblioteca tactica, formaciones rapidas y modo presentacion.
+El editor tactico esta disponible en `/tactics` y desde el enlace `Pizarra` del dashboard. La hoja de ruta funcional esta completada hasta la fase 18: editor 2D/3D, escenas y reproduccion, anotaciones, trayectorias, fichas graficas, expedientes, trabajo en directo, alineaciones, convocatorias, biblioteca, formaciones, presentacion, scouting acumulado, clips con notas, enlace de espectador, sincronizacion WebSocket y exportacion de secuencias.
 
 Incluye un documento tactico JSON versionado y validado, coordenadas reales de campo `105 x 68`, biblioteca SQLite, API CRUD, control de versiones, autosave, recovery draft local, undo/redo, vistas/orientaciones de campo, overlays y layout responsive. Permite añadir y arrastrar jugadores, seleccion multiple, zoom, pan y gestos tactiles.
 
@@ -84,6 +87,12 @@ La plantilla tactica admite jugadores personalizados de KORU o del rival con nom
 La linea de tiempo permite capturar el estado del campo como escena, duplicarlo, nombrarlo, anotar lo que debe pasar, definir su duracion y reproducir el movimiento hacia la siguiente escena. Las posiciones de una escena solo cambian al pulsar `Capturar`, para poder probar variantes sin perder la jugada guardada.
 
 En **Presentacion**, el boton de la cabecera o la tecla `P` deja el campo limpio para explicarlo. Las capas de KORU, rival, balon, nombres, anotaciones y lineas del campo se pueden encender o apagar sin modificar ni guardar la pizarra. `Esc` sale de ese modo.
+
+El selector **2D/3D** usa el mismo documento tactico y las mismas coordenadas. En 3D se puede orbitar, encajar el campo, seleccionar y mover elementos; los cambios mantienen deshacer/rehacer y guardado. La captura de escena descarga PNG desde 3D y PNG/SVG desde 2D.
+
+El boton **Compartir presentacion** crea un enlace `/watch/{token}` sin acceso al resto del dashboard. El espectador puede ver 2D o 3D, seguir automaticamente la vista, escena, capas, arrastres y reproduccion del manager, o pasar a vista libre. El canal en directo es efimero: no fuerza guardados cuadro a cuadro. El payload publico omite el partido y la bitacora de analisis interna.
+
+**Grabar secuencia** recorre todas las escenas con su duracion, velocidad y curva de transicion y descarga WebM o MP4 segun el navegador. Si `MediaRecorder` no esta disponible, conserva la jugada mediante una exportacion JSON compatible.
 
 Para una **trayectoria**, selecciona un jugador o el balon, pulsa el icono de ruta de la barra izquierda, marca los puntos del recorrido y confirma. `Enter` confirma y `Esc` descarta el borrador. Las trayectorias pertenecen a la escena abierta.
 
@@ -95,9 +104,21 @@ Dentro de cada expediente, `Adjuntar` permite subir capturas, clips o documentos
 
 El bloque `Plan de partido` sirve para preparar el scouting del rival: perfil, amenazas, balon parado, objetivos y checklist. `Usar plantilla` carga una base corta que se puede ajustar, marcar y guardar para cada encuentro.
 
-Con una pizarra vinculada, el panel `Registro en directo` permite anotar gol, gol rival, cambio, tarjeta, ajuste tactico o nota con minuto opcional. Los eventos se guardan en el expediente y aparecen tambien en el historial.
+Con una pizarra vinculada, el panel `Registro en directo` permite anotar gol, gol rival, cambio, tarjeta, ajuste tactico o nota con minuto opcional. Los eventos se guardan en el expediente y aparecen tambien en el historial. El bloque de video admite MP4/WebM o una URL, controles de salto y notas vinculadas al segundo exacto y, opcionalmente, a una pizarra.
 
-Pruebas:
+Las imagenes subidas se validan por firma real (PNG, JPEG, GIF o WebP), las cargas tienen limite configurable y los avatares remotos 3D solo pasan por el CDN VPG autorizado. Los enlaces publicos no abren las APIs de gestion.
+
+## Pruebas
+
+Requieren Node.js 20 o posterior para Playwright. En Linux/macOS:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py'
+npm run test:tactics
+KORU_E2E_BASE_URL=http://127.0.0.1:10102 KORU_E2E_PASSWORD=test-password npm run test:tactics:e2e
+```
+
+En PowerShell:
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py' -v
@@ -105,7 +126,7 @@ npm.cmd run test:tactics
 npm.cmd run test:tactics:e2e
 ```
 
-La prueba E2E necesita la aplicacion ejecutandose. Por defecto usa `http://127.0.0.1:10102`; se puede cambiar con `KORU_E2E_BASE_URL` y `KORU_E2E_PASSWORD`.
+La prueba E2E necesita la aplicacion ejecutandose. Por defecto usa `http://127.0.0.1:10102`; se puede cambiar con `KORU_E2E_BASE_URL` y `KORU_E2E_PASSWORD`. La suite actual cubre 23 pruebas API/backend, 19 de modelo/geometria/store y 8 recorridos E2E.
 
 ## Estructura
 

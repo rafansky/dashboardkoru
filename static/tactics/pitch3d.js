@@ -372,6 +372,7 @@ export class Pitch3DRenderer {
     this.container = container;
     this.onSelection = options.onSelection;
     this.onMove = options.onMove;
+    this.onMovePreview = options.onMovePreview;
     this.document = null;
     this.annotations = [];
     this.movementPaths = [];
@@ -384,6 +385,7 @@ export class Pitch3DRenderer {
     this.cameraKey = "";
     this.pointerStart = null;
     this.drag = null;
+    this.interactive = options.interactive !== false;
 
     this.root = document.createElement("div");
     this.root.className = "tactical-pitch-3d";
@@ -809,7 +811,7 @@ export class Pitch3DRenderer {
   }
 
   beginEntityDrag(event) {
-    if (!this.active || event.button !== 0 || !this.document) return;
+    if (!this.active || !this.interactive || event.button !== 0 || !this.document) return;
     const target = this.entityAtPointer(event);
     const annotationTarget = target ? null : this.annotationAtPointer(event);
     if (!target && !annotationTarget) return;
@@ -863,6 +865,7 @@ export class Pitch3DRenderer {
       clampToPitch({ x: start.x + delta.x, y: start.y + delta.y, z: start.z || 0 }, this.document.pitch),
     ]));
     this.previewEntityPositions(this.drag.positions);
+    this.onMovePreview?.(this.drag.positions);
     event.preventDefault();
   }
 
@@ -891,7 +894,7 @@ export class Pitch3DRenderer {
   }
 
   selectAtPointer(event) {
-    if (!this.active || !this.pointerStart || Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y) > 6) return;
+    if (!this.active || !this.interactive || !this.pointerStart || Math.hypot(event.clientX - this.pointerStart.x, event.clientY - this.pointerStart.y) > 6) return;
     const target = this.entityAtPointer(event) || this.annotationAtPointer(event);
     const id = target?.userData.entityId || target?.userData.annotationId;
     if (!id) {

@@ -7,7 +7,8 @@ DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = BASE_DIR / "uploads"
 CLIPS_DIR = Path(os.getenv("KORU_CLIPS_DIR", str(UPLOAD_DIR / "clipskoru")))
 IMAGES_DIR = Path(os.getenv("KORU_IMAGES_DIR", str(UPLOAD_DIR / "imageneskoru")))
-DB_PATH = DATA_DIR / "koru.db"
+DB_PATH = Path(os.getenv("KORU_DB_PATH", str(DATA_DIR / "koru.db")))
+MAX_UPLOAD_BYTES = max(1, int(os.getenv("KORU_MAX_UPLOAD_MB", "1024"))) * 1024 * 1024
 
 DASHBOARD_CACHE_SECONDS = 300
 HTTP_TIMEOUT_SECONDS = 12

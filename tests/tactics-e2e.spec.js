@@ -224,6 +224,47 @@ test("3D view remains nonblank and framed on mobile", async ({ page }, testInfo)
   await page.screenshot({ path: testInfo.outputPath("tactics-3d-mobile.png"), fullPage: true });
 });
 
+test("public viewer follows live 3D presentation and the editor exports the sequence", async ({ page }) => {
+  test.setTimeout(60_000);
+  const login = await page.request.post("/api/login", { multipart: { password } });
+  expect(login.ok()).toBeTruthy();
+  const source = threeDAuditBoard();
+  source.document.timeline.speed = 2;
+  const { id: _id, version: _version, ...payload } = source;
+  const created = await page.request.post("/api/tactical-boards", { data: payload });
+  expect(created.ok()).toBeTruthy();
+  const savedBoard = await created.json();
+  const shared = await page.request.post(`/api/tactical-boards/${savedBoard.id}/share`);
+  expect(shared.ok()).toBeTruthy();
+  const share = await shared.json();
+
+  await page.context().route("**/api/tactical-avatar**", async (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#14b8a6"/></svg>',
+  }));
+  const viewer = await page.context().newPage();
+  await viewer.goto(share.url);
+  await expect(viewer.locator("#viewer-pitch-2d svg")).toBeVisible();
+
+  await page.route("**/api/dashboard", async (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ analytics: { playerElo: [] }, leaderboards: { scorers: [] }, upcoming: [], recent: [] }),
+  }));
+  await page.goto(`/tactics?board=${savedBoard.id}`);
+  await expect(page.locator("#pitch-shell svg")).toBeVisible();
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  await expect(viewer.locator("#viewer-pitch-3d canvas")).toBeVisible();
+  await expect(viewer.getByRole("button", { name: "Siguiendo" })).toHaveAttribute("aria-pressed", "true");
+
+  const capture = viewer.waitForEvent("download");
+  await viewer.getByRole("button", { name: "Captura" }).click();
+  expect((await capture).suggestedFilename()).toMatch(/\.png$/);
+
+  const recording = page.waitForEvent("download", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Grabar secuencia tactica" }).click();
+  expect((await recording).suggestedFilename()).toMatch(/-secuencia\.(webm|mp4|json)$/);
+});
+
 test("mobile editor starts clear and opens one panel at a time", async ({ page }, testInfo) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

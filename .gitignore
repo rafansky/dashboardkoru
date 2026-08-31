@@ -9,6 +9,8 @@ __pycache__/
 node_modules/
 test-results/
 playwright-report/
+._*
+.DS_Store
 
 data/koru.db
 data/*.db

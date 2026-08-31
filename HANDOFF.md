@@ -18,7 +18,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
   - notes
   - file uploads
   - Rankings y ELO with trend chips and 14-day mini history sparklines
-  - tactical board editor and manager analysis workspace at `/tactics` (through Phase 8B)
+  - tactical board editor, 2D/3D presentation and manager analysis workspace at `/tactics` (through Phase 18)
 - Uses local SQLite for notes/files metadata and an `uploads/` folder for stored files.
 - Has a private login gate on `/login` with a session cookie and logout button in the dashboard.
 
@@ -50,12 +50,11 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - The active dashboard password has been rotated to the latest value and is stored only in the mini PC service environment, not in the repo.
 - Rankings/ELO are generated internally from VPG/PLG data. Player rating is normalized before ELO so total rating values do not inflate the ranking.
 - ELO snapshots are persisted daily in SQLite (`elo_snapshots`). The API attaches `eloDelta`, `trends`, and per-player/per-team `history` arrays so the frontend can render sparklines. With only one snapshot the deltas stay at `0`; they become useful after future daily refreshes.
-- Tactical boards use a single `TacticalBoardDocument` (`schemaVersion: 3`) for future 2D and 3D renderers. Positions are pitch metres, never pixels. Earlier documents migrate automatically.
+- Tactical boards use a single `TacticalBoardDocument` (`schemaVersion: 4`) for the 2D and 3D renderers. Positions are pitch metres, never pixels. Earlier documents migrate automatically.
 - Phase 1 is complete: `/tactics`, Pydantic validation, SQLite CRUD with optimistic versioning, library, real KORU roster feed, SVG pitch, field views/orientations/overlays, command-based property undo/redo, debounced autosave, local recovery draft, collapsible panels and fullscreen.
 - Phase 2 is complete: click/drag players onto the pitch, single/multiple selection, marquee, group move, zoom, pan, touch pinch, responsive mobile workspace, match binding and a persistent manager log split into analysis sessions. Log entries support observations, decisions, adjustments, tasks and outcomes, optional match minute, current scene and selected-player references.
 - Phase 3 is complete: the scene timeline is now functional. Managers can capture the active field state, create or duplicate scenes, rename them, set duration/transition/notes, reorder or delete them, reopen any scene and play an interpolated transition to the next one. Scene positions are only overwritten when `Capturar` is used, so experiments do not replace saved movement states accidentally.
 - The latest tactical board work adds a perspective projection for `top-to-bottom` and `bottom-to-top`: the pitch is wider near the viewer, narrower at the far end, and the projection preserves drag/drop coordinates and upright player labels. The vertical board was widened and the outside area is now a plain editor background; grass stripes are rendered only inside the pitch surface.
-- Latest Git commit: `ead8de4` (`widen near edge of perspective pitch`). The repository is pushed to `origin/main`.
 - Scene timeline follow-up is implemented locally and ready to deploy: playback now chains forward through every scene in order with cancellation tokens, scene cards have individual delete controls, and deleting the current scene selects the nearest remaining scene safely. Tests cover chained playback state in the store.
 - Phase 4A is complete: each scene has its own `annotations` collection. The left rail now provides arrow, zone and text tools; these render on the 2D pitch (including perspective views), persist with the active scene and are migrated automatically for existing boards. Schema version is now 3.
 - Phase 4B adds an annotation manager in the properties panel for the active scene: it lists every arrow, zone and text annotation, supports color changes, text editing and individual deletion. The next refinement is direct selection and repositioning of annotations on the pitch, then export.
@@ -69,7 +68,7 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 - Phase 6B is complete: quick live match logging is available in a pizarra linked to a match. `match_events` stores goal, conceded goal, substitution, card, tactical adjustment or note with optional minute. API: `GET/POST/DELETE /api/match-reports/{match_id}/events`; the pizarra has six one-click event actions plus optional minute/note and safe deletion, while `/match-history` renders the event timeline inside each dossier.
 - Managers can create reusable KORU or rival players with name, dorsal, position and an optional uploaded face. Profiles persist in SQLite (`tactical_players`) and use the existing uploads service. KORU tactical markers are always white with orange trim.
 - Tactical IDs use a UUID fallback because the public deployment currently runs over plain HTTP, where browsers do not expose `crypto.randomUUID()`. Keep the cache-version query on the tactical entry module when changing startup code.
-- The drawing tools and scene playback are functional. Only the 3D button remains intentionally disabled until its renderer phase.
+- Drawing, scene playback and direct editing work in both 2D and 3D. The public share viewer also supports both renderers.
 - Tests use standard-library `unittest` and Node's native test runner. Run the commands documented in `README.md`.
 
 ## Deployment notes
@@ -84,7 +83,8 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Next phase
 
-- Phase 12: export sequences, sharing and staff roles.
+- The committed tactical roadmap is functionally complete through Phase 18. There is no unfinished implementation phase in this handoff.
+- Individual staff accounts/roles would be a separate product decision and authentication redesign, not a pending continuation of the current single-manager dashboard.
 
 ## Repo / workflow notes
 
@@ -94,9 +94,9 @@ This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, an
 
 ## Likely next steps
 
-1. Tactical board Phase 12: export sequences and sharing.
-2. Tactical board Phase 13+: staff roles and collaborative workspaces.
-3. Add staff roles/permissions before team sharing is implemented; keep 3D/video work for later phases.
+1. Use the completed workflow with real club data and collect manager feedback.
+2. Configure `KORU_CLIPS_DIR` and `KORU_IMAGES_DIR` only when the external disk is actually mounted.
+3. Treat individual staff roles or persistent collaborative rooms as new scoped projects if they are needed later.
 
 ## Relevo - Auditoria integral posterior a Fase 8B
 
@@ -256,3 +256,34 @@ Fecha: 2026-08-30
 - Al activar 3D se recalcula la camara si el canvas cambia de relacion de aspecto, evitando que el primer arrastre quede desalineado despues de abrir la vista o cambiar a movil.
 - Cobertura: 19 pruebas de logica y 7 E2E pasan. Las nuevas pruebas comprueban canvas no vacio en escritorio/movil, encuadre, interaccion real de camara, equivalencia 2D/3D y reproduccion de escenas.
 - Siguiente fase sugerida: sincronizar la vista 3D en el visor publico de espectador y exportar una captura/video de la pizarra desde el modo presentacion.
+
+# Relevo - Fase 17: Visor 3D y presentacion efimera
+
+Fecha: 2026-08-31
+
+- `/watch/{token}` incorpora los renderers 2D y 3D en modo de solo lectura, captura de la vista actual, encuadre 3D y opcion de seguir al ponente o quedarse en vista libre.
+- El editor abre un WebSocket autenticado `/ws/tactical-control/{board_id}`. Arrastres, reproduccion, escena, vista y capas se transmiten con limitacion de frecuencia sin persistir cada fotograma ni alterar el control de versiones.
+- El canal valida sesion, origen, existencia de la pizarra, tamano de mensaje y contrato Pydantic antes de emitir. Un cierre de politica detiene la reconexion del editor.
+- Los payloads publicos excluyen `matchId`, sesiones de analisis y metadatos internos; solo conservan los datos necesarios para representar la pizarra compartida.
+- Los avatares VPG funcionan en el visor publico mediante el proxy limitado al CDN permitido, con limite de 8 MiB, firma binaria verificada y rechazo de SVG.
+
+# Relevo - Fase 18: Captura 3D y exportacion de secuencias
+
+Fecha: 2026-08-31
+
+- La captura de escena exporta directamente el canvas cuando la vista activa es 3D. El visor publico puede descargar PNG 3D o SVG 2D.
+- **Grabar secuencia** activa temporalmente la presentacion 3D, recorre todas las escenas con su duracion, velocidad y easing, y genera WebM/MP4 mediante `MediaRecorder` y `canvas.captureStream`.
+- En navegadores sin grabacion compatible se descarga un JSON tactico versionado. Al terminar o fallar se restauran vista, paneles, herramienta, seleccion y renderer.
+- La prueba E2E crea una pizarra real, abre el enlace compartido, comprueba seguimiento 3D, descarga captura y valida la descarga de la secuencia.
+
+# Relevo - Cierre y auditoria integral
+
+Fecha: 2026-08-31
+
+- Se retiraron AppleDouble `._*` que interferian con Git y se ignoran junto a `.DS_Store`. La cuarentena recuperable esta fuera del repositorio en `/home/rafansky/koru-appledouble-quarantine-20260831.tar.gz`.
+- Las pruebas ya no escriben clips falsos en las carpetas reales: sustituyen todas las rutas de almacenamiento, incluida la base de datos. Los dos artefactos antiguos se movieron a `/home/rafansky/koru-test-artifacts-quarantine-20260831/`.
+- Las subidas tienen limite configurable, eliminan el parcial si fallan y verifican el contenido real de las imagenes. `KORU_DB_PATH` permite aislar bases de datos de test/despliegue.
+- Se anadieron cabeceras de seguridad, limitacion basica de intentos de login y versiones de cache coherentes para los modulos modificados.
+- Verificacion final: 23 pruebas Python, 19 pruebas JavaScript y 8 pruebas Playwright pasan; `pip check`, `npm audit`, compilacion Python, sintaxis JavaScript, `git diff --check` y `git fsck` no muestran problemas funcionales ni vulnerabilidades conocidas. `git fsck` conserva un commit colgante antiguo, no corrupcion.
+- Node.js 20 o posterior es requisito explicito de desarrollo. El mini PC tiene Node 18, por lo que la comprobacion E2E final se ejecuto de forma aislada con Node 22; la aplicacion en produccion no depende de Node.
+- La hoja de ruta tactica queda cerrada en la fase 18. Las cuentas individuales/roles o salas colaborativas persistentes requieren definir un producto multiusuario y no quedan como fase incompleta.
