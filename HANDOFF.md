@@ -1,5 +1,27 @@
 # Handoff for the next agent
 
+## 2026-09-08: Squad management
+
+- New authenticated section `/gestion-plantilla`, linked from dashboard navigation.
+- Player profiles/photos, explicit roster import, daily starting eleven and agenda,
+  availability versus attendance, monthly totals/CSV and recruitment tracking.
+- Full specification and limitations: `docs/gestion-plantilla.md`.
+- Backend `app/squad.py`; frontend `static/squad.{html,css,js}`.
+- Two additive SQLite tables initialized on startup; no existing data migrated or deleted.
+- MiniPC had uncommitted tactical changes in seven files (models, tactical page,
+  app, pitch2d, pitch3d, styles, model tests). Preserve them. This feature updates
+  separate files; do NOT deploy a whole older checkout over that server.
+- Local workspace used: `C:\Users\rafa\korudashboard-publish` (rebased onto
+  origin/main `3a9b73e`). Reference screenshots were in `C:\Users\rafa\koruweb\gestion plantilla`.
+- The original gestiondeplantilla.md was empty. Scope follows the screenshots
+  and the user's clarification: implement within the published dashboard.
+- Verification: 26 pytest tests pass; squad Playwright end-to-end passes with
+  uploaded photo, full eleven, agenda, monthly attendance and tactical export;
+  screenshots reviewed at 1440 and 375 px with no horizontal page overflow.
+- Deployment: `scripts/deploy_squad.sh` makes code/SQLite backups under
+  `data/backups/squad-*`, pulls only committed changes and restarts the existing
+  service (retains environment, password, external storage configuration).
+
 This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, and PLG in one private club site.
 
 ## What the app does

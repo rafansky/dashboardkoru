@@ -116,7 +116,7 @@ def persist(kind, rid, model, create=False):
     payload = model.model_dump(mode="json", exclude={"version"})
     with closing(sqlite3.connect(storage.DB_PATH)) as conn:
         conn.execute("BEGIN IMMEDIATE")
-        row = conn.execute("SELECT version FROM squad_records WHERE kind=? AND id=?", (kind, rid)).fetchone()
+        row = conn.execute("SELECT version,payload FROM squad_records WHERE kind=? AND id=?", (kind, rid)).fetchone()
         if not row and not create:
             raise HTTPException(404, "Registro no encontrado")
         version = row[0] if row else 0
@@ -127,7 +127,8 @@ def persist(kind, rid, model, create=False):
             for pid in set(payload["responses"]) | {p for p in payload["lineup"] if p}:
                 if pid not in known:
                     raise HTTPException(422, "Jugador desconocido")
-            if any(known[p]["status"] == "inactive" for p in payload["lineup"] if p):
+            previous_lineup = json.loads(row[1]).get("lineup", []) if row else []
+            if any(known[p]["status"] == "inactive" and p not in previous_lineup for p in payload["lineup"] if p):
                 raise HTTPException(422, "No puedes alinear un jugador inactivo")
         if kind == "player" and payload.get("sourceKey"):
             if any(p["id"] != rid and p.get("sourceKey") == payload["sourceKey"] for p in records("player")):

@@ -83,7 +83,7 @@ function renderCandidates() {
   $('#workspace').innerHTML=`<div class="bar"><h2>Seguimiento de pruebas</h2><button class="primary" data-action="add-candidate"><i data-lucide="user-plus"></i>Nuevo candidato</button></div><div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Posicion</th><th>Estado</th><th>Prueba</th><th>Valoracion</th><th>Acciones</th></tr></thead><tbody>${candidates.map(c=>`<tr><td><strong>${esc(c.name)}</strong><small>${esc(c.team)} · ${esc(c.twitter)}</small></td><td>${esc(c.position)}</td><td><span class="badge ${c.status}">${trialStatuses[c.status]}</span></td><td>${esc(c.trialDate)||'Sin fecha'}</td><td>${c.rating?c.rating+' / 5':'Sin valorar'}</td><td><div class="actions">${iconButton('edit-candidate','pencil','Editar candidato',c.id)}${!players.some(p=>p.sourceKey==='candidate:'+c.id)?iconButton('sign-candidate','user-check','Incorporar a plantilla',c.id):'<span class="badge available">En plantilla</span>'}</div></td></tr>`).join('')}</tbody></table>${!candidates.length?'<p class="empty">Sin candidatos registrados.</p>':''}</div>`;
 }
 function field(name,label,value='',type='text',options=null) {
-  return `<label class="${type==='textarea'?'wide':''}">${esc(label)}${options?`<select name="${name}">${opt(options,value)}</select>`:type==='textarea'?`<textarea name="${name}" maxlength="3000">${esc(value)}</textarea>`:`<input name="${name}" type="${type}" value="${esc(value)}" ${name==='name'||name==='opponent'?'required maxlength="80"':''} ${type==='number'?'min="0" max="99"':''} ${type==='text'?'maxlength="160"':''}>`}</label>`;
+  return `<label class="${type==='textarea'?'wide':''}">${esc(label)}${options?`<select name="${name}" aria-label="${esc(label)}">${opt(options,value)}</select>`:type==='textarea'?`<textarea name="${name}" maxlength="3000">${esc(value)}</textarea>`:`<input name="${name}" type="${type}" value="${esc(value)}" ${name==='name'||name==='opponent'?'required maxlength="80"':''} ${type==='number'?'min="0" max="99"':''} ${type==='text'?'maxlength="160"':''}>`}</label>`;
 }
 function openEditor(title,html,submit) {
   $('#editor-title').textContent=title;$('#fields').innerHTML=html;$('#form-error').textContent='';
@@ -95,6 +95,18 @@ function editPlayer(p={}) {
     const saved=await api('/api/squad/players'+(p.id?'/'+p.id:''),p.id?'PUT':'POST',{...data,number:Number(data.number),sourceKey:p.sourceKey||'',version:p.version||0});
     players=[...players.filter(x=>x.id!==saved.id),saved];notify('Ficha guardada');
   });
+  $('#fields').insertAdjacentHTML('beforeend','<label class="wide">Subir foto<input id="photo-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>');
+  $('#photo-upload').onchange=async e=>{
+    const file=e.target.files[0];if(!file)return;
+    if(file.size>8*1024*1024){$('#form-error').textContent='La foto debe ocupar menos de 8 MB';return;}
+    const button=$('#edit-form button[type=submit]');button.disabled=true;
+    try {
+      const form=new FormData();form.append('file',file);
+      const res=await fetch('/api/files',{method:'POST',body:form});const result=await res.json();
+      if(!res.ok)throw new Error(result.detail||'No se pudo subir la foto');
+      $('#fields [name=avatarUrl]').value=result.url;$('#form-error').textContent='';notify('Foto subida');
+    }catch(err){$('#form-error').textContent=err.message;}finally{button.disabled=false;}
+  };
 }
 function editCandidate(c={}) {
   openEditor(c.id?'Ficha de candidato':'Nuevo candidato',field('name','Nombre',c.name)+field('twitter','X / Twitter',c.twitter)+field('position','Posicion',c.position)+field('team','Equipo actual',c.team)+field('archetype','Arquetipo',c.archetype)+field('status','Estado',c.status||'pending','text',trialStatuses)+field('trialDate','Fecha de prueba',c.trialDate,'date')+field('rating','Valoracion',c.rating||'','text',{'':'Sin valorar',1:'1 / 5',2:'2 / 5',3:'3 / 5',4:'4 / 5',5:'5 / 5'})+field('notes','Notas y decisiones',c.notes,'textarea'),async data=>{
