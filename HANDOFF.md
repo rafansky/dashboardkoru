@@ -2,6 +2,14 @@
 
 ## 2026-09-08: Squad management
 
+- Calendar revision: `static/squad-calendar.js` implements Monday-based weeks,
+  weekday names, metric switching, inline record editor and individual dated
+  history with filters/counters. `participation` is now explicit in ResponseRow;
+  legacy data is pending, never inferred from lineup/attendance. Day editor and
+  CSV include participation and per-player notes. Cache version bumped to v2.
+- Verified revision: 27 pytest tests, 2 calendar logic tests, 2 Playwright flows
+  (desktop/mobile, full squad workflow and dated attendance/participation edits).
+
 - New authenticated section `/gestion-plantilla`, linked from dashboard navigation.
 - Player profiles/photos, explicit roster import, daily starting eleven and agenda,
   availability versus attendance, monthly totals/CSV and recruitment tracking.

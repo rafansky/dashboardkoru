@@ -61,3 +61,14 @@ class SquadTests(unittest.TestCase):
         c = self.client.post("/api/squad/candidates", json={"name": "Prueba", "status": "scheduled", "trialDate": "2026-09-12", "rating": 4}).json()
         self.assertEqual(self.client.get("/api/squad/candidates").json()[0]["id"], c["id"])
         self.assertEqual(self.client.put("/api/squad/days/not-a-date", json={}).status_code, 422)
+
+    def test_participation_is_explicit_and_persisted(self):
+        p = self.client.post("/api/squad/players", json={"name": "Calendario"}).json()
+        r = {"availability": "available", "attendance": "present", "participation": "not_played", "note": "Disponible, rotacion del equipo"}
+        saved = self.client.put("/api/squad/days/2026-09-12", json={"responses": {p["id"]: r}})
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertEqual(self.client.get("/api/squad/days/2026-09-12").json()["responses"][p["id"]], r)
+        invalid = {**r, "attendance": "absent", "participation": "played"}
+        self.assertEqual(self.client.put("/api/squad/days/2026-09-13", json={"responses": {p["id"]: invalid}}).status_code, 422)
+        legacy = self.client.put("/api/squad/days/2026-09-14", json={"responses": {p["id"]: {"attendance": "present"}}}).json()
+        self.assertEqual(legacy["responses"][p["id"]]["participation"], "pending")

@@ -42,6 +42,27 @@ un portal de respuesta individual para jugadores.
 
 ## Verificacion
 
+### Revision del calendario (2026-09-08)
+
+- Vista semanal inicial, selector de semanas lunes-domingo y mes completo.
+  Encabezados con nombre del dia, numero, bloque semanal y fines de semana.
+- Selector de dimension: disponibilidad, asistencia, participacion y once.
+  Casillas con texto completo; cabecera y nombres fijos al desplazar la tabla.
+- Click en casilla: edicion directa del jugador/dia con observacion. Click en
+  cabecera: abre el once del dia. Click en nombre: historial individual del mes.
+- Historial por jugador con fechas y filtros: asistio, falto (incluye faltas
+  justificadas), jugo, confirmo y no jugo, confirmo y falto, pendientes.
+- `ResponseRow.participation`: pending / played / not_played. Los datos previos
+  quedan pendientes; no se deduce participacion del once ni de la asistencia.
+  `played` requiere present/late. Disponible + not_played cuenta como confirmo
+  y no jugo; disponible + absent/excused cuenta como confirmo y falto. Son
+  categorias que pueden coincidir. No disponible no equivale a falta real.
+- El dato disponible es la confirmacion anotada por el capitan, no una prueba
+  de respuesta individual. No existe aun acceso propio de cada jugador.
+- CSV exporta todas las dimensiones y las observaciones con fechas completas.
+- Pruebas adicionales: `node --test tests/squad-calendar.test.js`, API para
+  compatibilidad y participacion, y segundo recorrido Playwright del calendario.
+
 - `python -m pytest -q`: incluye autenticacion, validacion, conflictos,
   importacion duplicada, once repetido/desconocido/no disponible, historico.
 - `npx playwright test tests/squad-e2e.spec.js`: servidor aislado en

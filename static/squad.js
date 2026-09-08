@@ -1,3 +1,4 @@
+import { mountCalendar, participationLabels, dateLabel } from './squad-calendar.js?v=2';
 const $ = (s) => document.querySelector(s);
 const esc = (v = '') => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons = () => window.lucide?.createIcons();
@@ -45,6 +46,7 @@ async function navigate(next, date=selectedDate) {
   render();
 }
 function render() {
+  $('#workspace').onclick=null;
   document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));
   if(tab==='players')renderPlayers();
   if(tab==='day')renderDay();
@@ -69,15 +71,45 @@ function renderDay() {
   $('#day-date').onchange=e=>run(()=>navigate('day',e.target.value||selectedDate));
   $('#formation').onchange=e=>{day.formation=e.target.value;markDirty();render();};
   $('#day-notes').oninput=e=>{day.notes=e.target.value;markDirty();};
+  $('.response-head').insertAdjacentHTML('beforeend','<span>Participación</span>');
+  document.querySelectorAll('[data-response=attendance]').forEach(el=>{
+    const p=players.find(p=>p.id===el.dataset.id);
+    el.insertAdjacentHTML('afterend',`<select data-response="participation" data-id="${p.id}" aria-label="Participación de ${esc(p.name)}">${opt(participationLabels,day.responses[p.id]?.participation||'pending')}</select>`);
+    el.parentElement.querySelector('.person>div').insertAdjacentHTML('beforeend',`<button class="record-link" data-action="attendance-record" data-id="${p.id}">Registro${day.responses[p.id]?.note?' *':''}</button>`);
+  });
 }
 function renderMonth() {
-  const n=new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).getDate();
-  const dates=Array.from({length:n},(_,i)=>`${month}-${String(i+1).padStart(2,'0')}`);
-  const byDate=Object.fromEntries(days.map(d=>[d.id,d]));
-  const list=players.filter(p=>p.status!=='inactive'||days.some(d=>d.responses[p.id]||d.lineup.includes(p.id)));
-  const abbr={pending:'·',available:'D',maybe:'?',unavailable:'No'};
-  $('#workspace').innerHTML=`<div class="bar"><h2>Asistencia mensual</h2><input id="month" type="month" value="${month}" aria-label="Mes"><button data-action="csv-month"><i data-lucide="download"></i>Exportar CSV</button></div><div class="legend"><span>D: disponible</span><span>No: no disponible</span><span>?: duda</span><span>11: titular</span><span>P: presente</span><span>T: tarde</span><span>J: justificado</span><span>A: ausente</span></div><div class="table-wrap"><table class="month-table"><thead><tr><th>Jugador</th>${dates.map((d,i)=>`<th><button data-action="open-day" data-id="${d}" class="month-cell">${i+1}</button></th>`).join('')}<th>Disp.</th><th>Titular</th><th>Asist.</th></tr></thead><tbody>${list.map(p=>`<tr><td>${esc(p.name)}</td>${dates.map(d=>{const item=byDate[d],r=item?.responses[p.id],a=r?.availability||'pending',called=item?.lineup.includes(p.id),real={present:'P',late:'T',excused:'J',absent:'A'}[r?.attendance];return `<td><button class="month-cell ${a} ${called?'called':''}" data-action="open-day" data-id="${d}" title="${esc(p.name)} · ${d} · ${availability[a]} · ${attendance[r?.attendance||'pending']}">${abbr[a]}${called?' / 11':''}${real?' / '+real:''}</button></td>`;}).join('')}<td class="totals">${days.filter(d=>d.responses[p.id]?.availability==='available').length}</td><td>${days.filter(d=>d.lineup.includes(p.id)).length}</td><td class="totals">${days.filter(d=>['present','late'].includes(d.responses[p.id]?.attendance)).length}</td></tr>`).join('')}</tbody><tfoot><tr><th>Disponibles / titulares</th>${dates.map(d=>`<td>${Object.values(byDate[d]?.responses||{}).filter(r=>r.availability==='available').length} / ${byDate[d]?.lineup.filter(Boolean).length||0}</td>`).join('')}<td colspan="3"></td></tr></tfoot></table></div>`;
-  $('#month').onchange=e=>{if(e.target.value){month=e.target.value;run(()=>navigate('month'));}};
+  mountCalendar($('#workspace'), {month,today,players,days,
+    changeMonth:value=>{month=value;run(()=>navigate('month'));},
+    openDay:date=>run(()=>navigate('day',date)),
+    editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),download:downloadCsv});
+}
+
+async function editAttendance(pid,date) {
+  const p=players.find(p=>p.id===pid);
+  const editingDay=tab==='day'&&selectedDate===date;
+  const record=editingDay?day:await api('/api/squad/days/'+date);
+  const r={availability:'pending',attendance:'pending',participation:'pending',note:'',...record.responses[pid]};
+  openEditor(`${p.name} · ${dateLabel(date)}`,
+    field('availability','Disponibilidad confirmada',r.availability,'text',availability)+
+    field('attendance','Asistencia real',r.attendance,'text',attendance)+
+    field('participation','Participación real',r.participation,'text',participationLabels)+
+    field('note','Observación / motivo',r.note,'textarea'),async data=>{
+      const updated=structuredClone(record);
+      updated.responses[pid]=data;
+      if(data.availability==='unavailable')updated.lineup=updated.lineup.map(id=>id===pid?null:id);
+      if(editingDay){day=updated;markDirty();return;}
+      const saved=await api('/api/squad/days/'+date,'PUT',payload(updated));
+      days=[...days.filter(d=>d.id!==date),saved];notify('Registro guardado');
+    });
+  $('#fields [name=note]').maxLength=500;
+  $('#fields [name=participation]').onchange=e=>{
+    if(e.target.value==='played'&&$('#fields [name=attendance]').value==='pending')$('#fields [name=attendance]').value='present';
+  };
+  $('#fields [name=attendance]').onchange=e=>{
+    if(['absent','excused'].includes(e.target.value))$('#fields [name=participation]').value='not_played';
+    if(e.target.value==='pending'&&$('#fields [name=participation]').value==='played')$('#fields [name=participation]').value='pending';
+  };
 }
 function renderCandidates() {
   $('#workspace').innerHTML=`<div class="bar"><h2>Seguimiento de pruebas</h2><button class="primary" data-action="add-candidate"><i data-lucide="user-plus"></i>Nuevo candidato</button></div><div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Posicion</th><th>Estado</th><th>Prueba</th><th>Valoracion</th><th>Acciones</th></tr></thead><tbody>${candidates.map(c=>`<tr><td><strong>${esc(c.name)}</strong><small>${esc(c.team)} · ${esc(c.twitter)}</small></td><td>${esc(c.position)}</td><td><span class="badge ${c.status}">${trialStatuses[c.status]}</span></td><td>${esc(c.trialDate)||'Sin fecha'}</td><td>${c.rating?c.rating+' / 5':'Sin valorar'}</td><td><div class="actions">${iconButton('edit-candidate','pencil','Editar candidato',c.id)}${!players.some(p=>p.sourceKey==='candidate:'+c.id)?iconButton('sign-candidate','user-check','Incorporar a plantilla',c.id):'<span class="badge available">En plantilla</span>'}</div></td></tr>`).join('')}</tbody></table>${!candidates.length?'<p class="empty">Sin candidatos registrados.</p>':''}</div>`;
@@ -149,6 +181,7 @@ function downloadCsv(rows,name) {
   const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function action(name,id) {
+  if(name==='attendance-record')await editAttendance(id,selectedDate);
   if(name==='add-player')editPlayer();
   if(name==='edit-player')editPlayer(players.find(p=>p.id===id));
   if(name==='add-candidate')editCandidate();
@@ -176,7 +209,11 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{
   const el=e.target;
-  if(el.dataset.response){const pid=el.dataset.id;const r={availability:'pending',attendance:'pending',...day.responses[pid]};r[el.dataset.response]=el.value;day.responses[pid]=r;if(r.availability==='unavailable')day.lineup=day.lineup.map(p=>p===pid?null:p);markDirty();render();}
+  if(el.dataset.response){const pid=el.dataset.id;const r={availability:'pending',attendance:'pending',participation:'pending',...day.responses[pid]};r[el.dataset.response]=el.value;
+    if(el.dataset.response==='participation'&&r.participation==='played'&&r.attendance==='pending')r.attendance='present';
+    if(el.dataset.response==='attendance'&&r.attendance==='pending'&&r.participation==='played')r.participation='pending';
+    if(['absent','excused'].includes(r.attendance))r.participation='not_played';
+    day.responses[pid]=r;if(r.availability==='unavailable')day.lineup=day.lineup.map(p=>p===pid?null:p);markDirty();render();}
   if(el.dataset.done!==undefined){day.fixtures[Number(el.dataset.done)].done=el.checked;markDirty();}
 });
 $('#pick-search').oninput=renderPicker;

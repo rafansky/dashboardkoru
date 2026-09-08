@@ -62,7 +62,14 @@ class ResponseRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
     availability: Literal["pending", "available", "maybe", "unavailable"] = "pending"
     attendance: Literal["pending", "present", "late", "excused", "absent"] = "pending"
+    participation: Literal["pending", "played", "not_played"] = "pending"
     note: str = Field(default="", max_length=500)
+
+    @model_validator(mode="after")
+    def participation_consistent(self):
+        if self.participation == "played" and self.attendance not in {"present", "late"}:
+            raise ValueError("Para registrar que jugo, marca su asistencia como presente o tarde")
+        return self
 
 
 class Fixture(BaseModel):
