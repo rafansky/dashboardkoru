@@ -21,6 +21,12 @@
 - Deployment: `scripts/deploy_squad.sh` makes code/SQLite backups under
   `data/backups/squad-*`, pulls only committed changes and restarts the existing
   service (retains environment, password, external storage configuration).
+- Deployed and checked on MiniPC and public URL on 2026-09-08. Backup:
+  `data/backups/squad-20260908T005808Z`. Imported 14 existing roster players through
+  the UI; absent numbers/positions remain 0/LIBRE pending captain input. All seven
+  external avatar images loaded. No trial fixtures, attendance or test lineups
+  were written to production. The same seven uncommitted tactical files remain
+  on the server after deployment.
 
 This repo is the KORU eClub dashboard for FC26, meant to unify VPG, VPG Zero, and PLG in one private club site.
 
