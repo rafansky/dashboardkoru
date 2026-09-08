@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
 from .services.dashboard import dashboard_service
+from .squad import router as squad_router, init_squad
 from .settings import (
     AUTH_COOKIE_NAME,
     AUTH_PASSWORD,
@@ -78,6 +79,7 @@ from .storage import (
 from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert, MatchReportFileLink, MatchReportUpsert, MatchVideoClipCreate, MatchVideoNoteCreate, OpponentProfileUpsert, TacticalBoardCreate, TacticalBoardUpdate, TacticalLineupTemplateCreate, TacticalPlayTemplateCreate, TacticalSquadPlayerCreate
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
+app.include_router(squad_router)
 
 _SECRET = AUTH_SECRET or os.getenv("KORU_AUTH_SECRET") or secrets.token_urlsafe(32)
 _PASSWORD = AUTH_PASSWORD or os.getenv("KORU_ACCESS_PASSWORD")
@@ -215,6 +217,7 @@ def startup() -> None:
     if not _PASSWORD:
         raise RuntimeError("KORU_ACCESS_PASSWORD no esta configurado.")
     init_storage()
+    init_squad()
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
