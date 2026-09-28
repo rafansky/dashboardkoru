@@ -88,6 +88,13 @@ test('simple calendar saves every state, restores it after reload and safely rem
   await expect(page.locator('#player-profile')).toBeVisible();
   await expect(page.locator('#player-profile')).toContainText('Estadísticas VPG');
   await expect(page.locator('#player-profile')).toContainText('9');
+  const pdfPopup=page.waitForEvent('popup');
+  await page.getByRole('button',{name:'Crear PDF',exact:true}).click();
+  const pdf=await pdfPopup;
+  await expect(pdf.getByRole('heading',{name:p.name,exact:true})).toBeVisible();
+  await expect(pdf.locator('body')).toContainText('KORU eCLUB');
+  await expect(pdf.locator('body')).toContainText('Estadísticas VPG');
+  await pdf.close();
   await page.getByRole('button',{name:'Cerrar ficha'}).click();
   const cell=page.locator('[data-cal=record][data-date="2032-06-01"][data-id="'+p.id+'"]');
   for(const [state,label] of [['present','Está'],['absent','No está'],['bench','Está, pero no jugó'],['pending','Sin marcar']]){

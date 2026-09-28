@@ -18,6 +18,13 @@ Actualización — 28 de septiembre de 2026: fichas individuales de jugadores.
 - Si no hay coincidencia o la liga no publica estadísticas individuales, la ficha lo explica y no muestra cifras inventadas. PLG no expone aún estadísticas individuales en la fuente conectada.
 - Verificado mediante 5 pruebas backend, 3 de lógica de calendario y 2 recorridos E2E aislados que cubren la apertura y visualización de la ficha.
 
+Actualización — 28 de septiembre de 2026: PDF de fichas de jugador.
+
+- Dentro de cada ficha aparece «Crear PDF». Abre una vista previa A4 limpia, diseñada como ficha oficial de KORU con logo, foto o dorsal, datos, estadísticas, notas, anotaciones e historial reciente.
+- Desde esa vista se pulsa «Guardar como PDF»: usa el diálogo nativo del navegador, así que se puede revisar primero el resultado y elegir impresora o archivo PDF sin instalar nada.
+- La información se genera desde la ficha abierta, incluidos los datos VPG disponibles, y las URL de fotos se aceptan únicamente si son HTTP/HTTPS.
+- Verificado en navegador con una prueba E2E que abre la ficha, lanza la vista previa y comprueba el contenido de KORU y estadísticas.
+
 Fecha de cierre: 31 de agosto de 2026
 
 He revisado el proyecto completo en el miniPC, he terminado las fases funcionales que quedaban documentadas y he dejado la pizarra tactica cerrada hasta la fase 18. Este archivo va incluido en el mismo commit y push a `main` del remoto configurado, `rafansky/dashboardkoru`.
