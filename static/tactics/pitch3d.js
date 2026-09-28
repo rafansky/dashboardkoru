@@ -367,6 +367,24 @@ function currentViewRect(pitch) {
   };
 }
 
+function loftedPassPoints(groundPoints) {
+  const output = [];
+  for (let segment = 0; segment < groundPoints.length - 1; segment += 1) {
+    const start = groundPoints[segment];
+    const end = groundPoints[segment + 1];
+    const distance = start.distanceTo(end);
+    const height = Math.max(2.4, Math.min(10, distance * 0.18));
+    for (let step = 0; step <= 12; step += 1) {
+      if (segment && step === 0) continue;
+      const t = step / 12;
+      const point = start.clone().lerp(end, t);
+      point.y += 4 * height * t * (1 - t);
+      output.push(point);
+    }
+  }
+  return output;
+}
+
 export class Pitch3DRenderer {
   constructor(container, options = {}) {
     this.container = container;
@@ -385,6 +403,10 @@ export class Pitch3DRenderer {
     this.cameraKey = "";
     this.pointerStart = null;
     this.drag = null;
+    this.keyState = new Set();
+    this.focusTarget = null;
+    this.focusCamera = null;
+    this.lastFrameTime = 0;
     this.interactive = options.interactive !== false;
 
     this.root = document.createElement("div");
@@ -410,7 +432,9 @@ export class Pitch3DRenderer {
     this.controls.minDistance = 22;
     this.controls.maxDistance = 210;
     this.controls.maxPolarAngle = Math.PI * 0.48;
-    this.controls.screenSpacePanning = false;
+    this.controls.enablePan = false;
+    this.controls.mouseButtons.LEFT = null;
+    this.controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
 
     this.scene.add(new THREE.HemisphereLight(0xddeeff, 0x122218, 2.4));
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
@@ -429,6 +453,10 @@ export class Pitch3DRenderer {
     this.webgl.domElement.addEventListener("pointerup", (event) => this.selectAtPointer(event));
     this.webgl.domElement.addEventListener("pointerup", (event) => this.endEntityDrag(event));
     this.webgl.domElement.addEventListener("pointercancel", () => this.cancelEntityDrag());
+    this.webgl.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
+    this.webgl.domElement.addEventListener("dblclick", (event) => this.focusAtPointer(event));
+    document.addEventListener("keydown", (event) => this.handleNavigationKey(event, true));
+    document.addEventListener("keyup", (event) => this.handleNavigationKey(event, false));
     window.addEventListener("blur", () => this.cancelEntityDrag());
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) this.cancelEntityDrag();
@@ -442,7 +470,10 @@ export class Pitch3DRenderer {
     this.active = active;
     this.root.hidden = !active;
     this.controls.enabled = active;
-    if (!active) this.cancelEntityDrag();
+    if (!active) {
+      this.cancelEntityDrag();
+      this.keyState.clear();
+    }
     if (active) {
       this.resize();
       if (this.document && Math.abs(previousAspect - this.camera.aspect) > 0.01) this.resetCamera();
@@ -713,13 +744,27 @@ export class Pitch3DRenderer {
     movementPaths.forEach((path) => {
       if (!path.points?.length) return;
       const color = new THREE.Color(path.color || "#f95516");
-      const points = path.points.map((point) => point3(point, pitch, 0.28));
+      const groundPoints = path.points.map((point) => point3(point, pitch, 0.28));
+      const isLoftedPass = path.passType === "lofted";
+      const points = isLoftedPass ? loftedPassPoints(groundPoints) : groundPoints;
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const material = new THREE.LineDashedMaterial({ color, dashSize: 1.5, gapSize: 0.85, transparent: true, opacity: 0.95 });
+      const material = isLoftedPass
+        ? new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.96 })
+        : new THREE.LineDashedMaterial({ color, dashSize: 1.5, gapSize: 0.85, transparent: true, opacity: 0.95 });
       const line = new THREE.Line(geometry, material);
-      line.computeLineDistances();
+      if (!isLoftedPass) line.computeLineDistances();
       this.annotationsGroup.add(line);
       if (points.length > 1) this.annotationsGroup.add(createArrow(points.at(-2), points.at(-1), color));
+      if (isLoftedPass) {
+        const apex = points[Math.floor(points.length / 2)];
+        const marker = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), new THREE.MeshBasicMaterial({ color: 0xf7f8fb }));
+        marker.position.copy(apex);
+        this.annotationsGroup.add(marker);
+        const label = createSprite(makeTextTexture("PASE ELEVADO", { color: "#facc15", fontSize: 43 }), 9.5, 2.2, false);
+        label.position.copy(apex).add(new THREE.Vector3(0, 1.7, 0));
+        label.renderOrder = 8;
+        this.annotationsGroup.add(label);
+      }
     });
   }
 
@@ -775,6 +820,52 @@ export class Pitch3DRenderer {
     this.camera.far = 500;
     this.camera.updateProjectionMatrix();
     this.controls.update();
+    this.focusTarget = null;
+    this.focusCamera = null;
+  }
+
+  handleNavigationKey(event, pressed) {
+    if (!this.active || event.defaultPrevented || ["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName)) return;
+    const key = event.key.toLowerCase();
+    if (!['w', 'a', 's', 'd'].includes(key)) return;
+    if (pressed) this.keyState.add(key);
+    else this.keyState.delete(key);
+    if (pressed) event.preventDefault();
+  }
+
+  updateKeyboardNavigation(deltaSeconds) {
+    if (!this.keyState.size || !this.active) return;
+    this.focusTarget = null;
+    this.focusCamera = null;
+    const forward = new THREE.Vector3().subVectors(this.controls.target, this.camera.position);
+    forward.y = 0;
+    if (forward.lengthSq() < 0.0001) return;
+    forward.normalize();
+    const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+    const direction = new THREE.Vector3();
+    if (this.keyState.has("w")) direction.add(forward);
+    if (this.keyState.has("s")) direction.sub(forward);
+    if (this.keyState.has("d")) direction.add(right);
+    if (this.keyState.has("a")) direction.sub(right);
+    if (!direction.lengthSq()) return;
+    const distance = this.camera.position.distanceTo(this.controls.target);
+    const speed = Math.max(13, Math.min(48, distance * 0.42));
+    const offset = direction.normalize().multiplyScalar(speed * deltaSeconds);
+    this.camera.position.add(offset);
+    this.controls.target.add(offset);
+  }
+
+  focusAtPointer(event) {
+    if (!this.active || !this.interactive) return;
+    const object = this.entityAtPointer(event);
+    if (!object) return;
+    const target = object.getWorldPosition(new THREE.Vector3());
+    target.y = 0;
+    const direction = new THREE.Vector3().subVectors(this.camera.position, this.controls.target).normalize();
+    const distance = Math.max(24, Math.min(52, this.camera.position.distanceTo(this.controls.target) * 0.72));
+    this.focusTarget = target;
+    this.focusCamera = target.clone().addScaledVector(direction, distance);
+    this.onSelection?.([object.userData.entityId]);
   }
 
   pointerRay(event) {
@@ -912,6 +1003,20 @@ export class Pitch3DRenderer {
   animate(time) {
     this.frame = requestAnimationFrame(this.animate);
     if (!this.active) return;
+    const deltaSeconds = Math.min(0.05, Math.max(0, (time - this.lastFrameTime) / 1000));
+    this.lastFrameTime = time;
+    this.updateKeyboardNavigation(deltaSeconds);
+    if (this.focusTarget && this.focusCamera) {
+      const blend = 1 - Math.exp(-9 * deltaSeconds);
+      this.controls.target.lerp(this.focusTarget, blend);
+      this.camera.position.lerp(this.focusCamera, blend);
+      if (this.controls.target.distanceToSquared(this.focusTarget) < 0.002) {
+        this.controls.target.copy(this.focusTarget);
+        this.camera.position.copy(this.focusCamera);
+        this.focusTarget = null;
+        this.focusCamera = null;
+      }
+    }
     this.controls.update();
     const pulse = 1 + Math.sin(time * 0.0045) * 0.09;
     this.entities.forEach((group) => group.traverse((item) => {

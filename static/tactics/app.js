@@ -12,8 +12,8 @@ import {
   normalizeBoard,
 } from "./model.js?v=20260830b";
 import { Pitch2DInteractions } from "./interactions2d.js?v=20260831d";
-import { Pitch2DRenderer } from "./pitch2d.js?v=20260831d";
-import { Pitch3DRenderer } from "./pitch3d.js?v=20260831d";
+import { Pitch2DRenderer } from "./pitch2d.js?v=20260831f";
+import { Pitch3DRenderer } from "./pitch3d.js?v=20260831f";
 import { createEditorStore } from "./store.js";
 
 const DRAFT_KEY = "koru:tactics:recovery-draft:v2";
@@ -231,6 +231,12 @@ function bindControls() {
   $("#path-list").addEventListener("change", updatePathColor);
   $("#finish-path-button").addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); finishPathDraft(); });
   $("#cancel-path-button").addEventListener("pointerdown", (event) => { event.preventDefault(); event.stopPropagation(); cancelPathDraft(); });
+  $("#pass-type-select").addEventListener("change", (event) => {
+    if (!pathDraft?.isBall) return;
+    pathDraft = { ...pathDraft, passType: event.target.value };
+    renderer.setMovementPathDraft(pathDraft);
+    render(store.getState());
+  });
 
   $("#new-session-button").addEventListener("click", createSession);
   $("#analysis-session").addEventListener("change", (event) => change(["board", "document", "analysis", "activeSessionId"], event.target.value, "Cambiar sesion"));
@@ -442,7 +448,11 @@ function render(state) {
   $("#presentation-button").classList.toggle("active", ui.presentationMode);
   $("#presentation-button").setAttribute("aria-label", ui.presentationMode ? "Salir de modo presentacion" : "Abrir modo presentacion");
   $("#path-draft-controls").hidden = !pathDraft;
-  if (pathDraft) $("#path-draft-label").textContent = `${pathDraft.name}: ${pathDraft.points.length - 1} punto${pathDraft.points.length === 2 ? "" : "s"}`;
+  $("#pass-type-control").hidden = !pathDraft?.isBall;
+  if (pathDraft) {
+    $("#path-draft-label").textContent = `${pathDraft.name}: ${pathDraft.points.length - 1} punto${pathDraft.points.length === 2 ? "" : "s"}`;
+    syncValue("#pass-type-select", pathDraft.passType || "ground");
+  }
 
   syncValue("#board-name", board.name);
   syncValue("#board-description", board.description);
@@ -1371,6 +1381,8 @@ function addPathPoint(point) {
       name: entity.name || (entity.type === "ball" ? "Balon" : "Jugador"),
       color: entity.type === "ball" ? "#f7f8fb" : entity.teamId === "home" ? "#f95516" : "#12d6df",
       points: [{ ...entity.position }, { x: point.x, y: point.y, z: 0 }],
+      isBall: entity.type === "ball",
+      passType: entity.type === "ball" ? "ground" : null,
     };
   } else if (pathDraft.points.length < 24) pathDraft = { ...pathDraft, points: [...pathDraft.points, { x: point.x, y: point.y, z: 0 }] };
   renderer.setMovementPathDraft(pathDraft);
@@ -1386,7 +1398,7 @@ function finishPathDraft() {
   if (!pathDraft || pathDraft.points.length < 2) return;
   const state = store.getState();
   const index = currentSceneIndex(state);
-  const path = { id: createTacticalId(), entityId: pathDraft.entityId, points: pathDraft.points, color: pathDraft.color, label: "" };
+  const path = { id: createTacticalId(), entityId: pathDraft.entityId, points: pathDraft.points, color: pathDraft.color, label: "", ...(pathDraft.isBall ? { passType: pathDraft.passType || "ground" } : {}) };
   store.update(["board", "document", "scenes", index, "movementPaths"], [...(currentScene(state).movementPaths || []), path], "Crear trayectoria");
   pathDraft = null;
   store.setUI({ activeTool: "select" });
@@ -1405,19 +1417,22 @@ function renderPathList(state) {
   $("#path-count").textContent = String(paths.length);
   $("#path-list").innerHTML = paths.length ? paths.map((path, index) => {
     const entity = state.board.document.entities.find((item) => item.id === path.entityId);
-    const label = path.label || entity?.name || `Trayectoria ${index + 1}`;
-    return `<div class="path-row"><i data-lucide="route"></i><strong>${escapeHtml(label)}</strong><small>${path.points.length - 1} punto${path.points.length === 2 ? "" : "s"}</small><input type="color" value="${escapeHtml(path.color)}" data-path-color="${path.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" data-delete-path="${path.id}" aria-label="Eliminar trayectoria" title="Eliminar trayectoria"><i data-lucide="trash-2"></i></button></div>`;
+    const isPass = entity?.type === "ball" || path.passType;
+    const label = path.label || (isPass ? (path.passType === "lofted" ? "Pase elevado" : "Pase raso") : entity?.name || `Trayectoria ${index + 1}`);
+    const passSelect = isPass ? `<select data-pass-type="${path.id}" aria-label="Tipo de pase"><option value="ground"${path.passType !== "lofted" ? " selected" : ""}>Raso</option><option value="lofted"${path.passType === "lofted" ? " selected" : ""}>Elevado</option></select>` : "";
+    return `<div class="path-row"><i data-lucide="${isPass ? "circle-dot" : "route"}"></i><strong>${escapeHtml(label)}</strong><small>${path.points.length - 1} punto${path.points.length === 2 ? "" : "s"}</small>${passSelect}<input type="color" value="${escapeHtml(path.color)}" data-path-color="${path.id}" aria-label="Color de ${escapeHtml(label)}" /><button type="button" data-delete-path="${path.id}" aria-label="Eliminar trayectoria" title="Eliminar trayectoria"><i data-lucide="trash-2"></i></button></div>`;
   }).join("") : `<div class="compact-empty">Selecciona un jugador, pulsa ruta y marca su recorrido.</div>`;
   refreshIcons();
 }
 
 function updatePathColor(event) {
   const input = event.target.closest("[data-path-color]");
-  if (!input) return;
+  const passType = event.target.closest("[data-pass-type]");
+  if (!input && !passType) return;
   const state = store.getState();
   const index = currentSceneIndex(state);
-  const paths = currentScene(state).movementPaths.map((path) => path.id === input.dataset.pathColor ? { ...path, color: input.value } : path);
-  store.update(["board", "document", "scenes", index, "movementPaths"], paths, "Cambiar color de trayectoria");
+  const paths = currentScene(state).movementPaths.map((path) => input && path.id === input.dataset.pathColor ? { ...path, color: input.value } : passType && path.id === passType.dataset.passType ? { ...path, passType: passType.value } : path);
+  store.update(["board", "document", "scenes", index, "movementPaths"], paths, input ? "Cambiar color de trayectoria" : "Cambiar tipo de pase");
   afterDocumentChange();
 }
 
@@ -2083,6 +2098,7 @@ async function deleteCustomPlayer(id) {
 }
 
 function handleShortcut(event) {
+  if (event.defaultPrevented) return;
   const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName);
   if (typing) return;
   const command = event.ctrlKey || event.metaKey;

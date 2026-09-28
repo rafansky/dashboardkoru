@@ -138,6 +138,7 @@ class SceneMovementPath(TacticalModel):
     points: list[PitchPoint] = Field(min_length=2, max_length=24)
     color: str = Field(default="#f95516", pattern=r"^#[0-9a-fA-F]{6}$")
     label: str = Field(default="", max_length=120)
+    pass_type: Literal["ground", "lofted"] | None = Field(default=None, alias="passType")
 
 
 class TacticalScene(TacticalModel):
@@ -244,6 +245,7 @@ class TacticalBoardDocument(TacticalModel):
                 raise ValueError(f"La entidad {entity.id} referencia un equipo inexistente")
 
         known_entities = set(entity_ids)
+        entities_by_id = {entity.id: entity for entity in self.entities}
         for group in self.groups:
             if not set(group.entity_ids).issubset(known_entities):
                 raise ValueError(f"El grupo {group.id} contiene entidades inexistentes")
@@ -273,6 +275,8 @@ class TacticalBoardDocument(TacticalModel):
             for path in scene.movement_paths:
                 if path.entity_id not in known_entities:
                     raise ValueError(f"La trayectoria {path.id} referencia una entidad inexistente")
+                if path.pass_type and entities_by_id[path.entity_id].type != "ball":
+                    raise ValueError(f"La trayectoria {path.id} solo puede ser un pase si mueve el balon")
                 for point in path.points:
                     if point.x > self.pitch.width or point.y > self.pitch.height:
                         raise ValueError(f"La trayectoria {path.id} esta fuera del campo")

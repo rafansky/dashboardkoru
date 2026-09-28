@@ -81,7 +81,7 @@
             <button data-tool="zone" type="button" aria-label="Zona" title="Zona tactica"><i data-lucide="square-dashed"></i></button>
             <button data-tool="text" type="button" aria-label="Texto" title="Texto tactico"><i data-lucide="type"></i></button>
           </nav>
-          <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"><div class="pitch-render-layer pitch-2d-layer" id="pitch-2d-layer"></div><div class="pitch-render-layer pitch-3d-layer" id="pitch-3d-layer" hidden></div></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="path-draft-controls" id="path-draft-controls" hidden><span id="path-draft-label">Trayectoria</span><button class="secondary-button" id="finish-path-button" type="button"><i data-lucide="check"></i><span>Confirmar</span></button><button class="icon-button small" id="cancel-path-button" type="button" aria-label="Cancelar trayectoria" title="Cancelar"><i data-lucide="x"></i></button></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span></div></div>
+          <div class="pitch-viewport" id="pitch-viewport"><div class="pitch-shell" id="pitch-shell"><div class="pitch-render-layer pitch-2d-layer" id="pitch-2d-layer"></div><div class="pitch-render-layer pitch-3d-layer" id="pitch-3d-layer" hidden></div></div><div class="selection-marquee" id="selection-marquee" hidden></div><div class="path-draft-controls" id="path-draft-controls" hidden><span id="path-draft-label">Trayectoria</span><label id="pass-type-control" hidden>Tipo de pase<select id="pass-type-select"><option value="ground">Raso</option><option value="lofted">Elevado</option></select></label><button class="secondary-button" id="finish-path-button" type="button"><i data-lucide="check"></i><span>Confirmar</span></button><button class="icon-button small" id="cancel-path-button" type="button" aria-label="Cancelar trayectoria" title="Cancelar"><i data-lucide="x"></i></button></div><div class="stage-hud"><span id="pitch-readout">105 x 68 m</span><span id="zoom-readout">Zoom 100%</span><span class="camera-navigation-hint">WASD mover · rueda zoom · botón derecho rotar · doble clic enfocar</span></div></div>
           <div class="presentation-dock" id="presentation-dock" aria-label="Controles de presentacion">
             <button class="presentation-layer-button" type="button" data-presentation-layer="home" aria-label="Mostrar KORU" title="KORU"><i data-lucide="users-round"></i></button>
             <button class="presentation-layer-button" type="button" data-presentation-layer="away" aria-label="Mostrar rival" title="Rival"><i data-lucide="user-round"></i></button>
@@ -216,6 +216,6 @@
       </form>
     </dialog>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-    <script type="module" src="/static/tactics/app.js?v=20260831d"></script>
+    <script type="module" src="/static/tactics/app.js?v=20260831f"></script>
   </body>
 </html>

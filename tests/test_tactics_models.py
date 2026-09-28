@@ -74,6 +74,15 @@ class TacticalDocumentTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             TacticalBoardDocument.model_validate(payload)
 
+    def test_only_the_ball_can_use_a_pass_type(self) -> None:
+        payload = self.document()
+        payload["scenes"][0]["movementPaths"] = [{
+            "id": "pass-1", "entityId": "player-1", "passType": "lofted",
+            "points": [{"x": 42, "y": 34}, {"x": 70, "y": 42}],
+        }]
+        with self.assertRaises(ValidationError):
+            TacticalBoardDocument.model_validate(payload)
+
     def test_duplicate_team_scene_and_annotation_ids_are_rejected(self) -> None:
         payload = self.document()
         payload["teams"].append(dict(payload["teams"][0]))

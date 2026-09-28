@@ -230,9 +230,16 @@ function addMovementPaths(group, paths, pitch, draft = null) {
     marker.append(svgElement("path", { d: "M 0 0 L 4.7 2.35 L 0 4.7 Z", fill: color }));
     defs.append(marker);
     const projected = path.points.map((point) => projectPerspectivePoint(point, pitch));
-    const item = svgElement("g", { class: `movement-path${path.draft ? " draft" : ""}`, "data-path-id": path.id });
+    const isLoftedPass = path.passType === "lofted";
+    const item = svgElement("g", { class: `movement-path${path.draft ? " draft" : ""}${isLoftedPass ? " pass-lofted" : ""}`, "data-path-id": path.id });
     item.append(svgElement("polyline", { class: "movement-path-line", points: pointString(projected), fill: "none", stroke: color, "marker-end": `url(#${markerId})` }));
     projected.slice(1, -1).forEach((point) => item.append(svgElement("circle", { class: "movement-path-point", cx: point.x, cy: point.y, r: 0.62, fill: color })));
+    if (path.passType) {
+      const midpoint = projected[Math.floor(projected.length / 2)];
+      const label = svgElement("text", { class: "movement-pass-label", x: midpoint.x, y: midpoint.y - 2.2, fill: color, "text-anchor": "middle" });
+      label.textContent = isLoftedPass ? "PASE ELEVADO" : "PASE RASO";
+      item.append(label);
+    }
     group.append(item);
   });
 }
