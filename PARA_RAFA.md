@@ -1,5 +1,15 @@
 # Para Rafa
 
+Actualización — 28 de septiembre de 2026: gestión de plantilla más sencilla.
+
+- `/gestion-plantilla` abre directamente el calendario de asistencia, por semanas o por mes.
+- Cada jugador/día permite elegir verde «Está», rojo «No está» o amarillo «Está, pero no jugó». Gris significa «Sin marcar» y no cuenta como falta. El calendario guarda al elegir.
+- `* Añadir jugador` está visible en el calendario y la plantilla. `−` retira un jugador con confirmación, conservando su historial; para recuperarlo, filtra por Inactivos y cambia su ficha a Activo.
+- El historial anterior con filtros y estadísticas sigue en «Historial detallado». Las observaciones y el resto de datos se conservan.
+- Verde registra presencia sin inventar que jugó. Amarillo registra presencia sin participación. La agenda y el once siguen en «Día de partido».
+- Verificado con 3 pruebas de lógica del calendario, 4 pruebas API y 2 recorridos de navegador, incluyendo móvil, persistencia al recargar y retirada sin pérdida del historial. Las pruebas usan una instancia aislada.
+- Los cambios de la pizarra táctica que ya existían en el directorio de trabajo se han dejado aparte de este cambio.
+
 Fecha de cierre: 31 de agosto de 2026
 
 He revisado el proyecto completo en el miniPC, he terminado las fases funcionales que quedaban documentadas y he dejado la pizarra tactica cerrada hasta la fase 18. Este archivo va incluido en el mismo commit y push a `main` del remoto configurado, `rafansky/dashboardkoru`.

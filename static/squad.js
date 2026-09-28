@@ -1,9 +1,9 @@
-import { mountCalendar, participationLabels, dateLabel } from './squad-calendar.js?v=2';
+import { mountCalendar, participationLabels, dateLabel, simpleLabels, simpleAttendance, simpleResponse } from './squad-calendar.js?v=3';
 const $ = (s) => document.querySelector(s);
 const esc = (v = '') => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons = () => window.lucide?.createIcons();
 const today = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-let players = [], candidates = [], days = [], day = null, tab = 'players', selectedDate = today, month = today.slice(0,7), dirty = false, busy = false, search = '', filter = 'active', slot = 0;
+let players = [], candidates = [], days = [], day = null, tab = 'month', selectedDate = today, month = today.slice(0,7), dirty = false, busy = false, search = '', filter = 'active', slot = 0;
 const availability = {pending:'Pendiente',available:'Disponible',maybe:'Duda',unavailable:'No disponible'};
 const attendance = {pending:'Sin registrar',present:'Presente',late:'Tarde',excused:'Justificado',absent:'Ausente'};
 const statuses = {active:'Activo',trial:'En pruebas',inactive:'Inactivo'};
@@ -35,6 +35,7 @@ function canLeave() { return !dirty || confirm('Hay cambios sin guardar en este 
 function slots() {return formations[day.formation].flatMap((row,r,rows)=>row.map((label,c)=>({label,x:(c+1)*100/(row.length+1),y:90-r*78/(rows.length-1)})));}
 async function load() {
   [players,candidates]=await Promise.all([api('/api/squad/players'),api('/api/squad/candidates')]);
+  days=await api('/api/squad/days?month='+month);
   render();
 }
 async function navigate(next, date=selectedDate) {
@@ -55,14 +56,14 @@ function render() {
   icons();
 }
 function renderPlayers() {
-  $('#workspace').innerHTML=`<div class="bar"><h2>Plantilla del club</h2><input id="search" type="search" placeholder="Buscar jugador" aria-label="Buscar jugador" value="${esc(search)}"><select id="status-filter" aria-label="Estado">${opt({'':'Todos',...statuses},filter)}</select><button data-action="import"><i data-lucide="users-round"></i>Importar de pizarra</button><button class="primary" data-action="add-player"><i data-lucide="user-plus"></i>Nuevo jugador</button>${iconButton('csv','download','Exportar plantilla CSV')}</div><div class="summary"><span><strong>${players.filter(p=>p.status==='active').length}</strong>activos</span><span><strong>${players.filter(p=>p.status==='trial').length}</strong>en pruebas</span><span><strong>${players.filter(p=>p.status==='inactive').length}</strong>inactivos</span></div><div id="player-table"></div>`;
+  $('#workspace').innerHTML=`<div class="bar"><h2>Plantilla del club</h2><input id="search" type="search" placeholder="Buscar jugador" aria-label="Buscar jugador" value="${esc(search)}"><select id="status-filter" aria-label="Estado">${opt({'':'Todos',...statuses},filter)}</select><button data-action="import"><i data-lucide="users-round"></i>Importar de pizarra</button><button class="primary" data-action="add-player"><span aria-hidden="true">*</span> Añadir jugador</button>${iconButton('csv','download','Exportar plantilla CSV')}</div><div class="summary"><span><strong>${players.filter(p=>p.status==='active').length}</strong>activos</span><span><strong>${players.filter(p=>p.status==='trial').length}</strong>en pruebas</span><span><strong>${players.filter(p=>p.status==='inactive').length}</strong>inactivos</span></div><div id="player-table"></div>`;
   renderPlayerTable();
   $('#search').oninput=e=>{search=e.target.value;renderPlayerTable();};
   $('#status-filter').onchange=e=>{filter=e.target.value;renderPlayerTable();};
 }
 function renderPlayerTable() {
   const list=players.filter(p=>(!filter||p.status===filter)&&`${p.name} ${p.alias} ${p.position}`.toLowerCase().includes(search.toLowerCase()));
-  $('#player-table').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Dorsal</th><th>Estado</th><th>Cumple</th><th>Comunidad</th><th>X / Twitter</th><th>Ficha</th></tr></thead><tbody>${list.map(p=>`<tr><td>${person(p)}</td><td>${p.number}</td><td><span class="badge ${p.status}">${statuses[p.status]}</span></td><td>${p.birthday?esc(p.birthday.slice(5).split('-').reverse().join('/')):'—'}</td><td>${esc(p.region)||'—'}</td><td>${esc(p.twitter)||'—'}</td><td>${iconButton('edit-player','pencil','Editar '+p.name,p.id)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay jugadores con estos filtros.</div>';
+  $('#player-table').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Dorsal</th><th>Estado</th><th>Cumple</th><th>Comunidad</th><th>X / Twitter</th><th>Ficha</th></tr></thead><tbody>${list.map(p=>`<tr><td>${person(p)}</td><td>${p.number}</td><td><span class="badge ${p.status}">${statuses[p.status]}</span></td><td>${p.birthday?esc(p.birthday.slice(5).split('-').reverse().join('/')):'—'}</td><td>${esc(p.region)||'—'}</td><td>${esc(p.twitter)||'—'}</td><td>${iconButton('edit-player','pencil','Editar '+p.name,p.id)}${p.status!=='inactive'?`<button class="remove-player" data-action="remove-player" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la plantilla">−</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay jugadores con estos filtros.</div>';
   icons();
 }
 function renderDay() {
@@ -85,7 +86,7 @@ function renderMonth() {
     editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),download:downloadCsv});
 }
 
-async function editAttendance(pid,date) {
+async function editAttendanceDetails(pid,date) {
   const p=players.find(p=>p.id===pid);
   const editingDay=tab==='day'&&selectedDate===date;
   const record=editingDay?day:await api('/api/squad/days/'+date);
@@ -111,6 +112,42 @@ async function editAttendance(pid,date) {
     if(e.target.value==='pending'&&$('#fields [name=participation]').value==='played')$('#fields [name=participation]').value='pending';
   };
 }
+async function editAttendance(pid,date) {
+  const p=players.find(p=>p.id===pid);
+  const editingDay=tab==='day'&&selectedDate===date;
+  const record=editingDay?day:await api('/api/squad/days/'+date);
+  const previous=record.responses[pid]||{};
+  openEditor(p.name+' · '+dateLabel(date),
+    '<div class="wide attendance-help">Elige un estado. Se guarda al pulsarlo.</div>'+
+    '<div class="wide attendance-choices">'+Object.entries(simpleLabels).map(([state,label])=>
+      '<button type="button" class="simple-state '+state+'" data-attendance-choice="'+state+'" aria-pressed="'+(simpleAttendance(previous)===state)+'">'+label+'</button>').join('')+'</div>'+
+    field('note','Observación (opcional)',previous.note||'','textarea'),async()=>{});
+  $('#fields [name=note]').maxLength=500;
+  $('#edit-form button[type=submit]').hidden=true;
+  $('#fields').insertAdjacentHTML('beforeend','<button type="button" class="wide" id="attendance-details">Más detalles de este día</button>');
+  $('#attendance-details').onclick=()=>editAttendanceDetails(pid,date);
+  document.querySelectorAll('[data-attendance-choice]').forEach(button=>button.onclick=async()=>{
+    const buttons=[...document.querySelectorAll('[data-attendance-choice]')];
+    buttons.forEach(b=>b.disabled=true);
+    try {
+      const updated=structuredClone(record);
+      updated.responses[pid]=simpleResponse(button.dataset.attendanceChoice,{...previous,note:$('#fields [name=note]').value.trim()});
+      if(editingDay){day=updated;markDirty();}
+      else {
+        const saved=await api('/api/squad/days/'+date,'PUT',payload(updated));
+        days=[...days.filter(d=>d.id!==date),saved];
+      }
+      $('#editor').close();render();notify(editingDay?'Estado elegido. Pulsa Guardar día al terminar.':'Asistencia guardada');
+    } catch(err){$('#form-error').textContent=err.message;buttons.forEach(b=>b.disabled=false);}
+  });
+}
+async function removePlayer(id) {
+  const p=players.find(p=>p.id===id);
+  if(!confirm('¿Quitar a '+p.name+' de la plantilla? Su historial se conserva. Puedes recuperarlo en Plantilla → Inactivos.'))return;
+  const saved=await api('/api/squad/players/'+id,'PUT',{...payload(p),status:'inactive'});
+  players=players.map(item=>item.id===id?saved:item);
+  render();notify('Jugador retirado. Su historial se conserva.');
+}
 function renderCandidates() {
   $('#workspace').innerHTML=`<div class="bar"><h2>Seguimiento de pruebas</h2><button class="primary" data-action="add-candidate"><i data-lucide="user-plus"></i>Nuevo candidato</button></div><div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Posicion</th><th>Estado</th><th>Prueba</th><th>Valoracion</th><th>Acciones</th></tr></thead><tbody>${candidates.map(c=>`<tr><td><strong>${esc(c.name)}</strong><small>${esc(c.team)} · ${esc(c.twitter)}</small></td><td>${esc(c.position)}</td><td><span class="badge ${c.status}">${trialStatuses[c.status]}</span></td><td>${esc(c.trialDate)||'Sin fecha'}</td><td>${c.rating?c.rating+' / 5':'Sin valorar'}</td><td><div class="actions">${iconButton('edit-candidate','pencil','Editar candidato',c.id)}${!players.some(p=>p.sourceKey==='candidate:'+c.id)?iconButton('sign-candidate','user-check','Incorporar a plantilla',c.id):'<span class="badge available">En plantilla</span>'}</div></td></tr>`).join('')}</tbody></table>${!candidates.length?'<p class="empty">Sin candidatos registrados.</p>':''}</div>`;
 }
@@ -118,6 +155,7 @@ function field(name,label,value='',type='text',options=null) {
   return `<label class="${type==='textarea'?'wide':''}">${esc(label)}${options?`<select name="${name}" aria-label="${esc(label)}">${opt(options,value)}</select>`:type==='textarea'?`<textarea name="${name}" maxlength="3000">${esc(value)}</textarea>`:`<input name="${name}" type="${type}" value="${esc(value)}" ${name==='name'||name==='opponent'?'required maxlength="80"':''} ${type==='number'?'min="0" max="99"':''} ${type==='text'?'maxlength="160"':''}>`}</label>`;
 }
 function openEditor(title,html,submit) {
+  $('#edit-form button[type=submit]').hidden=false;
   $('#editor-title').textContent=title;$('#fields').innerHTML=html;$('#form-error').textContent='';
   $('#edit-form').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{await submit(Object.fromEntries(new FormData(e.target)));$('#editor').close();render();}catch(err){$('#form-error').textContent=err.message;}finally{b.disabled=false;}};
   $('#editor').showModal();icons();
@@ -181,6 +219,7 @@ function downloadCsv(rows,name) {
   const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function action(name,id) {
+  if(name==='remove-player')await removePlayer(id);
   if(name==='attendance-record')await editAttendance(id,selectedDate);
   if(name==='add-player')editPlayer();
   if(name==='edit-player')editPlayer(players.find(p=>p.id===id));

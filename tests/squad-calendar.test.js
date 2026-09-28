@@ -1,6 +1,19 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {monthWeeks,playerRecords,recordFilters,dateLabel} from '../static/squad-calendar.js';
+import {monthWeeks,playerRecords,recordFilters,dateLabel,simpleAttendance,simpleResponse} from '../static/squad-calendar.js';
+
+test('simple attendance separates absences from present non-players without guessing from availability',()=>{
+  assert.equal(simpleAttendance({availability:'unavailable'}),'pending');
+  assert.equal(simpleAttendance({attendance:'excused',participation:'not_played'}),'absent');
+  assert.equal(simpleAttendance({attendance:'late',participation:'not_played'}),'bench');
+  assert.equal(simpleAttendance({attendance:'present',participation:'played'}),'present');
+  for(const state of ['pending','present','absent','bench']) {
+    const row=simpleResponse(state,{note:'Se conserva',availability:'maybe',participation:'played'});
+    assert.equal(simpleAttendance(row),state);
+    assert.equal(row.note,'Se conserva');
+    assert.equal(row.availability,'maybe');
+  }
+});
 
 test('weeks start on Monday and include every month date once, including leap day',()=>{
   const weeks=monthWeeks('2028-02');

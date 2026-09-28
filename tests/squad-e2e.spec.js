@@ -10,7 +10,8 @@ test('captain creates a squad, saves a full lineup, reviews attendance and expor
     expect(r.ok()).toBeTruthy();members.push(await r.json());
   }
   await page.goto('/gestion-plantilla');
-  await page.getByRole('button',{name:'Nuevo jugador',exact:true}).click();
+  await page.getByRole('button',{name:'Plantilla',exact:true}).click();
+  await page.getByRole('button',{name:'Añadir jugador',exact:true}).click();
   await page.getByLabel('ID / nombre en el juego').fill(`Captain ${unique}`);
   await page.getByLabel('Dorsal',{exact:true}).fill('11');
   await page.locator('#photo-upload').setInputFiles('static/assets/tactical-ball.png');
@@ -47,12 +48,11 @@ test('captain creates a squad, saves a full lineup, reviews attendance and expor
   const saved=await (await page.request.get('/api/squad/days/2031-02-12')).json();
   expect(saved.responses[members[0].id].attendance).toBe('present');
   expect(saved.lineup[0]).toBeNull();
-  await page.getByRole('button',{name:'Asistencia mensual',exact:true}).click();
+  await page.getByRole('button',{name:'Asistencia',exact:true}).click();
   await page.locator('#month').fill('2031-02');
   await page.locator('#month').dispatchEvent('change');
   await page.getByRole('button',{name:'Mes completo',exact:true}).click();
-  await expect(page.locator('.attendance-calendar')).toContainText('Lunes');
-  await expect(page.locator('#player-history')).toBeVisible();
+  await expect(page.locator('.attendance-calendar')).toContainText('Lun');
   await page.getByRole('button',{name:'Pruebas',exact:true}).click();
   await page.getByRole('button',{name:'Nuevo candidato'}).click();
   await page.getByLabel('Nombre',{exact:true}).fill('Candidato e2e');
@@ -70,51 +70,45 @@ test('captain creates a squad, saves a full lineup, reviews attendance and expor
   expect(errors).toEqual([]);
 });
 
-test('calendar distinguishes actual participation and opens exact player dates',async({page})=>{
+test('simple calendar saves every state, restores it after reload and safely removes players',async({page})=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.request.post('/api/login',{form:{password:'test-password'}});
-  const p=await (await page.request.post('/api/squad/players',{data:{name:'Capitan calendario',number:8,position:'MC'}})).json();
-  const states=[
-    {availability:'available',attendance:'present',participation:'played'},
-    {availability:'available',attendance:'present',participation:'not_played',note:'Rotacion: estaba disponible'},
-    {availability:'available',attendance:'absent',participation:'not_played'},
-    {availability:'unavailable',attendance:'excused',participation:'not_played'},
-    {availability:'available',attendance:'present'},
-  ];
-  for(let i=0;i<states.length;i++){
-    const date='2026-06-0'+(i+1);
-    const old=await (await page.request.get('/api/squad/days/'+date)).json();
-    const {id,updatedAt,...data}=old;
-    data.responses[p.id]=states[i];
-    expect((await page.request.put('/api/squad/days/'+date,{data})).ok()).toBeTruthy();
-  }
+  const p=await (await page.request.post('/api/squad/players',{data:{name:'Calendario sencillo '+Date.now(),number:8,position:'MC'}})).json();
   await page.goto('/gestion-plantilla');
-  await page.getByRole('button',{name:'Asistencia mensual',exact:true}).click();
-  await page.locator('#month').fill('2026-06');
+  await expect(page.getByRole('heading',{name:'Asistencia de la plantilla'})).toBeVisible();
+  await page.locator('#month').fill('2032-06');
   await page.locator('#month').dispatchEvent('change');
-  await page.getByRole('button',{name:'Semana',exact:true}).click();
-  await expect(page.locator('.week-group')).toContainText('1 al 7');
-  await expect(page.locator('.attendance-calendar thead')).toContainText('Lunes');
-  await expect(page.locator('.attendance-calendar thead')).toContainText('Domingo');
-  await page.locator('#history-player').selectOption(p.id);
-  await expect(page.locator('[data-filter=confirmedNoPlay] strong')).toHaveText('2');
-  await expect(page.locator('[data-filter=played] strong')).toHaveText('1');
-  await page.locator('[data-filter=confirmedNoPlay]').click();
-  await expect(page.locator('.history-record')).toHaveCount(2);
-  await expect(page.locator('.history-records')).toContainText('martes, 2 de junio');
-  await page.locator('[data-filter=absent]').click();
-  await expect(page.locator('.history-record')).toHaveCount(2);
-  await page.locator('[data-cal=record][data-date="2026-06-05"][data-id="'+p.id+'"]').click();
-  await page.getByLabel('Participación real',{exact:true}).selectOption('played');
-  await page.getByLabel('Observación / motivo').fill('Jugo en la segunda parte');
-  await page.getByRole('button',{name:'Guardar',exact:true}).click();
-  await expect(page.locator('#editor')).not.toBeVisible();
-  await expect(page.locator('[data-filter=played] strong')).toHaveText('2');
-  const saved=await (await page.request.get('/api/squad/days/2026-06-05')).json();
-  expect(saved.responses[p.id].participation).toBe('played');
-  await page.locator('#history-filter').selectOption('all');
+  const cell=page.locator('[data-cal=record][data-date="2032-06-01"][data-id="'+p.id+'"]');
+  for(const [state,label] of [['present','Está'],['absent','No está'],['bench','Está, pero no jugó'],['pending','Sin marcar']]){
+    await cell.click();
+    await page.getByRole('button',{name:label,exact:true}).click();
+    await expect(page.locator('#editor')).not.toBeVisible();
+    await expect(cell).toHaveClass(new RegExp(state));
+    const row=(await (await page.request.get('/api/squad/days/2032-06-01')).json()).responses[p.id];
+    expect(row.attendance).toBe({present:'present',absent:'absent',bench:'present',pending:'pending'}[state]);
+  }
+  await cell.click();
+  await page.getByRole('button',{name:'Está, pero no jugó',exact:true}).click();
+  await expect(cell).toHaveClass(/bench/);
+  await page.reload();
+  await page.locator('#month').fill('2032-06');
+  await page.locator('#month').dispatchEvent('change');
+  await expect(cell).toHaveClass(/bench/);
   await page.setViewportSize({width:1440,height:1000});
-  await page.screenshot({path:'artifacts/calendar-desktop.png',fullPage:true});
-  await page.setViewportSize({width:375,height:812});
-  await page.screenshot({path:'artifacts/calendar-mobile.png',fullPage:true});
+  await page.getByRole('button',{name:'Historial detallado',exact:true}).click();
+  await expect(page.locator('#player-history')).toBeVisible();
+  await page.getByRole('button',{name:'Mes completo',exact:true}).click();
+  await page.getByRole('button',{name:'Volver al calendario sencillo',exact:false}).click();
+  await expect(page.getByRole('heading',{name:'Asistencia de la plantilla'})).toBeVisible();
+  await page.screenshot({path:'artifacts/calendar-simple-desktop.png',fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'artifacts/calendar-simple-mobile.png',fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Quitar a '+p.name+' de la plantilla',exact:true}).click();
+  await expect(cell).toHaveCount(0);
+  const savedPlayers=await (await page.request.get('/api/squad/players')).json();
+  expect(savedPlayers.find(item=>item.id===p.id).status).toBe('inactive');
+  expect((await (await page.request.get('/api/squad/days/2032-06-01')).json()).responses[p.id].participation).toBe('not_played');
+  expect(errors).toEqual([]);
 });
