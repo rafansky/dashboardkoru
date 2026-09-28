@@ -25,6 +25,12 @@ Actualización — 28 de septiembre de 2026: PDF de fichas de jugador.
 - La información se genera desde la ficha abierta, incluidos los datos VPG disponibles, y las URL de fotos se aceptan únicamente si son HTTP/HTTPS.
 - Verificado en navegador con una prueba E2E que abre la ficha, lanza la vista previa y comprueba el contenido de KORU y estadísticas.
 
+Actualización — 28 de septiembre de 2026: acceso HTTPS público.
+
+- KORU conserva el puerto público `10101`, ahora detrás de Caddy con certificado TLS válido de DuckDNS. La dirección de acceso es `https://loschupapostes.duckdns.org:10101/login`.
+- El proceso de KORU ya no está publicado directamente: escucha en una interfaz privada de Docker en el puerto interno `10102`; Caddy es el único punto de entrada web público.
+- Comprobado extremo a extremo: KORU interno, proxy Caddy y dominio DuckDNS responden con `200` y validación TLS correcta.
+
 Fecha de cierre: 31 de agosto de 2026
 
 He revisado el proyecto completo en el miniPC, he terminado las fases funcionales que quedaban documentadas y he dejado la pizarra tactica cerrada hasta la fase 18. Este archivo va incluido en el mismo commit y push a `main` del remoto configurado, `rafansky/dashboardkoru`.
