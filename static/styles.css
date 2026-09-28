@@ -167,6 +167,10 @@ img {
   color: var(--orange);
 }
 
+.mobile-quick-nav {
+  display: none;
+}
+
 .content {
   min-width: 0;
   padding: 12px;
@@ -1159,8 +1163,12 @@ tr.koru-row {
 }
 
 @media (max-width: 760px) {
+  .app-shell {
+    display: block;
+  }
+
   .content {
-    padding: 8px 8px 72px;
+    padding: 8px 8px 88px;
   }
 
   .hero {
@@ -1254,16 +1262,59 @@ tr.koru-row {
   }
 
   .sidebar {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-  }
-
-  .nav-link {
-    padding: 0 8px;
-  }
-
-  .nav-link span {
     display: none;
+  }
+
+  .mobile-quick-nav {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    padding: 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 15px;
+    background: rgba(13, 15, 21, 0.94);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(18px);
+  }
+
+  .mobile-quick-link {
+    min-height: 54px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 3px;
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: .68rem;
+    font-weight: 700;
+  }
+
+  .mobile-quick-link svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .mobile-quick-link:hover,
+  .mobile-quick-link:focus-visible,
+  .mobile-quick-link.active {
+    color: var(--text);
+    background: rgba(249, 85, 22, .16);
+  }
+
+  .mobile-quick-link:first-child svg {
+    color: #facc15;
+  }
+
+  .mobile-quick-link:nth-child(2) svg {
+    color: var(--cyan);
+  }
+
+  .mobile-quick-link:nth-child(3) svg {
+    color: var(--orange);
   }
 }

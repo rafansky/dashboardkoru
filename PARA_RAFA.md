@@ -31,6 +31,11 @@ Actualización — 28 de septiembre de 2026: acceso HTTPS público.
 - El proceso de KORU ya no está publicado directamente: escucha en una interfaz privada de Docker en el puerto interno `10102`; Caddy es el único punto de entrada web público.
 - Comprobado extremo a extremo: KORU interno, proxy Caddy y dominio DuckDNS responden con `200` y validación TLS correcta.
 
+Actualización — 28 de septiembre de 2026: navegación móvil simplificada.
+
+- En pantallas pequeñas se oculta la barra lateral extensa y queda una barra inferior fija con tres accesos: trofeo **Ligas**, calendario **Calendario** y lista **Confirmar**.
+- Los tres accesos apuntan a las zonas que más se usan: competiciones, próximos partidos y gestión de asistencia/confirmación. El resto de funciones no se ha eliminado y sigue pensado para escritorio.
+
 Fecha de cierre: 31 de agosto de 2026
 
 He revisado el proyecto completo en el miniPC, he terminado las fases funcionales que quedaban documentadas y he dejado la pizarra tactica cerrada hasta la fase 18. Este archivo va incluido en el mismo commit y push a `main` del remoto configurado, `rafansky/dashboardkoru`.

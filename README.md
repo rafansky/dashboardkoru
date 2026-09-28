@@ -110,6 +110,8 @@ Con una pizarra vinculada, el panel `Registro en directo` permite anotar gol, go
 
 `/gestion-plantilla` abre un calendario de asistencia semanal o mensual. Cada jugador se marca por día como **Está** (verde), **No está** (rojo) o **Está, pero no jugó** (amarillo); el estado se guarda al elegir. La plantilla permite añadir jugadores con `*` y retirarlos con `−` sin borrar su historial.
 
+En móvil, el dashboard deja fijos abajo tres accesos grandes: **Ligas** (trofeo), **Calendario** (partidos) y **Confirmar** (lista de asistencia). La navegación completa sigue disponible en escritorio.
+
 Cada jugador tiene una ficha individual con sus datos, historial de asistencia, titularidades, participación, notas del capitán y anotaciones fechadas. El botón **Crear PDF** abre una ficha A4 con identidad KORU, foto, estadísticas, datos, anotaciones e historial; desde esa vista se puede comprobar el resultado y pulsar **Guardar como PDF**. Si el jugador coincide con el nombre, alias o `sourceKey` de las fuentes conectadas, su ficha muestra las estadísticas disponibles de VPG: partidos, goles, asistencias, rating y ELO. La ausencia de datos públicos se indica explícitamente.
 
 Las imagenes subidas se validan por firma real (PNG, JPEG, GIF o WebP), las cargas tienen limite configurable y los avatares remotos 3D solo pasan por el CDN VPG autorizado. Los enlaces publicos no abren las APIs de gestion.
