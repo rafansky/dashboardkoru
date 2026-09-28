@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 os.environ.setdefault("KORU_ACCESS_PASSWORD", "test-password")
 from fastapi.testclient import TestClient
@@ -72,3 +72,29 @@ class SquadTests(unittest.TestCase):
         self.assertEqual(self.client.put("/api/squad/days/2026-09-13", json={"responses": {p["id"]: invalid}}).status_code, 422)
         legacy = self.client.put("/api/squad/days/2026-09-14", json={"responses": {p["id"]: {"attendance": "present"}}}).json()
         self.assertEqual(legacy["responses"][p["id"]]["participation"], "pending")
+
+    def test_player_profile_combines_club_history_notes_and_league_stats(self):
+        player = self.client.post("/api/squad/players", json={"name": "Rafa", "alias": "Capitan", "sourceKey": "dashboard:Rafa"}).json()
+        response = {"availability": "available", "attendance": "present", "participation": "not_played", "note": "Rotacion"}
+        self.assertEqual(self.client.put("/api/squad/days/2026-09-20", json={"responses": {player["id"]: response}}).status_code, 200)
+        dashboard = {
+            "updatedAt": "2026-09-20T20:00:00+00:00",
+            "stale": False,
+            "sources": [{"label": "Perfil VPG", "url": "https://example.test/vpg"}],
+            "analytics": {"playerElo": [{"username": "RAFA", "matchesPlayed": 12, "goals": 7, "assists": 4, "rating": 7.3, "elo": 1430, "history": [1400, 1430]}]},
+        }
+        with patch("app.squad.dashboard_service.get_dashboard", new=AsyncMock(return_value=dashboard)):
+            profile = self.client.get(f"/api/squad/players/{player['id']}/profile")
+        self.assertEqual(profile.status_code, 200)
+        data = profile.json()
+        self.assertEqual(data["attendance"]["summary"]["present"], 1)
+        self.assertEqual(data["attendance"]["summary"]["bench"], 1)
+        self.assertEqual(data["league"]["goals"], 7)
+        self.assertEqual(data["league"]["source"], "VPG")
+
+        annotation = self.client.post(f"/api/squad/players/{player['id']}/annotations", json={"playerId": player["id"], "body": "Gran lectura defensiva"})
+        self.assertEqual(annotation.status_code, 201)
+        with patch("app.squad.dashboard_service.get_dashboard", new=AsyncMock(return_value=dashboard)):
+            annotated = self.client.get(f"/api/squad/players/{player['id']}/profile").json()
+        self.assertEqual(annotated["annotations"][0]["body"], "Gran lectura defensiva")
+        self.assertEqual(self.client.delete(f"/api/squad/players/{player['id']}/annotations/{annotation.json()['id']}").status_code, 200)

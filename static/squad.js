@@ -3,7 +3,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (v = '') => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons = () => window.lucide?.createIcons();
 const today = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-let players = [], candidates = [], days = [], day = null, tab = 'month', selectedDate = today, month = today.slice(0,7), dirty = false, busy = false, search = '', filter = 'active', slot = 0;
+let players = [], candidates = [], days = [], day = null, tab = 'month', selectedDate = today, month = today.slice(0,7), dirty = false, busy = false, search = '', filter = 'active', slot = 0, profile = null;
 const availability = {pending:'Pendiente',available:'Disponible',maybe:'Duda',unavailable:'No disponible'};
 const attendance = {pending:'Sin registrar',present:'Presente',late:'Tarde',excused:'Justificado',absent:'Ausente'};
 const statuses = {active:'Activo',trial:'En pruebas',inactive:'Inactivo'};
@@ -37,6 +37,8 @@ async function load() {
   [players,candidates]=await Promise.all([api('/api/squad/players'),api('/api/squad/candidates')]);
   days=await api('/api/squad/days?month='+month);
   render();
+  const playerId = new URLSearchParams(location.hash.slice(1)).get('jugador');
+  if(playerId && players.some(item=>item.id===playerId)) openPlayerProfile(playerId);
 }
 async function navigate(next, date=selectedDate) {
   if(!canLeave())return;
@@ -63,7 +65,7 @@ function renderPlayers() {
 }
 function renderPlayerTable() {
   const list=players.filter(p=>(!filter||p.status===filter)&&`${p.name} ${p.alias} ${p.position}`.toLowerCase().includes(search.toLowerCase()));
-  $('#player-table').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Dorsal</th><th>Estado</th><th>Cumple</th><th>Comunidad</th><th>X / Twitter</th><th>Ficha</th></tr></thead><tbody>${list.map(p=>`<tr><td>${person(p)}</td><td>${p.number}</td><td><span class="badge ${p.status}">${statuses[p.status]}</span></td><td>${p.birthday?esc(p.birthday.slice(5).split('-').reverse().join('/')):'—'}</td><td>${esc(p.region)||'—'}</td><td>${esc(p.twitter)||'—'}</td><td>${iconButton('edit-player','pencil','Editar '+p.name,p.id)}${p.status!=='inactive'?`<button class="remove-player" data-action="remove-player" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la plantilla">−</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay jugadores con estos filtros.</div>';
+  $('#player-table').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Dorsal</th><th>Estado</th><th>Cumple</th><th>Comunidad</th><th>X / Twitter</th><th>Ficha</th></tr></thead><tbody>${list.map(p=>`<tr><td>${person(p)}</td><td>${p.number}</td><td><span class="badge ${p.status}">${statuses[p.status]}</span></td><td>${p.birthday?esc(p.birthday.slice(5).split('-').reverse().join('/')):'—'}</td><td>${esc(p.region)||'—'}</td><td>${esc(p.twitter)||'—'}</td><td><button class="profile-button" data-action="view-profile" data-id="${p.id}">Ver ficha</button>${iconButton('edit-player','pencil','Editar '+p.name,p.id)}${p.status!=='inactive'?`<button class="remove-player" data-action="remove-player" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la plantilla">−</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay jugadores con estos filtros.</div>';
   icons();
 }
 function renderDay() {
@@ -83,7 +85,7 @@ function renderMonth() {
   mountCalendar($('#workspace'), {month,today,players,days,
     changeMonth:value=>{month=value;run(()=>navigate('month'));},
     openDay:date=>run(()=>navigate('day',date)),
-    editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),download:downloadCsv});
+    editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),openProfile:pid=>run(()=>openPlayerProfile(pid)),download:downloadCsv});
 }
 
 async function editAttendanceDetails(pid,date) {
@@ -148,6 +150,45 @@ async function removePlayer(id) {
   players=players.map(item=>item.id===id?saved:item);
   render();notify('Jugador retirado. Su historial se conserva.');
 }
+function profileDate(value) {
+  return value ? new Intl.DateTimeFormat('es-ES',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(value)) : '—';
+}
+function profileAttendanceState(row) {
+  if(['present','late'].includes(row.attendance)) return row.participation==='not_played' ? 'bench' : 'present';
+  if(['absent','excused'].includes(row.attendance)) return 'absent';
+  return 'pending';
+}
+function profileStat(label,value) { return `<div class="profile-stat"><strong>${esc(value ?? '—')}</strong><span>${esc(label)}</span></div>`; }
+function renderPlayerProfile() {
+  const dialog=$('#player-profile');
+  const content=$('#player-profile-content');
+  const {player,attendance: club,annotations,league}=profile;
+  const summary=club.summary;
+  const leaguePanel=league ? `<section class="profile-section league-panel"><div class="profile-section-heading"><div><small>DATOS DE LIGAS</small><h3>Estadísticas ${esc(league.source)}</h3></div>${league.sourceUrl?`<a href="${esc(league.sourceUrl)}" target="_blank" rel="noopener noreferrer">Ver fuente</a>`:''}</div><div class="profile-stats">${profileStat('Partidos',league.matchesPlayed)}${profileStat('Goles',league.goals)}${profileStat('Asistencias',league.assists)}${profileStat('Rating',league.rating||'—')}${profileStat('ELO',league.elo)}</div><p class="profile-source">Actualizado ${profileDate(league.updatedAt)}${league.stale?' · se muestra la última actualización disponible':''}.</p></section>` : `<section class="profile-section empty-profile"><h3>Estadísticas de ligas</h3><p>Aún no hay estadísticas públicas para este jugador en las ligas conectadas. Si fue importado desde el dashboard, se enlazará al aparecer en VPG.</p></section>`;
+  const rows=club.history.map(row=>`<li><span class="history-state ${profileAttendanceState(row)}">${{present:'Está',absent:'No está',bench:'No jugó',pending:'Sin marcar'}[profileAttendanceState(row)]}</span><div><strong>${profileDate(row.date)}</strong><small>${row.called?'Titular · ':''}${row.note?esc(row.note):'Sin observación'}</small></div></li>`).join('') || '<li class="empty">Todavía no hay días registrados para este jugador.</li>';
+  content.innerHTML=`<header class="profile-header"><div class="profile-person">${avatar(player)}<div><small>FICHA DEL JUGADOR</small><h2>${esc(player.name)}</h2><p>${esc(player.alias||player.position)} · #${player.number||'—'} <span class="badge ${player.status}">${statuses[player.status]}</span></p></div></div><button type="button" class="icon" data-close aria-label="Cerrar ficha"><i data-lucide="x"></i></button></header><div class="profile-actions"><button class="primary" data-action="edit-player" data-id="${player.id}">Editar datos</button><button data-action="focus-annotation">Añadir anotación</button></div><section class="profile-section"><div class="profile-section-heading"><div><small>EN EL CLUB</small><h3>Historial individual</h3></div></div><div class="profile-stats">${profileStat('Días marcados',summary.markedDays)}${profileStat('Está',summary.present)}${profileStat('No está',summary.absent)}${profileStat('No jugó',summary.bench)}${profileStat('Jugó',summary.played)}${profileStat('Titular',summary.called)}</div></section>${leaguePanel}<section class="profile-section"><div class="profile-section-heading"><div><small>INFORMACIÓN</small><h3>Datos personales</h3></div></div><dl class="profile-data"><div><dt>Posición</dt><dd>${esc(player.position||'—')}</dd></div><div><dt>Otras posiciones</dt><dd>${esc(player.secondary||'—')}</dd></div><div><dt>Comunidad</dt><dd>${esc(player.region||'—')}</dd></div><div><dt>Cumpleaños</dt><dd>${esc(player.birthday||'—')}</dd></div><div><dt>X / Twitter</dt><dd>${esc(player.twitter||'—')}</dd></div><div><dt>Contacto</dt><dd>${esc(player.contact||'—')}</dd></div></dl>${player.notes?`<p class="profile-captain-note"><strong>Nota del capitán</strong>${esc(player.notes)}</p>`:''}</section><section class="profile-section"><div class="profile-section-heading"><div><small>SEGUIMIENTO</small><h3>Anotaciones</h3></div></div><form class="profile-note-form" id="profile-note-form"><textarea id="profile-note" maxlength="1200" rows="3" placeholder="Ej.: mejora en la salida de balón, disponibilidad, objetivo de la semana..."></textarea><button class="primary" type="submit">Guardar anotación</button></form><div class="profile-annotations">${annotations.length?annotations.map(note=>`<article><p>${esc(note.body)}</p><footer><small>${profileDate(note.createdAt)}</small><button data-action="delete-annotation" data-id="${note.id}" aria-label="Borrar anotación">Eliminar</button></footer></article>`).join(''):'<p class="empty">Todavía no hay anotaciones para este jugador.</p>'}</div></section><section class="profile-section"><div class="profile-section-heading"><div><small>ÚLTIMOS REGISTROS</small><h3>Asistencia y participación</h3></div></div><ul class="profile-history">${rows}</ul></section>`;
+  $('#profile-note-form').onsubmit=event=>{event.preventDefault();run(()=>savePlayerAnnotation(player.id));};
+  if(!dialog.open) dialog.showModal();
+  icons();
+}
+async function openPlayerProfile(id) {
+  profile=await api('/api/squad/players/'+encodeURIComponent(id)+'/profile');
+  location.hash='jugador='+encodeURIComponent(id);
+  renderPlayerProfile();
+}
+async function savePlayerAnnotation(playerId) {
+  const body=$('#profile-note').value.trim();
+  if(!body) return;
+  await api('/api/squad/players/'+encodeURIComponent(playerId)+'/annotations','POST',{playerId,body});
+  await openPlayerProfile(playerId);
+  notify('Anotación guardada');
+}
+async function deletePlayerAnnotation(annotationId) {
+  const playerId=profile.player.id;
+  await api('/api/squad/players/'+encodeURIComponent(playerId)+'/annotations/'+encodeURIComponent(annotationId),'DELETE');
+  await openPlayerProfile(playerId);
+  notify('Anotación eliminada');
+}
 function renderCandidates() {
   $('#workspace').innerHTML=`<div class="bar"><h2>Seguimiento de pruebas</h2><button class="primary" data-action="add-candidate"><i data-lucide="user-plus"></i>Nuevo candidato</button></div><div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Posicion</th><th>Estado</th><th>Prueba</th><th>Valoracion</th><th>Acciones</th></tr></thead><tbody>${candidates.map(c=>`<tr><td><strong>${esc(c.name)}</strong><small>${esc(c.team)} · ${esc(c.twitter)}</small></td><td>${esc(c.position)}</td><td><span class="badge ${c.status}">${trialStatuses[c.status]}</span></td><td>${esc(c.trialDate)||'Sin fecha'}</td><td>${c.rating?c.rating+' / 5':'Sin valorar'}</td><td><div class="actions">${iconButton('edit-candidate','pencil','Editar candidato',c.id)}${!players.some(p=>p.sourceKey==='candidate:'+c.id)?iconButton('sign-candidate','user-check','Incorporar a plantilla',c.id):'<span class="badge available">En plantilla</span>'}</div></td></tr>`).join('')}</tbody></table>${!candidates.length?'<p class="empty">Sin candidatos registrados.</p>':''}</div>`;
 }
@@ -163,7 +204,8 @@ function openEditor(title,html,submit) {
 function editPlayer(p={}) {
   openEditor(p.id?'Ficha de '+p.name:'Nuevo jugador',field('name','ID / nombre en el juego',p.name)+field('alias','Nombre habitual',p.alias)+field('number','Dorsal',p.number??0,'number')+field('position','Posicion principal',p.position||'LIBRE','text',Object.fromEntries(positions.map(p=>[p,p])))+field('secondary','Otras posiciones',p.secondary)+field('status','Estado',p.status||'active','text',statuses)+field('birthday','Fecha de nacimiento',p.birthday,'date')+field('region','Comunidad',p.region)+field('twitter','X / Twitter',p.twitter)+field('contact','Contacto',p.contact)+field('avatarUrl','URL de la foto',p.avatarUrl)+field('notes','Notas del capitan',p.notes,'textarea'),async data=>{
     const saved=await api('/api/squad/players'+(p.id?'/'+p.id:''),p.id?'PUT':'POST',{...data,number:Number(data.number),sourceKey:p.sourceKey||'',version:p.version||0});
-    players=[...players.filter(x=>x.id!==saved.id),saved];notify('Ficha guardada');
+    players=[...players.filter(x=>x.id!==saved.id),saved];
+    notify(!p.id ? 'Jugador añadido. Su ficha individual ya está creada.' : 'Ficha guardada');
   });
   $('#fields').insertAdjacentHTML('beforeend','<label class="wide">Subir foto<input id="photo-upload" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label>');
   $('#photo-upload').onchange=async e=>{
@@ -219,10 +261,13 @@ function downloadCsv(rows,name) {
   const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 async function action(name,id) {
+  if(name==='view-profile')await openPlayerProfile(id);
+  if(name==='focus-annotation'){$('#profile-note')?.focus();return;}
+  if(name==='delete-annotation')await deletePlayerAnnotation(id);
   if(name==='remove-player')await removePlayer(id);
   if(name==='attendance-record')await editAttendance(id,selectedDate);
   if(name==='add-player')editPlayer();
-  if(name==='edit-player')editPlayer(players.find(p=>p.id===id));
+  if(name==='edit-player'){if($('#player-profile').open) $('#player-profile').close();editPlayer(players.find(p=>p.id===id));}
   if(name==='add-candidate')editCandidate();
   if(name==='edit-candidate')editCandidate(candidates.find(c=>c.id===id));
   if(name==='import')await importPlayers();
@@ -242,10 +287,11 @@ async function action(name,id) {
 }
 async function run(fn) {if(busy)return;busy=true;try{await fn();}catch(err){$('#notice').textContent=err.message;$('#notice').hidden=false;}finally{busy=false;}}
 document.addEventListener('click',e=>{
-  const close=e.target.closest('[data-close]');if(close){close.closest('dialog').close();return;}
+  const close=e.target.closest('[data-close]');if(close){const dialog=close.closest('dialog');dialog.close();if(dialog.id==='player-profile')history.replaceState(null,'',location.pathname);return;}
   const t=e.target.closest('[data-tab]');if(t){run(()=>navigate(t.dataset.tab));return;}
   const b=e.target.closest('[data-action]');if(b&&!b.disabled)run(()=>action(b.dataset.action,b.dataset.id));
 });
+$('#player-profile').addEventListener('close',()=>{if(location.hash.startsWith('#jugador=')) history.replaceState(null,'',location.pathname);});
 document.addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset.response){const pid=el.dataset.id;const r={availability:'pending',attendance:'pending',participation:'pending',...day.responses[pid]};r[el.dataset.response]=el.value;

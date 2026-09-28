@@ -74,10 +74,21 @@ test('simple calendar saves every state, restores it after reload and safely rem
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.request.post('/api/login',{form:{password:'test-password'}});
   const p=await (await page.request.post('/api/squad/players',{data:{name:'Calendario sencillo '+Date.now(),number:8,position:'MC'}})).json();
+  await page.route('**/api/squad/players/'+p.id+'/profile',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({
+    player:p,
+    attendance:{summary:{markedDays:5,present:4,absent:1,bench:1,played:3,called:2},history:[]},
+    annotations:[],
+    league:{source:'VPG',matchesPlayed:18,goals:9,assists:6,rating:7.4,elo:1492,updatedAt:'2032-06-01T20:00:00Z',sourceUrl:'https://example.test/vpg'},
+  })}));
   await page.goto('/gestion-plantilla');
   await expect(page.getByRole('heading',{name:'Asistencia de la plantilla'})).toBeVisible();
   await page.locator('#month').fill('2032-06');
   await page.locator('#month').dispatchEvent('change');
+  await page.locator('[data-cal=profile][data-id="'+p.id+'"]').click();
+  await expect(page.locator('#player-profile')).toBeVisible();
+  await expect(page.locator('#player-profile')).toContainText('Estadísticas VPG');
+  await expect(page.locator('#player-profile')).toContainText('9');
+  await page.getByRole('button',{name:'Cerrar ficha'}).click();
   const cell=page.locator('[data-cal=record][data-date="2032-06-01"][data-id="'+p.id+'"]');
   for(const [state,label] of [['present','Está'],['absent','No está'],['bench','Está, pero no jugó'],['pending','Sin marcar']]){
     await cell.click();

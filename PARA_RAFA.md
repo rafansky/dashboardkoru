@@ -10,6 +10,14 @@ Actualización — 28 de septiembre de 2026: gestión de plantilla más sencilla
 - Verificado con 3 pruebas de lógica del calendario, 4 pruebas API y 2 recorridos de navegador, incluyendo móvil, persistencia al recargar y retirada sin pérdida del historial. Las pruebas usan una instancia aislada.
 - Los cambios de la pizarra táctica que ya existían en el directorio de trabajo se han dejado aparte de este cambio.
 
+Actualización — 28 de septiembre de 2026: fichas individuales de jugadores.
+
+- Cada jugador tiene una ficha propia accesible con «Ver ficha» desde Plantilla o pulsando su nombre en Asistencia. Un jugador nuevo obtiene su ficha al guardarse.
+- La ficha reúne datos personales, notas del capitán, historial de asistencia/participación/titularidades y anotaciones independientes con fecha que se pueden añadir y borrar.
+- Las estadísticas públicas que ya consume el dashboard se enlazan por `sourceKey`, nombre o alias: VPG aporta partidos, goles, asistencias, rating, ELO e historial disponible. La ficha enseña la fecha de actualización y el enlace a la fuente.
+- Si no hay coincidencia o la liga no publica estadísticas individuales, la ficha lo explica y no muestra cifras inventadas. PLG no expone aún estadísticas individuales en la fuente conectada.
+- Verificado mediante 5 pruebas backend, 3 de lógica de calendario y 2 recorridos E2E aislados que cubren la apertura y visualización de la ficha.
+
 Fecha de cierre: 31 de agosto de 2026
 
 He revisado el proyecto completo en el miniPC, he terminado las fases funcionales que quedaban documentadas y he dejado la pizarra tactica cerrada hasta la fase 18. Este archivo va incluido en el mismo commit y push a `main` del remoto configurado, `rafansky/dashboardkoru`.
