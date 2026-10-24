@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111311"><meta name="referrer" content="no-referrer">
+  <title>Jugador de la semana · KORU</title>
+  <link rel="stylesheet" href="/static/potw.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/"><img src="/assets/koru-logo.png" alt="KORU"><span>KORU <small>CLUB HOUSE</small></span></a><nav aria-label="Navegación"><a href="/">Dashboard</a><a href="/gestion-plantilla">Plantilla</a><a class="active" href="/potw" aria-current="page">POTW</a></nav></header>
+  <main>
+    <section class="hero"><div><p class="eyebrow">EL EQUIPO ELIGE. EL RENDIMIENTO CUENTA.</p><h1>La semana tiene<br>su protagonista<span>.</span></h1><p class="intro">Cada posición cuenta. Cada partido suma.<br>El mejor de KORU, con los datos sobre la mesa.</p></div><div class="hero-stamp" aria-hidden="true"><span>KORU eCLUB</span><strong>PLAYER<br>OF THE<br><em>WEEK</em></strong><small>RENDIMIENTO + EQUIPO</small></div></section>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <section id="ballot" hidden></section>
+    <div id="dashboard">
+      <section class="toolbar"><div><label for="week">Semana de competición</label><select id="week"><option>Cargando…</option></select></div><div class="sync"><span id="updated">Conectando con VPN…</span><button id="refresh" class="secondary">↻ Sincronizar</button></div></section>
+      <div id="workspace" aria-live="polite"><p class="empty">Preparando las estadísticas de KORU…</p></div>
+      <details class="panel rules"><summary>Cómo se decide el premio <span>Reglas y fórmula v1</span></summary>
+        <div class="rules-grid"><article><h3>01 · Rendimiento comparable</h3><p>En cada semana, la nota EA (70 %) y las acciones del puesto (30 %) se comparan por percentiles con los jugadores de la misma posición, incluyendo rivales. Los empates reciben la misma nota. Con menos de 4 muestras, el componente queda en 50.</p><p>Portería: paradas y porterías a cero. Defensa: entradas y pase. Medio: pase, entradas y creación. Ataque: goles y asistencias. Amarilla: −2 puntos; roja: −8.</p></article><article><h3>02 · Participación real</h3><p>La puntuación semanal es la media ponderada por minutos. Para ser candidato hay que disputar al menos el 60 % de los encuentros y de los minutos posibles. Cada partido cuenta como máximo 90 minutos; una aparición necesita al menos 30. Los forfeits se excluyen.</p><p>Las tasas por 90 minutos usan un mínimo de 60 minutos de exposición para limitar el efecto de apariciones cortas.</p></article><article><h3>03 · La voz del vestuario</h3><p>Cada participante con una aparición válida recibe un enlace personal. Reparte 3, 2 y 1 puntos entre candidatos distintos, sin votarse a sí mismo. Puede cambiar su papeleta hasta el cierre; siempre cuenta una sola.</p><p>Con un mínimo de 3 votantes y la mitad del censo, el resultado final es 80 % rendimiento + 20 % apoyo del equipo. El apoyo es el porcentaje de puntos sobre el máximo posible: papeletas de otros jugadores × 3. Sin cuórum, decide el rendimiento.</p></article><article><h3>04 · Sin sorpresas</h3><p>Tras el último partido previsto y 12 horas de margen, se abre una votación de 48 horas si los informes están completos. Datos y candidatos quedan congelados al abrir. Los votos son ocultos hasta el cierre.</p><p>En empate: rendimiento y después minutos. Si persiste, premio compartido. Los aplazados conservan su semana original desde la primera sincronización. El MVP estadístico se muestra por separado.</p></article></div>
+      </details>
+      <details class="panel manager"><summary>Área del capitán <span>Gestionar votación y enlaces personales</span></summary><form id="manager-login"><label>Clave privada del capitán<input id="manager-key" type="password" autocomplete="off" required placeholder="Clave de administración POTW"></label><button class="secondary">Acceder</button></form><p class="muted">Cada jugador debe recibir únicamente su enlace. Al generar otro, el anterior deja de funcionar. La clave se consulta en el servidor con <code>python -m app.potw --manager-key</code>.</p><div id="manager-workspace"></div></details>
+    </div>
+    <footer>KORU eCLUB <span>Rise · Evolve · Compete</span><a id="source-link" href="https://virtualpronetwork.com/es/teams/koru-eclub" target="_blank" rel="noreferrer">Datos: Virtual Pro Network ↗</a></footer>
+  </main>
+  <script type="module" src="/static/potw.js"></script>
+</body>
+</html>

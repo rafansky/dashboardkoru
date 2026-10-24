@@ -96,6 +96,12 @@ El boton **Compartir presentacion** crea un enlace `/watch/{token}` sin acceso a
 
 Para una **trayectoria**, selecciona un jugador o el balon, pulsa el icono de ruta de la barra izquierda, marca los puntos del recorrido y confirma. `Enter` confirma y `Esc` descarta el borrador. Las trayectorias pertenecen a la escena abierta.
 
+## Jugador de la semana
+
+`/potw` importa automáticamente el calendario y los informes individuales de VPN, compara a los jugadores por posición y abre votaciones de 48 horas con enlaces personales. El premio combina 80 % rendimiento y 20 % voto del equipo cuando se alcanza el cuórum. Sin cuórum decide el rendimiento. Hay desglose por partido, histórico semanal y MVP estadístico.
+
+La clave privada del capitán se consulta en el servidor con `python -m app.potw --manager-key`; también puede configurarse mediante `KORU_POTW_MANAGER_KEY`. No es la contraseña compartida del dashboard. El censo y los datos quedan congelados al abrir cada votación. Reglas completas, operación y pruebas: [docs/player-of-the-week.md](docs/player-of-the-week.md).
+
 ## Historial de partidos
 
 `/match-history` es el espacio de consulta para managers. Agrupa cada informe con sus pizarras y sesiones vinculadas por partido, y permite filtrar por rival, competicion, estado y etiquetas. Desde cada elemento se puede volver directamente a la pizarra correspondiente.

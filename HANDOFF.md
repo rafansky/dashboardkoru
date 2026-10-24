@@ -1,5 +1,17 @@
 # Handoff for the next agent
 
+## 2026-10-24: Player of the Week
+
+- Added `/potw`, linked from dashboard: automatic VPN fixture/report import, role-relative scoring, eligibility by games/minutes, historical weeks, per-match breakdown and a separate statistical MVP.
+- Personal bearer links enforce one replaceable ranked ballot per player, no self-votes/duplicates and server-side deadlines. Only token hashes persist. Captain actions additionally require a separate local/generated key (`python -m app.potw --manager-key` in the service environment).
+- Automatic sync every 15 min; complete recent weeks open after a 12h reporting grace period for 48h. Opening freezes the scoring snapshot/electorate. Final = 80% performance + 20% support with at least 3 voters and half the electorate; otherwise performance. A candidate's own ballot is excluded from their support denominator. Exact merit ties share the award.
+- Implementation: `app/potw.py`, `app/potw_scoring.py`, `static/potw.{html,css,js}`; additive SQLite tables. Integration changes only router registration, startup/shutdown, public ballot/static paths and private response headers in `app/main.py`, plus a navigation link in `static/index.html`.
+- Full scoring formula, operational limits, captain instructions and reproducible tests: `docs/player-of-the-week.md`.
+- Live VPN import verified: 26 fixtures, 4 published reports, 15 KORU participants. Eligible statistical podium on J1–J4: M-Buskets 68.27, Andyelmessy 66.62, Javi-NB94 65.61. No test ballots written to the club DB. Test elections use isolated databases under ignored `artifacts/`.
+- Verified: 40 Python tests, 21 JS tests, 3 POTW Playwright flows and all 10 existing Playwright regression flows. Desktop/mobile screenshots inspected; 375/390 px have no page overflow. Source/import smoke test performed against the real site.
+- Release archive `artifacts/potw-release.tar.gz` contains code/docs and a small checked integration patch. `scripts/install_potw.sh` checks the patch before writing, backs up code/SQLite, preserves unrelated server edits, and restarts the existing service. It refuses a second install rather than overwrite an unknown version.
+- NOT deployed to miniPC: read-only SSH attempt as `rafansky@192.168.1.133` was rejected (`Permission denied (publickey,password)`). Do not claim the public dashboard has this feature yet. No credentials were changed or exposed.
+
 ## 2026-09-08: Squad management
 
 - Calendar revision: `static/squad-calendar.js` implements Monday-based weeks,

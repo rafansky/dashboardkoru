@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import suppress
 import hashlib
 import hmac
 import json
@@ -16,6 +18,7 @@ from pydantic import ValidationError
 
 from .services.dashboard import dashboard_service
 from .squad import router as squad_router, init_squad
+from .potw import router as potw_router, init_potw, worker as potw_worker
 from .settings import (
     AUTH_COOKIE_NAME,
     AUTH_PASSWORD,
@@ -80,6 +83,8 @@ from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 app.include_router(squad_router)
+app.include_router(potw_router)
+_potw_task = None
 
 _SECRET = AUTH_SECRET or os.getenv("KORU_AUTH_SECRET") or secrets.token_urlsafe(32)
 _PASSWORD = AUTH_PASSWORD or os.getenv("KORU_ACCESS_PASSWORD")
@@ -181,6 +186,8 @@ def _record_login_failure(client_key: str) -> None:
 
 
 def _public_path(path: str) -> bool:
+    if path.startswith("/potw/vote/") or path.startswith("/api/potw/ballot/") or path in {"/static/potw.js", "/static/potw.css"}:
+        return True
     if path in {"/login", "/api/login", "/api/health", "/api/tactical-avatar", "/favicon.ico"}:
         return True
     if path.startswith("/assets/"):
@@ -209,15 +216,30 @@ async def auth_middleware(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if request.url.path.startswith(("/api/potw/", "/potw/vote/")):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
     return response
 
 
 @app.on_event("startup")
-def startup() -> None:
+async def startup() -> None:
+    global _potw_task
     if not _PASSWORD:
         raise RuntimeError("KORU_ACCESS_PASSWORD no esta configurado.")
     init_storage()
     init_squad()
+    init_potw()
+    if os.getenv("KORU_POTW_AUTO_SYNC", "true").lower() not in {"false", "0"}:
+        _potw_task = asyncio.create_task(potw_worker())
+
+
+@app.on_event("shutdown")
+async def shutdown_potw():
+    if _potw_task:
+        _potw_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await _potw_task
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
