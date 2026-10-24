@@ -49,7 +49,7 @@ def metrics(player):
         contribution = .40 * passing + .30 * defending + .30 * attack
     else:
         contribution = .70 * attack + .20 * passing + .10 * defending
-    penalty = 2 * number(events.get("5")) + 8 * number(events.get("6"))
+    penalty = 8 * number(events.get("6"))
     return dict(valid=valid, role=role, minutes=minutes, rating=rating, contribution=contribution,
                 penalty=penalty, goals=goals, assists=assists, saves=number(ea.get("saves")),
                 passesMade=passed, passAttempts=attempted, tacklesMade=tackled, tackleAttempts=attempts)
@@ -112,7 +112,7 @@ def rank_week(fixtures, reports, team_id):
         for key in ("goals", "assists", "saves"):
             item[key] += data[key]
     count = sum(not m["forfeit"] for m in matches)
-    minimum_games, minimum_minutes = max(1, ceil(count * .60)), count * 90 * .60
+    minimum_games, minimum_minutes = max(1, ceil(count * .50)), count * 90 * .50
     for item in players.values():
         item["eligible"] = item["appearances"] >= minimum_games and item["minutes"] >= minimum_minutes
         item["performance"] = round(sum(g["score"] * g["minutes"] for g in item["games"]) / max(1, item["minutes"]), 4)

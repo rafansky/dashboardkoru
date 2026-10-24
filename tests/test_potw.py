@@ -58,9 +58,9 @@ class ScoringTests(unittest.TestCase):
         five=next(p for p in ranked["players"] if p["id"]=="5")
         self.assertEqual(one["appearances"],4)
         self.assertEqual(one["name"],"Nombre nuevo")
-        self.assertFalse(five["eligible"])
-        self.assertEqual(ranked["minimumGames"],3)
-        self.assertEqual(ranked["minimumMinutes"],216)
+        self.assertTrue(five["eligible"])
+        self.assertEqual(ranked["minimumGames"],2)
+        self.assertEqual(ranked["minimumMinutes"],180)
         for report in reports.values():
             report["home"]["players"][1]["ea"]["minutes"]=40
         two=next(p for p in rank_week(fixtures,reports,potw.TEAM)["players"] if p["id"]=="2")
@@ -96,8 +96,16 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(gk["games"][0]["peers"],8)
         reports[100]["home"]["players"][0]["stats"]={"5":1,"6":1}
         p=rank_week(fixtures,reports,potw.TEAM)["players"][0]
-        self.assertEqual(p["games"][0]["penalty"],10)
+        self.assertEqual(p["games"][0]["penalty"],8)
         self.assertEqual(metrics(player(9,minutes=5))["valid"],False)
+
+    def test_yellow_cards_do_not_change_performance(self):
+        fixtures, reports = sample()
+        before = rank_week(fixtures, reports, potw.TEAM)
+        for report in reports.values():
+            report["home"]["players"][0]["stats"] = {"5": 2}
+        after = rank_week(fixtures, reports, potw.TEAM)
+        self.assertEqual(before["players"], after["players"])
 
     def test_quorum_hidden_votes_and_exact_ties(self):
         fixtures,reports=sample()
