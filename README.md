@@ -98,6 +98,8 @@ Para una **trayectoria**, selecciona un jugador o el balon, pulsa el icono de ru
 
 ## Jugador de la semana
 
+Los bloques **Líderes del equipo** y **Rankings y ELO** también incluyen ahora los datos individuales de PLG/VPN. Se calculan desde los informes de la temporada activa, con goles, asistencias, partidos y media EA, sin sumar estadísticas históricas de otras temporadas. El selector **Datos de jugadores** permite consultar PLG, VPG o ambas fuentes. La cobertura muestra cuántos informes publicados se han podido importar. Si VPG devuelve una lista vacía, se indica expresamente; no se ocultan por ello los datos de PLG.
+
 `/potw` importa automáticamente el calendario y los informes individuales de VPN, compara a los jugadores por posición y abre votaciones de 48 horas con enlaces personales. El premio combina 80 % rendimiento y 20 % voto del equipo cuando se alcanza el cuórum. Sin cuórum decide el rendimiento. Hay desglose por partido, histórico semanal y MVP estadístico.
 
 La clave privada del capitán se consulta en el servidor con `python -m app.potw --manager-key`; también puede configurarse mediante `KORU_POTW_MANAGER_KEY`. No es la contraseña compartida del dashboard. El censo y los datos quedan congelados al abrir cada votación. Reglas completas, operación y pruebas: [docs/player-of-the-week.md](docs/player-of-the-week.md).

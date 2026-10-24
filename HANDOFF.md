@@ -2,6 +2,8 @@
 
 ## 2026-10-24: Player of the Week
 
+- Dashboard follow-up: `app/services/plg_players.py` derives current-season PLG goals, assists, appearances and average EA rating from the existing imported reports. The dashboard previously read only empty VPG leaderboards. The new player-source selector filters both leaders and player ELO; source/coverage are explicit. Source IDs separate homonymous VPG/PLG players in rankings and history. PLG standings/results now use the discovered active league/season (2215/6427 at verification), replacing stale Regional B configuration and mixed-season results. New player cards use four grid columns so values remain beside the name. Verified 15 players, 4/4 reports, 6 goals; 47 Python tests and 2 desktop/mobile dashboard Playwright flows pass. No fake votes or player stats are used for the live smoke test.
+
 - Added `/potw`, linked from dashboard: automatic VPN fixture/report import, role-relative scoring, eligibility by games/minutes, historical weeks, per-match breakdown and a separate statistical MVP.
 - Personal bearer links enforce one replaceable ranked ballot per player, no self-votes/duplicates and server-side deadlines. Only token hashes persist. Captain actions additionally require a separate local/generated key (`python -m app.potw --manager-key` in the service environment).
 - Automatic sync every 15 min; complete recent weeks open after a 12h reporting grace period for 48h. Opening freezes the scoring snapshot/electorate. Final = 80% performance + 20% support with at least 3 voters and half the electorate; otherwise performance. A candidate's own ballot is excluded from their support denominator. Exact merit ties share the award.

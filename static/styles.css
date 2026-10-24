@@ -736,6 +736,34 @@ tr.koru-row {
   padding-top: 12px;
 }
 
+.player-source-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.player-source-control select {
+  max-width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel, #141720);
+  color: var(--text);
+  font: inherit;
+}
+
+.player-stats-scope {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.6;
+}
+
 .leaderboard-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -744,7 +772,7 @@ tr.koru-row {
 
 .leader-item {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 66px;

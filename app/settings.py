@@ -31,8 +31,8 @@ PLG_API = "https://www.virtualpronetwork.com/api"
 
 SOURCES = {
     "x": "https://x.com/Koru_eClub",
-    "plg_team": "https://www.virtualpronetwork.com/web/app/team/29377/koru-eclub",
-    "plg_league": "https://www.virtualpronetwork.com/web/app/league/2217/regional-b-plg",
+    "plg_team": "https://virtualpronetwork.com/es/teams/koru-eclub",
+    "plg_league": "https://virtualpronetwork.com/es/league/2215/3a-division-b-plg/season/6427/standings",
     "vpg_team": "https://virtualprogaming.com/team/koru-eclub",
     "vpg_zero": "https://virtualprogaming.com/league/zero-gold",
     "vpg_segunda": "https://virtualprogaming.com/league/segunda-division-a-spain",

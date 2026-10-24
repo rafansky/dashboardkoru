@@ -17,6 +17,8 @@ from app.settings import (
     VPG_ASSET_URL,
 )
 from app.storage import get_elo_history, get_previous_elo_snapshot, upsert_elo_snapshots
+from app import potw
+from app.services.plg_players import combine_leaders, player_statistics
 
 logger = logging.getLogger(__name__)
 MADRID = ZoneInfo("Europe/Madrid")
@@ -41,9 +43,10 @@ VPG_LEAGUES = [
 ]
 
 PLG_LEAGUE = {
-    "key": "plg-regional-b",
-    "name": "REGIONAL B - PLG",
-    "id": 2217,
+    "key": "plg",
+    "name": "3.ª DIVISIÓN B - PLG",
+    "id": 2215,
+    "slug": "3a-division-b-plg",
     "platform": "PLG",
     "url": SOURCES["plg_league"],
     "accent": "#facc15",
@@ -142,10 +145,15 @@ class DashboardService:
 
     async def _fetch_plg(self, client: httpx.AsyncClient) -> dict[str, Any]:
         team_id = KORU["plg_id"]
-        league_id = PLG_LEAGUE["id"]
+        synced = potw.meta("synced_at")
+        if not synced or (datetime.now(timezone.utc) - datetime.fromisoformat(synced)).total_seconds() >= DASHBOARD_CACHE_SECONDS:
+            await potw.sync_vpn()
+        path = potw.meta("season_path", potw.DEFAULT_SEASON)
+        league_id = int(path.split("/")[3])
+        selected_season = int(path.split("/")[6])
         team_task = self._fetch_json(client, f"{PLG_API}/teams/{team_id}")
         league = await self._fetch_json(client, f"{PLG_API}/leagues/{league_id}")
-        active_season = self._active_plg_season_id(league)
+        active_season = selected_season
 
         table_task = self._fetch_json(
             client,
@@ -158,6 +166,11 @@ class DashboardService:
             team_task, table_task, fixtures_task, results_task
         )
 
+        cached_fixtures, reports = potw.source_data()
+        stats = player_statistics([f for _, f in cached_fixtures], reports, team_id, active_season)
+        config = {**PLG_LEAGUE, "id": league_id, "name": (league or {}).get("name") or PLG_LEAGUE["name"],
+                  "url": potw.BASE + path, "slug": path.split("/")[4]}
+
         return {
             "team": team,
             "league": league,
@@ -165,6 +178,9 @@ class DashboardService:
             "table": table,
             "fixtures": fixtures,
             "results": results,
+            "playerStats": stats,
+            "config": config,
+            "warnings": json.loads(potw.meta("warnings", "[]")),
         }
 
     def _build_dashboard(self, vpg: dict[str, Any], plg: dict[str, Any]) -> dict[str, Any]:
@@ -194,19 +210,23 @@ class DashboardService:
                 )
             )
 
+        plg_config = plg.get("config") or PLG_LEAGUE
+        active_season = plg.get("active_season")
         plg_table = _normalize_plg_table(plg.get("table") or [])
         plg_upcoming = [
-            _normalize_plg_match(match, status="scheduled")
+            _normalize_plg_match(match, status="scheduled", competition=plg_config["name"], competition_slug=plg_config["slug"])
             for match in _page_rows(plg.get("fixtures"))
+            if not active_season or match.get("season") == active_season
         ]
         plg_recent = [
-            _normalize_plg_match(match, status="complete")
+            _normalize_plg_match(match, status="complete", competition=plg_config["name"], competition_slug=plg_config["slug"])
             for match in _page_rows(plg.get("results"))
-            if _parse_plg_datetime(match.get("date")) <= datetime.now(timezone.utc)
+            if (not active_season or match.get("season") == active_season)
+            and _parse_plg_datetime(match.get("date")) <= datetime.now(timezone.utc)
         ]
         competitions.append(
             _competition_payload(
-                config=PLG_LEAGUE,
+                config=plg_config,
                 standings=plg_table,
                 upcoming=sorted(plg_upcoming, key=lambda item: item["datetime"])[:8],
                 recent=sorted(plg_recent, key=lambda item: item["datetime"], reverse=True)[:8],
@@ -226,7 +246,10 @@ class DashboardService:
             key=lambda item: item["datetime"],
         )[:12]
 
-        leaders = _leaderboards(vpg)
+        vpg_leaders = _leaderboards(vpg)
+        plg_stats = plg.get("playerStats") or {}
+        plg_leaders = plg_stats.get("leaderboards") or {}
+        leaders = combine_leaders(vpg_leaders, plg_leaders)
         analytics = _analytics(competitions, recent_all, leaders)
         _persist_analytics_snapshot(analytics)
         dashboard = {
@@ -238,9 +261,15 @@ class DashboardService:
             "recent": recent_all,
             "upcoming": upcoming_all,
             "leaderboards": leaders,
+            "leaderboardsBySource": {"vpg": vpg_leaders, "plg": plg_leaders},
+            "playerStatsCoverage": {k: plg_stats.get(k, 0) for k in ("reportedMatches", "expectedMatches", "seasonId")},
+            "playerRankingsBySource": {
+                "vpg": _analytics(competitions, recent_all, vpg_leaders)["playerRankings"],
+                "plg": _analytics(competitions, recent_all, plg_leaders)["playerRankings"],
+            },
             "analytics": analytics,
-            "sources": _sources(),
-            "warnings": [],
+            "sources": _sources(plg_config),
+            "warnings": plg.get("warnings") or [],
             "stale": False,
         }
         return dashboard
@@ -367,7 +396,8 @@ def _normalize_vpg_match(match: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _normalize_plg_match(match: dict[str, Any], status: str) -> dict[str, Any]:
+def _normalize_plg_match(match: dict[str, Any], status: str, competition: str = PLG_LEAGUE["name"],
+                         competition_slug: str = PLG_LEAGUE["slug"]) -> dict[str, Any]:
     home = match.get("homeTeam") or {}
     away = match.get("awayTeam") or {}
     is_home = match.get("team1") == KORU["plg_id"]
@@ -379,8 +409,8 @@ def _normalize_plg_match(match: dict[str, Any], status: str) -> dict[str, Any]:
         "id": f"plg-{match.get('id')}",
         "sourceId": match.get("id"),
         "platform": "PLG",
-        "competition": "REGIONAL B - PLG",
-        "competitionSlug": "regional-b-plg",
+        "competition": competition,
+        "competitionSlug": competition_slug,
         "matchDay": match.get("round"),
         "datetime": _parse_plg_datetime(match.get("date")).isoformat(),
         "home": home.get("name"),
@@ -396,7 +426,7 @@ def _normalize_plg_match(match: dict[str, Any], status: str) -> dict[str, Any]:
         "scoreFor": score_for,
         "scoreAgainst": score_against,
         "result": _result(score_for, score_against, status == "complete"),
-        "url": f"https://www.virtualpronetwork.com/web/app/match/{match.get('id')}",
+        "url": f"https://virtualpronetwork.com/es/matches/{match.get('id')}",
     }
 
 
@@ -509,6 +539,7 @@ def _normalize_leaderboard(rows: list[dict[str, Any]], metric: str) -> list[dict
             {
                 "rank": idx,
                 "username": row.get("username"),
+                "platform": "VPG",
                 "avatarUrl": _asset_url(row.get("user_avatar"), 80, 80),
                 "nationality": row.get("user_nationality"),
                 "metric": metric,
@@ -519,11 +550,12 @@ def _normalize_leaderboard(rows: list[dict[str, Any]], metric: str) -> list[dict
     return players
 
 
-def _sources() -> list[dict[str, str]]:
+def _sources(plg_config: dict | None = None) -> list[dict[str, str]]:
+    plg_config = plg_config or PLG_LEAGUE
     return [
         {"label": "X KORU eClub", "url": SOURCES["x"]},
         {"label": "Perfil PLG", "url": SOURCES["plg_team"]},
-        {"label": "Regional B - PLG", "url": SOURCES["plg_league"]},
+        {"label": plg_config["name"], "url": plg_config["url"]},
         {"label": "Perfil VPG", "url": SOURCES["vpg_team"]},
         {"label": "VPG Zero Gold", "url": SOURCES["vpg_zero"]},
         {"label": "VPG 2a A", "url": SOURCES["vpg_segunda"]},
@@ -561,13 +593,15 @@ def _analytics(
     player_map: dict[str, dict[str, Any]] = {}
     for bucket, field in (("scorers", "goals"), ("assists", "assists"), ("ratings", "rating")):
         for player in leaderboards.get(bucket, []):
-            key = str(player.get("username") or "").strip().lower()
+            key = player.get("key") or str(player.get("username") or "").strip().lower()
             if not key:
                 continue
             item = player_map.setdefault(
                 key,
                 {
                     "username": player.get("username"),
+                    "key": key,
+                    "platform": player.get("platform", "VPG"),
                     "avatarUrl": player.get("avatarUrl"),
                     "matchesPlayed": int(player.get("matchesPlayed") or 0),
                     "goals": 0,
@@ -595,6 +629,8 @@ def _analytics(
         players.append(
             {
                 "username": item["username"],
+                "key": item["key"],
+                "platform": item["platform"],
                 "avatarUrl": item["avatarUrl"],
                 "matchesPlayed": item["matchesPlayed"],
                 "goals": item["goals"],
@@ -649,10 +685,10 @@ def _persist_analytics_snapshot(analytics: dict[str, Any]) -> None:
 
     player_items: dict[str, dict[str, Any]] = {}
     for player in analytics.get("playerElo", []):
-        player_items[str(player["username"]).lower()] = player
+        player_items[str(player.get("key") or player["username"]).lower()] = player
     for ranking in analytics.get("playerRankings", {}).values():
         for player in ranking:
-            player_items[str(player["username"]).lower()] = player
+            player_items[str(player.get("key") or player["username"]).lower()] = player
 
     for key, player in player_items.items():
         snapshot_key = f"player:{key}"
@@ -682,10 +718,10 @@ def _attach_elo_history(analytics: dict[str, Any]) -> None:
 
     player_items: dict[str, dict[str, Any]] = {}
     for player in analytics.get("playerElo", []):
-        player_items[str(player["username"]).lower()] = player
+        player_items[str(player.get("key") or player["username"]).lower()] = player
     for ranking in analytics.get("playerRankings", {}).values():
         for player in ranking:
-            player_items[str(player["username"]).lower()] = player
+            player_items[str(player.get("key") or player["username"]).lower()] = player
 
     for key, player in player_items.items():
         player["history"] = history.get(f"player:{key}", [])

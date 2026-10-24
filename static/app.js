@@ -3,6 +3,7 @@ const state = {
   selectedCompetition: null,
   selectedLeader: "scorers",
   selectedRanking: "overall",
+  selectedPlayerSource: "all",
   notes: [],
   files: [],
 };
@@ -60,6 +61,12 @@ async function loadAll(force = false) {
 }
 
 function bindNavigation() {
+  $("#player-source").addEventListener("change", (event) => {
+    state.selectedPlayerSource = event.target.value;
+    renderLeaders();
+    renderRankings(state.dashboard.analytics);
+    refreshIcons();
+  });
   $$(".nav-link").forEach((link) => {
     link.addEventListener("click", () => {
       $$(".nav-link").forEach((item) => item.classList.remove("active"));
@@ -363,7 +370,13 @@ function renderLeaders() {
     });
   });
 
-  const players = state.dashboard?.leaderboards?.[state.selectedLeader] || [];
+  const leaders = state.selectedPlayerSource === "all" ? state.dashboard?.leaderboards
+    : state.dashboard?.leaderboardsBySource?.[state.selectedPlayerSource];
+  const players = leaders?.[state.selectedLeader] || [];
+  const coverage = state.dashboard.playerStatsCoverage || {};
+  $("#player-stats-scope").textContent = state.selectedPlayerSource === "vpg"
+    ? "Estadísticas publicadas por VPG para KORU. El filtro también se aplica al ranking de jugadores."
+    : `PLG · temporada actual · ${coverage.reportedMatches || 0}/${coverage.expectedMatches || 0} informes disponibles. El filtro también se aplica al ranking de jugadores.`;
   const metric = leaderLabels[state.selectedLeader].metric;
   $("#leaderboard-list").innerHTML = players.length
     ? players
@@ -373,21 +386,23 @@ function renderLeaders() {
               <span class="leader-rank">${player.rank}</span>
               ${image(player.avatarUrl, player.username, "leader-avatar")}
               <div class="leader-name">
-                <strong>${player.username}</strong>
-                <span>${player.matchesPlayed} partidos · ${metric}</span>
+                <strong>${escapeHtml(player.username)}</strong>
+                <span>${escapeHtml(player.platform || "VPG")} · ${player.matchesPlayed} partidos · ${metric}</span>
               </div>
               <strong class="leader-value">${formatMetric(player.value)}</strong>
             </article>
           `
         )
         .join("")
-    : `<div class="empty-state">Sin datos de jugadores.</div>`;
+    : `<div class="empty-state">${state.selectedPlayerSource === "vpg" ? "La fuente de VPG no devuelve estadísticas de jugadores para KORU." : "No hay estadísticas disponibles en los informes de la temporada."}</div>`;
 }
 
 function renderRankings(analytics) {
+  const sourceRankings = state.selectedPlayerSource === "all" ? analytics?.playerRankings
+    : state.dashboard?.playerRankingsBySource?.[state.selectedPlayerSource];
   const summary = analytics?.summary || {};
   const streak = summary.currentStreak || { type: "-", count: 0 };
-  const topPlayer = summary.topPlayer;
+  const topPlayer = sourceRankings?.overall?.[0] || null;
 
   const summaryItems = [
     ["ELO Club", summary.overallTeamElo || 0],
@@ -449,7 +464,7 @@ function renderRankings(analytics) {
     });
   });
 
-  const playerElo = analytics?.playerRankings?.[state.selectedRanking] || analytics?.playerElo || [];
+  const playerElo = sourceRankings?.[state.selectedRanking] || [];
   $("#player-elo-list").innerHTML = playerElo.length
     ? playerElo
         .slice(0, 12)
@@ -459,8 +474,8 @@ function renderRankings(analytics) {
             <span class="leader-rank">${index + 1}</span>
             ${image(player.avatarUrl, player.username, "leader-avatar")}
             <div class="leader-name">
-              <strong>${player.username}</strong>
-              <span>${player.matchesPlayed} PJ · G ${player.goals} · A ${player.assists} · R ${formatMetric(player.rating)}</span>
+              <strong>${escapeHtml(player.username)}</strong>
+              <span>${escapeHtml(player.platform || "VPG")} · ${player.matchesPlayed} PJ · G ${player.goals} · A ${player.assists} · R ${formatMetric(player.rating)}</span>
               ${sparkline(player.history)}
             </div>
             <div class="elo-value">
