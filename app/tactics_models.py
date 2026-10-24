@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -391,6 +391,8 @@ class TacticalLineupTemplatePlayer(TacticalModel):
 
 
 class TacticalLineupTemplateCreate(TacticalModel):
+    opponent: str = Field(default="", max_length=80)
+    match_date: date | None = Field(default=None, alias="matchDate")
     name: str = Field(min_length=1, max_length=100)
     formation: str = Field(default="", max_length=32)
     players: list[TacticalLineupTemplatePlayer] = Field(min_length=1, max_length=25)

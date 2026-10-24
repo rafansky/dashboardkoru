@@ -304,6 +304,11 @@ async def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/lineup")
+async def lineup_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "lineup.html")
+
+
 @app.get("/tactics")
 async def tactics_page() -> FileResponse:
     return FileResponse(STATIC_DIR / "tactics.html")

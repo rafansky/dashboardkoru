@@ -122,6 +122,10 @@ def init_storage() -> None:
             )
             """
         )
+        lineup_columns = {row[1] for row in conn.execute("PRAGMA table_info(tactical_lineup_templates)")}
+        for column in ("opponent", "match_date"):
+            if column not in lineup_columns:
+                conn.execute(f"ALTER TABLE tactical_lineup_templates ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_tactical_lineup_templates_updated ON tactical_lineup_templates(updated_at DESC)")
         conn.execute(
             """
@@ -1105,6 +1109,7 @@ def delete_tactical_player(player_id: str) -> bool:
 def _lineup_template_from_row(row: sqlite3.Row) -> dict[str, Any]:
     template = _row_to_dict(row)
     template["players"] = json.loads(template.pop("players_json"))
+    template["matchDate"] = template.pop("match_date", "") or None
     return template
 
 
@@ -1121,10 +1126,10 @@ def create_tactical_lineup_template(payload: dict[str, Any]) -> dict[str, Any]:
     with closing(sqlite3.connect(DB_PATH)) as conn:
         conn.execute(
             """
-            INSERT INTO tactical_lineup_templates (id, name, formation, players_json, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO tactical_lineup_templates (id, name, formation, players_json, created_at, updated_at, opponent, match_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (template_id, payload["name"], payload.get("formation", ""), json.dumps(payload["players"], ensure_ascii=False), now, now),
+            (template_id, payload["name"], payload.get("formation", ""), json.dumps(payload["players"], ensure_ascii=False), now, now, payload.get("opponent", ""), payload.get("matchDate") or ""),
         )
         conn.commit()
         conn.row_factory = sqlite3.Row
