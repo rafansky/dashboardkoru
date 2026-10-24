@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -26,8 +27,8 @@ MADRID = ZoneInfo("Europe/Madrid")
 VPG_LEAGUES = [
     {
         "key": "vpg-zero",
-        "name": "ZERO GOLD",
-        "slug": "zero-gold",
+        "name": "ZERO MASTERS",
+        "slug": "vpg-zero-spain",
         "platform": "VPG Zero",
         "url": SOURCES["vpg_zero"],
         "accent": "#12d6df",
@@ -51,6 +52,24 @@ PLG_LEAGUE = {
     "url": SOURCES["plg_league"],
     "accent": "#facc15",
 }
+
+
+def _vpg_configs(rows: list[dict]) -> list[dict]:
+    """Use club memberships rather than hardcoded league assignments."""
+    configs = []
+    seen = set()
+    for row in rows:
+        slug = row.get("slug", "")
+        if not isinstance(slug, str) or not re.fullmatch(r"[a-z0-9-]+", slug) or slug in seen:
+            continue
+        seen.add(slug)
+        zero = "zero" in slug or "ZERO" in str(row.get("name", "")).upper()
+        known = next((c for c in VPG_LEAGUES if c["slug"] == slug), {})
+        configs.append(dict(key=known.get("key", f"vpg-{slug}"), name=row.get("name") or slug,
+                            slug=slug, platform="VPG Zero" if zero else "VPG",
+                            url=f"https://virtualprogaming.com/league/{slug}",
+                            accent="#12d6df" if zero else "#f97316", registered=True))
+    return sorted(configs, key=lambda c: (c["platform"] != "VPG Zero", c["name"]))
 
 
 class DashboardService:
@@ -101,10 +120,11 @@ class DashboardService:
 
     async def _fetch_vpg(self, client: httpx.AsyncClient) -> dict[str, Any]:
         team_slug = KORU["slug"]
+        memberships = await self._fetch_json(client, f"{VPG_API}/teams/{team_slug}/leagues/")
+        configs = _vpg_configs(_page_rows(memberships)) if memberships is not None else VPG_LEAGUES
         tasks: dict[str, Any] = {
             "team": self._fetch_json(client, f"{VPG_API}/teams/{team_slug}/"),
             "record": self._fetch_json(client, f"{VPG_API}/teams/{team_slug}/record/"),
-            "leagues": self._fetch_json(client, f"{VPG_API}/teams/{team_slug}/leagues/"),
             "scheduled": self._fetch_json(
                 client,
                 f"{VPG_API}/teams/{team_slug}/matches/",
@@ -131,7 +151,7 @@ class DashboardService:
                 {"leaderboard": "highest_rated", "weekly": "false", "limit": 10, "offset": 0},
             ),
         }
-        for league in VPG_LEAGUES:
+        for league in configs:
             tasks[f"table:{league['slug']}"] = self._fetch_json(
                 client, f"{VPG_API}/leagues/{league['slug']}/table/"
             )
@@ -141,7 +161,8 @@ class DashboardService:
 
         keys = list(tasks.keys())
         values = await asyncio.gather(*tasks.values())
-        return dict(zip(keys, values))
+        return dict(zip(keys, values)) | {"configs": configs, "leagues": memberships,
+                "warnings": ["No se pudieron verificar las ligas activas de VPG; se usa la configuración de referencia."] if memberships is None else []}
 
     async def _fetch_plg(self, client: httpx.AsyncClient) -> dict[str, Any]:
         team_id = KORU["plg_id"]
@@ -188,17 +209,23 @@ class DashboardService:
 
         vpg_matches_scheduled = _page_rows(vpg.get("scheduled"))
         vpg_matches_complete = _page_rows(vpg.get("complete"))
-        for league in VPG_LEAGUES:
-            table = _normalize_vpg_table(vpg.get(f"table:{league['slug']}") or [])
+        vpg_configs = vpg.get("configs", VPG_LEAGUES)
+        for league in vpg_configs:
+            table = _normalize_vpg_table(_page_rows(vpg.get(f"table:{league['slug']}")))
+            seasons = [_int_or_none(m.get("season")) for m in vpg_matches_scheduled + vpg_matches_complete
+                       if m.get("league_slug") == league["slug"]]
+            active_season = max((s for s in seasons if s is not None), default=None)
             upcoming = [
                 _normalize_vpg_match(match)
                 for match in vpg_matches_scheduled
                 if match.get("league_slug") == league["slug"]
+                and (active_season is None or _int_or_none(match.get("season")) == active_season)
             ]
             recent = [
                 _normalize_vpg_match(match)
                 for match in vpg_matches_complete
                 if match.get("league_slug") == league["slug"]
+                and (active_season is None or _int_or_none(match.get("season")) == active_season)
             ]
             competitions.append(
                 _competition_payload(
@@ -234,7 +261,7 @@ class DashboardService:
             )
         )
 
-        competitions = [item for item in competitions if item["standings"] or item["upcoming"] or item["recent"]]
+        competitions = [item for item in competitions if item["registered"] or item["standings"] or item["upcoming"] or item["recent"]]
         team = _team_payload(vpg, plg)
         recent_all = sorted(
             [match for comp in competitions for match in comp["recent"]],
@@ -268,8 +295,8 @@ class DashboardService:
                 "plg": _analytics(competitions, recent_all, plg_leaders)["playerRankings"],
             },
             "analytics": analytics,
-            "sources": _sources(plg_config),
-            "warnings": plg.get("warnings") or [],
+            "sources": _sources(plg_config, vpg_configs),
+            "warnings": (vpg.get("warnings") or []) + (plg.get("warnings") or []),
             "stale": False,
         }
         return dashboard
@@ -311,8 +338,9 @@ def _parse_vpg_datetime(value: str | None) -> datetime:
 def _parse_plg_datetime(value: str | None) -> datetime:
     if not value:
         return datetime.now(timezone.utc)
-    cleaned = value.replace("Z", "").replace(".000", "")
-    local_dt = datetime.fromisoformat(cleaned).replace(tzinfo=MADRID)
+    local_dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if local_dt.tzinfo is None:
+        local_dt = local_dt.replace(tzinfo=MADRID)
     return local_dt.astimezone(timezone.utc)
 
 
@@ -376,7 +404,7 @@ def _normalize_vpg_match(match: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": f"vpg-{match.get('id')}",
         "sourceId": match.get("id"),
-        "platform": "VPG Zero" if match.get("league_slug") == "zero-gold" else "VPG",
+        "platform": "VPG Zero" if "zero" in str(match.get("league_slug", "")).lower() else "VPG",
         "competition": match.get("league_name"),
         "competitionSlug": match.get("league_slug"),
         "matchDay": match.get("match_day"),
@@ -465,6 +493,7 @@ def _competition_payload(
         "platform": config["platform"],
         "url": config["url"],
         "accent": config["accent"],
+        "registered": bool(config.get("registered")),
         "logoUrl": _asset_url(league_meta.get("logo_id"), 80, 80) or league_meta.get("logoUrl"),
         "standings": standings,
         "koru": koru_row,
@@ -550,16 +579,15 @@ def _normalize_leaderboard(rows: list[dict[str, Any]], metric: str) -> list[dict
     return players
 
 
-def _sources(plg_config: dict | None = None) -> list[dict[str, str]]:
+def _sources(plg_config: dict | None = None, vpg_configs: list | None = None) -> list[dict[str, str]]:
     plg_config = plg_config or PLG_LEAGUE
     return [
         {"label": "X KORU eClub", "url": SOURCES["x"]},
         {"label": "Perfil PLG", "url": SOURCES["plg_team"]},
         {"label": plg_config["name"], "url": plg_config["url"]},
         {"label": "Perfil VPG", "url": SOURCES["vpg_team"]},
-        {"label": "VPG Zero Gold", "url": SOURCES["vpg_zero"]},
-        {"label": "VPG 2a A", "url": SOURCES["vpg_segunda"]},
-    ]
+    ] + [{"label": f"{c['platform']} · {c['name']}", "url": c["url"]}
+         for c in (VPG_LEAGUES if vpg_configs is None else vpg_configs)]
 
 
 def _analytics(

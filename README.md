@@ -2,6 +2,8 @@
 
 Dashboard privado para seguir KORU eClub en VPG, VPG Zero y PLG.
 
+Las competiciones de VPG se detectan desde la lista de ligas activas del club; los nombres, enlaces y filtros de partidos siguen esa fuente. VPN/PLG utiliza la liga y temporada detectadas en su ficha. Una liga confirmada sin datos publicados se muestra pendiente, sin reutilizar resultados de competiciones antiguas. Los horarios se presentan en `Europe/Madrid`, respetando UTC y el cambio de hora.
+
 Ahora incluye una puerta de acceso privada para entrar a la web.
 
 ## Ejecutar en local

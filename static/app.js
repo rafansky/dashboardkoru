@@ -43,8 +43,8 @@ async function loadAll(force = false) {
     state.dashboard = dashboard;
     state.notes = notes;
     state.files = files;
-    if (!state.selectedCompetition && dashboard.competitions?.length) {
-      state.selectedCompetition = dashboard.competitions[0].key;
+    if (!dashboard.competitions?.some(c => c.key === state.selectedCompetition) && dashboard.competitions?.length) {
+      state.selectedCompetition = (dashboard.competitions.find(c => c.standings?.length) || dashboard.competitions[0]).key;
     }
     render();
     toast(force ? "Datos actualizados" : "Dashboard sincronizado");
@@ -257,6 +257,7 @@ function renderCompetitionCards(competitions) {
             <div class="mini-stat"><strong>${row ? signed(row.goalDiff) : "-"}</strong><span>DG</span></div>
           </div>
           <div class="form-dots">${form}</div>
+          ${competition.registered && !competition.standings.length && !competition.upcoming.length && !competition.recent.length ? '<p class="empty-inline">Inscripción confirmada. Datos todavía no publicados por VPG.</p>' : ""}
         </article>
       `;
     })
@@ -294,7 +295,7 @@ function renderStandings(competition) {
         </tr>
       `
     )
-    .join("");
+    .join("") || '<tr><td colspan="8">La fuente todavía no publica la clasificación de esta competición.</td></tr>';
 }
 
 function renderNextMatch(match) {
@@ -551,6 +552,7 @@ function currentCompetition() {
 function formatDateTime(value) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
     day: "2-digit",
     month: "short",
     hour: "2-digit",
@@ -559,11 +561,11 @@ function formatDateTime(value) {
 }
 
 function formatDate(value) {
-  return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "short" }).format(new Date(value));
 }
 
 function formatTime(value) {
-  return new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
 function formatMetric(value) {

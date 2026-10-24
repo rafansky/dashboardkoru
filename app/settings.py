@@ -34,6 +34,6 @@ SOURCES = {
     "plg_team": "https://virtualpronetwork.com/es/teams/koru-eclub",
     "plg_league": "https://virtualpronetwork.com/es/league/2215/3a-division-b-plg/season/6427/standings",
     "vpg_team": "https://virtualprogaming.com/team/koru-eclub",
-    "vpg_zero": "https://virtualprogaming.com/league/zero-gold",
+    "vpg_zero": "https://virtualprogaming.com/league/vpg-zero-spain",
     "vpg_segunda": "https://virtualprogaming.com/league/segunda-division-a-spain",
 }
