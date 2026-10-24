@@ -33,7 +33,7 @@ function draw(){
  const label=p?.name||pos.role;ctx.font='900 15px Arial';ctx.textAlign='left';if(p){ctx.fillStyle='#ff5108';ctx.fillRect(x,y+h-25,28,24);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(String(p.number),x+14,y+h-8);ctx.textAlign='left';ctx.fillStyle='#111';ctx.fillText(label,x+34,y+h-8,w-34);}else{ctx.fillStyle='#777';ctx.textAlign='center';ctx.fillText(label,pos.x,y+h-8);ctx.textAlign='left';}
  if(!p){ctx.fillStyle='#111';ctx.font='700 13px Arial';ctx.fillText(pos.role,x+4,y-5);}
  });
- ctx.fillStyle='#111';ctx.font='900 28px Arial';ctx.fillText(formation,85,1262);ctx.textAlign='right';ctx.font='italic 900 31px Arial';ctx.fillText('#BELIEVE',995,1262);ctx.textAlign='left';ctx.fillStyle='#ff5108';ctx.fillRect(80,1292,920,5);
+ ctx.fillStyle='#111';ctx.font='900 28px Arial';ctx.fillText(formation,85,1262);ctx.fillStyle='#ff5108';ctx.fillRect(80,1292,920,5);
  $('count').textContent=`${chosen.filter(Boolean).length}/11 jugadores colocados`;
 }
 function draft(){try{localStorage.setItem('koru-lineup-draft-v2',JSON.stringify({formation,chosen:chosen.map(p=>p?.key||null),title:$('title').value,opponent:$('opponent').value,matchDate:$('match-date').value}));}catch{}}
