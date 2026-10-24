@@ -35,5 +35,5 @@ SOURCES = {
     "plg_league": "https://www.virtualpronetwork.com/web/app/league/2217/regional-b-plg",
     "vpg_team": "https://virtualprogaming.com/team/koru-eclub",
     "vpg_zero": "https://virtualprogaming.com/league/zero-gold",
-    "vpg_cuarta": "https://virtualprogaming.com/league/cuarta-division-a-spain",
+    "vpg_segunda": "https://virtualprogaming.com/league/segunda-division-a-spain",
 }

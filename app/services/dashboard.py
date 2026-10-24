@@ -31,11 +31,11 @@ VPG_LEAGUES = [
         "accent": "#12d6df",
     },
     {
-        "key": "vpg-cuarta",
-        "name": "CUARTA DIVISION A",
-        "slug": "cuarta-division-a-spain",
+        "key": "vpg-segunda",
+        "name": "SEGUNDA DIVISION A",
+        "slug": "segunda-division-a-spain",
         "platform": "VPG",
-        "url": SOURCES["vpg_cuarta"],
+        "url": SOURCES["vpg_segunda"],
         "accent": "#f97316",
     },
 ]
@@ -526,7 +526,7 @@ def _sources() -> list[dict[str, str]]:
         {"label": "Regional B - PLG", "url": SOURCES["plg_league"]},
         {"label": "Perfil VPG", "url": SOURCES["vpg_team"]},
         {"label": "VPG Zero Gold", "url": SOURCES["vpg_zero"]},
-        {"label": "VPG 4a A", "url": SOURCES["vpg_cuarta"]},
+        {"label": "VPG 2a A", "url": SOURCES["vpg_segunda"]},
     ]
 
 
