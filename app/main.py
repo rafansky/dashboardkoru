@@ -18,6 +18,7 @@ from pydantic import ValidationError
 
 from .services.dashboard import dashboard_service
 from .squad import router as squad_router, init_squad
+from .player_lookup import router as player_lookup_router
 from .potw import router as potw_router, init_potw, worker as potw_worker
 from .settings import (
     AUTH_COOKIE_NAME,
@@ -83,6 +84,7 @@ from .tactics_models import MatchCallupUpsert, MatchEventCreate, MatchPlanUpsert
 
 app = FastAPI(title="KORU eClub Dashboard", version="0.1.0")
 app.include_router(squad_router)
+app.include_router(player_lookup_router)
 app.include_router(potw_router)
 _potw_task = None
 

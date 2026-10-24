@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Buscar jugador · KORU</title><script src="/static/theme.js?v=players-1"></script><link rel="stylesheet" href="/static/theme.css?v=players-1"><link rel="stylesheet" href="/static/players.css?v=1"></head>
+<body><header class="topbar"><a href="/" class="brand"><img src="/assets/koru-logo.png" alt=""><strong>KORU <small>SCOUTING</small></strong></a><nav><a href="/">Dashboard</a><a href="/lineup">Once inicial</a></nav></header>
+<main><p class="eyebrow">EL SIGUIENTE FICHAJE EMPIEZA AQUÍ</p><h1>Conoce a tu próximo<br><em>compañero.</em></h1><p class="intro">Consulta cualquier jugador de VPN / PLG: sus números, su equipo y su trayectoria.</p>
+<form id="search-form"><label for="identifier">ID numérica de VPN o nombre de perfil</label><div class="search-row"><input id="identifier" name="identifier" required maxlength="80" placeholder="Ej.: 224983 o rafansky84" autocomplete="off" autocapitalize="none" spellcheck="false"><button id="search-button">Buscar jugador →</button></div><p class="hint">Encontrarás la ID o el nombre de perfil en el enlace del jugador en VPN. No es la ID del club.</p></form>
+<p id="status" role="status" aria-live="polite">Introduce una ID para abrir su ficha.</p>
+<section id="result" hidden aria-label="Ficha del jugador"></section>
+</main><script type="module" src="/static/players.js?v=1"></script></body></html>
