@@ -462,8 +462,8 @@ async def logout() -> JSONResponse:
 
 
 @app.get("/api/dashboard")
-async def dashboard(force: bool = False) -> dict:
-    return await dashboard_service.get_dashboard(force=force)
+async def dashboard(force: bool = False, season: str = Query("fc27-split-1", pattern="^(fc27-split-1|fc26)$")) -> dict:
+    return await dashboard_service.get_dashboard(force=force, season=season)
 
 
 @app.get("/api/notes")

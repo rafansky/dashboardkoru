@@ -16,6 +16,7 @@ from app.settings import (
     SOURCES,
     VPG_API,
     VPG_ASSET_URL,
+    DATA_DIR,
 )
 from app.storage import get_elo_history, get_previous_elo_snapshot, upsert_elo_snapshots
 from app import potw
@@ -73,7 +74,11 @@ def _vpg_configs(rows: list[dict]) -> list[dict]:
 
 
 class DashboardService:
-    def __init__(self) -> None:
+    def __init__(self, *, vpg_leagues=None, plg_league=None, persist_analytics=True) -> None:
+        self.vpg_leagues = VPG_LEAGUES if vpg_leagues is None else vpg_leagues
+        self.plg_league = PLG_LEAGUE if plg_league is None else plg_league
+        self.persist_analytics = persist_analytics
+        self.match_limit = 8 if persist_analytics else 100
         self._cache: dict[str, Any] | None = None
         self._cached_at: datetime | None = None
 
@@ -121,7 +126,7 @@ class DashboardService:
     async def _fetch_vpg(self, client: httpx.AsyncClient) -> dict[str, Any]:
         team_slug = KORU["slug"]
         memberships = await self._fetch_json(client, f"{VPG_API}/teams/{team_slug}/leagues/")
-        configs = _vpg_configs(_page_rows(memberships)) if memberships is not None else VPG_LEAGUES
+        configs = self.vpg_leagues if any(c.get("season") for c in self.vpg_leagues) else (_vpg_configs(_page_rows(memberships)) if memberships is not None else self.vpg_leagues)
         tasks: dict[str, Any] = {
             "team": self._fetch_json(client, f"{VPG_API}/teams/{team_slug}/"),
             "record": self._fetch_json(client, f"{VPG_API}/teams/{team_slug}/record/"),
@@ -133,7 +138,7 @@ class DashboardService:
             "complete": self._fetch_json(
                 client,
                 f"{VPG_API}/teams/{team_slug}/matches/",
-                {"match_status": "complete", "limit": 30, "offset": 0},
+                {"match_status": "complete", "limit": 100, "offset": 0},
             ),
             "scorers": self._fetch_json(
                 client,
@@ -153,7 +158,8 @@ class DashboardService:
         }
         for league in configs:
             tasks[f"table:{league['slug']}"] = self._fetch_json(
-                client, f"{VPG_API}/leagues/{league['slug']}/table/"
+                client, f"{VPG_API}/leagues/{league['slug']}/table/",
+                {"season": league["season"]} if league.get("season") else None,
             )
             tasks[f"league:{league['slug']}"] = self._fetch_json(
                 client, f"{VPG_API}/leagues/{league['slug']}/"
@@ -166,15 +172,11 @@ class DashboardService:
 
     async def _fetch_plg(self, client: httpx.AsyncClient) -> dict[str, Any]:
         team_id = KORU["plg_id"]
-        synced = potw.meta("synced_at")
-        if not synced or (datetime.now(timezone.utc) - datetime.fromisoformat(synced)).total_seconds() >= DASHBOARD_CACHE_SECONDS:
-            await potw.sync_vpn()
-        path = potw.meta("season_path", potw.DEFAULT_SEASON)
-        league_id = int(path.split("/")[3])
-        selected_season = int(path.split("/")[6])
+        league_id = self.plg_league["id"]
         team_task = self._fetch_json(client, f"{PLG_API}/teams/{team_id}")
         league = await self._fetch_json(client, f"{PLG_API}/leagues/{league_id}")
-        active_season = selected_season
+        active_season = self.plg_league.get("season") or self._active_plg_season_id(league)
+        path = potw.meta("season_path", potw.DEFAULT_SEASON)
 
         table_task = self._fetch_json(
             client,
@@ -187,9 +189,12 @@ class DashboardService:
             team_task, table_task, fixtures_task, results_task
         )
 
+        if self.plg_league.get("season"):
+            fixtures = [m for m in _page_rows(fixtures) if _plg_season(m) == active_season]
+            results = [m for m in _page_rows(results) if _plg_season(m) == active_season]
         cached_fixtures, reports = potw.source_data()
         stats = player_statistics([f for _, f in cached_fixtures], reports, team_id, active_season)
-        config = {**PLG_LEAGUE, "id": league_id, "name": (league or {}).get("name") or PLG_LEAGUE["name"],
+        config = {**self.plg_league, "id": league_id, "name": (league or {}).get("name") or PLG_LEAGUE["name"],
                   "url": potw.BASE + path, "slug": path.split("/")[4]}
 
         return {
@@ -209,7 +214,7 @@ class DashboardService:
 
         vpg_matches_scheduled = _page_rows(vpg.get("scheduled"))
         vpg_matches_complete = _page_rows(vpg.get("complete"))
-        vpg_configs = vpg.get("configs", VPG_LEAGUES)
+        vpg_configs = vpg.get("configs", self.vpg_leagues)
         for league in vpg_configs:
             table = _normalize_vpg_table(_page_rows(vpg.get(f"table:{league['slug']}")))
             seasons = [_int_or_none(m.get("season")) for m in vpg_matches_scheduled + vpg_matches_complete
@@ -231,13 +236,13 @@ class DashboardService:
                 _competition_payload(
                     config=league,
                     standings=table,
-                    upcoming=sorted(upcoming, key=lambda item: item["datetime"])[:8],
-                    recent=sorted(recent, key=lambda item: item["datetime"], reverse=True)[:8],
+                    upcoming=sorted(upcoming, key=lambda item: item["datetime"])[:self.match_limit],
+                    recent=sorted(recent, key=lambda item: item["datetime"], reverse=True)[:self.match_limit],
                     league_meta=vpg.get(f"league:{league['slug']}") or {},
                 )
             )
 
-        plg_config = plg.get("config") or PLG_LEAGUE
+        plg_config = plg.get("config") or self.plg_league
         active_season = plg.get("active_season")
         plg_table = _normalize_plg_table(plg.get("table") or [])
         plg_upcoming = [
@@ -255,8 +260,8 @@ class DashboardService:
             _competition_payload(
                 config=plg_config,
                 standings=plg_table,
-                upcoming=sorted(plg_upcoming, key=lambda item: item["datetime"])[:8],
-                recent=sorted(plg_recent, key=lambda item: item["datetime"], reverse=True)[:8],
+                upcoming=sorted(plg_upcoming, key=lambda item: item["datetime"])[:self.match_limit],
+                recent=sorted(plg_recent, key=lambda item: item["datetime"], reverse=True)[:self.match_limit],
                 league_meta=plg.get("league") or {},
             )
         )
@@ -278,7 +283,10 @@ class DashboardService:
         plg_leaders = plg_stats.get("leaderboards") or {}
         leaders = combine_leaders(vpg_leaders, plg_leaders)
         analytics = _analytics(competitions, recent_all, leaders)
-        _persist_analytics_snapshot(analytics)
+        if self.persist_analytics:
+            _persist_analytics_snapshot(analytics)
+        else:
+            analytics['trends'] = _trends(analytics)
         dashboard = {
             "updatedAt": datetime.now(timezone.utc).isoformat(),
             "team": team,
@@ -426,6 +434,9 @@ def _normalize_vpg_match(match: dict[str, Any]) -> dict[str, Any]:
 
 def _normalize_plg_match(match: dict[str, Any], status: str, competition: str = PLG_LEAGUE["name"],
                          competition_slug: str = PLG_LEAGUE["slug"]) -> dict[str, Any]:
+    actual_league = (match.get("matchSeason") or {}).get("league") or {}
+    competition = actual_league.get("name") or competition
+    competition_slug = actual_league.get("url") or competition_slug
     home = match.get("homeTeam") or {}
     away = match.get("awayTeam") or {}
     is_home = match.get("team1") == KORU["plg_id"]
@@ -804,4 +815,115 @@ def _points_last_n(recent_matches: list[dict[str, Any]], n: int) -> int:
     return points
 
 
-dashboard_service = DashboardService()
+
+
+
+
+# Provider season IDs are pinned: an upstream active-season rollover must not
+# silently move this split or change a saved historical season.
+CURRENT_SEASON = "fc27-split-1"
+SEASONS = [
+    {"id": CURRENT_SEASON, "label": "FC27 · Split 1", "game": "FC27", "archived": False},
+    {"id": "fc26", "label": "FC26 · Histórico", "game": "FC26", "archived": True},
+]
+CURRENT_PLG = {
+    "key": "fc27-split-1:plg", "name": "3ª DIVISIÓN B - PLG", "id": 2215,
+    "season": 6427, "platform": "PLG", "accent": "#facc15",
+    "url": "https://www.virtualpronetwork.com/web/app/league/2215/3a-division-b-plg?season=6427",
+}
+CURRENT_VPG = [
+    {"key": "fc27-split-1:vpg", "name": "SEGUNDA DIVISION A", "platform": "VPG",
+     "slug": "segunda-division-a-spain", "season": 12, "registered": True,
+     "url": "https://virtualprogaming.com/league/segunda-division-a-spain", "accent": "#f97316"},
+    {"key": "fc27-split-1:vpg-zero", "name": "ZERO MASTERS", "platform": "VPG Zero",
+     "slug": "vpg-zero-spain", "registered": True,
+     "url": "https://virtualprogaming.com/league/vpg-zero-spain", "accent": "#12d6df"},
+]
+
+
+def _plg_season(match):
+    return (match.get("matchSeason") or {}).get("id") or match.get("season")
+
+
+class CurrentSplitService(DashboardService):
+    def __init__(self):
+        super().__init__(vpg_leagues=CURRENT_VPG, plg_league=CURRENT_PLG)
+
+    async def _fetch_vpg(self, client):
+        # Only current-split fixtures and tables; career totals remain excluded.
+        configs = [dict(c) for c in CURRENT_VPG]
+        scheduled = await self._fetch_json(client, f"{VPG_API}/teams/{KORU['slug']}/matches/",
+                                           {"match_status": "scheduled", "limit": 100, "offset": 0})
+        zero = configs[1]
+        zero_seasons = [_int_or_none(m.get("season")) for m in _page_rows(scheduled)
+                        if m.get("league_slug") == zero["slug"]
+                        and _parse_vpg_datetime(m.get("datetime")) >= datetime(2026, 10, 1, tzinfo=timezone.utc)]
+        if any(n is not None for n in zero_seasons):
+            zero["season"] = max(n for n in zero_seasons if n is not None)
+        tasks = {
+            "team": self._fetch_json(client, f"{VPG_API}/teams/{KORU['slug']}/"),
+            "complete": self._fetch_json(client, f"{VPG_API}/teams/{KORU['slug']}/matches/",
+                                          {"match_status": "complete", "limit": 100, "offset": 0}),
+        }
+        for config in configs:
+            slug = config["slug"]
+            tasks[f"table:{slug}"] = self._fetch_json(client, f"{VPG_API}/leagues/{slug}/table/",
+                {"season": config["season"]} if config.get("season") else None)
+            tasks[f"league:{slug}"] = self._fetch_json(client, f"{VPG_API}/leagues/{slug}/")
+        data = dict(zip(tasks, await asyncio.gather(*tasks.values())))
+        def current_match(match):
+            return any(c.get("season") and match.get("league_slug") == c["slug"]
+                       and _int_or_none(match.get("season")) == c["season"] for c in configs)
+        data["scheduled"] = [m for m in _page_rows(scheduled) if current_match(m)]
+        data["complete"] = [m for m in _page_rows(data["complete"]) if current_match(m)]
+        # An unassigned ZERO season must never display the previous season's table.
+        if not zero.get("season") and any(r.get("played", 0) for r in _page_rows(data.get("table:" + zero["slug"]))):
+            data["table:" + zero["slug"]] = []
+        data["configs"] = configs
+        data["warnings"] = []
+        if scheduled is None:
+            data["warnings"].append("No se pudo actualizar el calendario de VPG.")
+        return data
+
+
+class SeasonDashboardService:
+    def __init__(self, archive_path=None):
+        self.current = CurrentSplitService()
+        self.archive_path = archive_path or DATA_DIR / "seasons" / "fc26.json"
+
+    async def get_dashboard(self, force=False, season=CURRENT_SEASON):
+        if season not in {item["id"] for item in SEASONS}:
+            raise ValueError("Temporada desconocida")
+        if season == "fc26":
+            # Deliberately do not refresh archives, even with force=true.
+            return json.loads(self.archive_path.read_text(encoding="utf-8"))
+        from copy import deepcopy
+        data = deepcopy(await self.current.get_dashboard(force=force))
+        if not data["competitions"]:
+            data["competitions"].append(_competition_payload(CURRENT_PLG, [], [], [], {}))
+        for config in CURRENT_VPG:
+            if not any(c["key"] == config["key"] for c in data["competitions"]):
+                data["competitions"].append(_competition_payload(config, [], [], [], {}))
+        for comp in data["competitions"]:
+            if comp["key"] == CURRENT_PLG["key"]:
+                comp["status"] = "verified" if comp["koru"] or comp["upcoming"] or comp["recent"] else "unavailable"
+                comp["notice"] = "Temporada PLG 13 · Split 1" if comp["status"] == "verified" else "La fuente PLG no responde. Prueba a actualizar en unos minutos."
+            elif comp["key"] in {c["key"] for c in CURRENT_VPG}:
+                published = bool(comp["koru"] or comp["upcoming"] or comp["recent"])
+                comp["status"] = "verified" if published else "registered"
+                comp["notice"] = ("Temporada VPG 12 · Split 1" if comp["platform"] == "VPG" else "ZERO MASTERS · Split 1") if published else ("Inscripción confirmada en ZERO MASTERS. Clasificación y calendario todavía no publicados." if comp["platform"] == "VPG Zero" else "No se pudo actualizar Segunda División A. Prueba a actualizar en unos minutos.")
+        data["season"] = SEASONS[0]
+        data["seasons"] = SEASONS
+        data["sources"] = _season_sources([CURRENT_PLG] + CURRENT_VPG)
+        data["seasonNotice"] = "PLG: 3.ª División B · VPG: Segunda División A · VPG Zero: ZERO MASTERS."
+        return data
+
+
+def _season_sources(competitions):
+    return [{"label": "X KORU eClub", "url": SOURCES["x"]},
+            {"label": "Perfil PLG", "url": SOURCES["plg_team"]},
+            {"label": "Perfil VPG", "url": SOURCES["vpg_team"]}] + [
+            {"label": c["name"], "url": c["url"]} for c in competitions]
+
+
+dashboard_service = SeasonDashboardService()
