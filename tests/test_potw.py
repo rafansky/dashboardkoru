@@ -60,16 +60,16 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(one["name"],"Nombre nuevo")
         self.assertTrue(five["eligible"])
         self.assertEqual(ranked["minimumGames"],2)
-        self.assertEqual(ranked["minimumMinutes"],180)
+        self.assertNotIn("minimumMinutes",ranked)
         for report in reports.values():
             report["home"]["players"][1]["ea"]["minutes"]=40
         two=next(p for p in rank_week(fixtures,reports,potw.TEAM)["players"] if p["id"]=="2")
-        self.assertFalse(two["eligible"])
+        self.assertTrue(two["eligible"])
 
     def test_missing_reports_and_fields_are_not_zeroes(self):
         fixtures, reports=sample()
         incomplete=copy.deepcopy(reports)
-        incomplete[100]["home"]["players"][0]["ea"].pop("passesMade")
+        incomplete[100]["home"]["players"][0]["ea"].pop("rating")
         view=rank_week(fixtures,incomplete,potw.TEAM)
         self.assertFalse(view["complete"])
         self.assertFalse(view["matches"][0]["ready"])
@@ -97,7 +97,7 @@ class ScoringTests(unittest.TestCase):
         reports[100]["home"]["players"][0]["stats"]={"5":1,"6":1}
         p=rank_week(fixtures,reports,potw.TEAM)["players"][0]
         self.assertEqual(p["games"][0]["penalty"],8)
-        self.assertEqual(metrics(player(9,minutes=5))["valid"],False)
+        self.assertEqual(metrics(player(9,minutes=5))["valid"],True)
 
     def test_yellow_cards_do_not_change_performance(self):
         fixtures, reports = sample()
@@ -136,6 +136,8 @@ class PotwApiTests(unittest.TestCase):
         self.env=patch.dict(os.environ,{"KORU_POTW_MANAGER_KEY":"captain-secret"})
         self.env.start()
         potw.init_potw()
+        self.vpg_mock=patch("app.potw_vpg.sync_vpg",new=AsyncMock(return_value={"ok":False,"warnings":[]}))
+        self.vpg_mock.start()
         fixtures,reports=sample()
         with closing(potw.connection()) as conn, conn:
             for f in fixtures:
@@ -147,7 +149,7 @@ class PotwApiTests(unittest.TestCase):
         self.week="/api/potw/weeks/2026-10-19"
 
     def tearDown(self):
-        self.client.close();self.db.stop();self.env.stop();self.tmp.cleanup()
+        self.client.close();self.vpg_mock.stop();self.db.stop();self.env.stop();self.tmp.cleanup()
 
     def open(self):
         response=self.client.post(self.week+"/manage",json={"action":"open"},headers=self.headers)
@@ -238,6 +240,18 @@ class PotwApiTests(unittest.TestCase):
         with self.assertRaises(ValueError):potw.parse_page("<html>blocked</html>")
         fixtures,reports=sample();reports[100]["competition"]["seasonId"]=99
         with self.assertRaises(ValueError):potw.validate_report(reports[100],fixtures[0])
+
+    def test_pending_notes_count_appearances_but_prevent_opening(self):
+        with closing(potw.connection()) as conn, conn:
+            raw=json.loads(conn.execute("SELECT payload FROM potw_reports WHERE id=100").fetchone()[0])
+            raw["home"]["players"][0]["ea"]["rating"]=0
+            conn.execute("UPDATE potw_reports SET payload=? WHERE id=100",(json.dumps(raw),))
+        view=self.client.get(self.week).json()
+        self.assertEqual(view["coverage"]["pendingMatches"],1)
+        self.assertTrue(all(p["appearances"]==4 for p in view["players"]))
+        self.assertTrue(all(p["ratedAppearances"]==3 for p in view["players"]))
+        response=self.client.post(self.week+"/manage",json={"action":"open"},headers=self.headers)
+        self.assertEqual(response.status_code,409)
 
 
 if __name__ == "__main__":unittest.main()

@@ -58,6 +58,11 @@ def init_potw():
         CREATE TABLE IF NOT EXISTS potw_ballots (
           week TEXT NOT NULL, player_id TEXT NOT NULL, choices TEXT NOT NULL, updated_at TEXT NOT NULL,
           PRIMARY KEY (week, player_id));
+        CREATE TABLE IF NOT EXISTS potw_vpg_fixtures (
+          id INTEGER PRIMARY KEY, week TEXT NOT NULL, payload TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS potw_vpg_reports (
+          id INTEGER PRIMARY KEY, payload TEXT NOT NULL, fetched_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS potw_vpg_users (id TEXT PRIMARY KEY, payload TEXT NOT NULL);
         """)
         conn.execute("INSERT OR IGNORE INTO potw_meta VALUES ('manager_key', ?)", (secrets.token_urlsafe(32),))
         conn.execute("INSERT OR IGNORE INTO potw_meta VALUES ('season_path', ?)", (DEFAULT_SEASON,))
@@ -128,6 +133,10 @@ async def sync_vpn():
             return {"message": "La última comprobación es reciente", "syncedAt": meta("synced_at")}
         _last_attempt = now()
         warnings = []
+        from .potw_vpg import sync_vpg
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as vpg_client:
+            vpg_result = await sync_vpg(vpg_client)
+        warnings.extend(vpg_result["warnings"])
         path = meta("season_path", DEFAULT_SEASON)
         try:
             async with httpx.AsyncClient(timeout=30, follow_redirects=True,
@@ -182,12 +191,14 @@ async def sync_vpn():
                 for key, value in (("synced_at", now().isoformat()), ("warnings", json.dumps(warnings))):
                     conn.execute("INSERT OR REPLACE INTO potw_meta VALUES (?, ?)", (key, value))
             advance_weeks()
-            return {"message": "Calendario y estadísticas actualizados", "syncedAt": meta("synced_at"), "warnings": warnings}
+            return {"message": "Calendario y estadísticas PLG/VPG actualizados", "syncedAt": meta("synced_at"), "warnings": warnings}
         except Exception as exc:
             log.warning("POTW sync: %s", exc)
             with closing(connection()) as conn, conn:
-                conn.execute("INSERT OR REPLACE INTO potw_meta VALUES ('warnings', ?)", (json.dumps(["VPN no está disponible; se conservan los últimos datos. " + str(exc)[:120]]),))
-            return {"message": "No se pudo actualizar VPN; se conserva la caché", "warnings": json.loads(meta("warnings", "[]"))}
+                warnings.append("VPN no está disponible; se conservan los últimos datos. " + str(exc)[:120])
+                conn.execute("INSERT OR REPLACE INTO potw_meta VALUES ('warnings', ?)", (json.dumps(warnings),))
+            advance_weeks()
+            return {"message": "Actualización parcial; se conserva la caché de las fuentes pendientes", "warnings": warnings}
 
 
 def source_data():
@@ -195,6 +206,11 @@ def source_data():
         fixtures = [(r["week"], json.loads(r["payload"])) for r in conn.execute("SELECT * FROM potw_fixtures ORDER BY week, id")]
         reports = {r["id"]: json.loads(r["payload"]) for r in conn.execute("SELECT * FROM potw_reports")}
     return fixtures, reports
+
+
+def award_data():
+    from .potw_vpg import award_data as combined_data
+    return combined_data()
 
 
 def open_week(week, snapshot, instant):
@@ -215,7 +231,7 @@ def open_week(week, snapshot, instant):
 
 
 def advance_weeks():
-    fixtures, reports = source_data()
+    fixtures, reports = award_data()
     grouped = {}
     for week, fixture in fixtures:
         grouped.setdefault(week, []).append(fixture)
@@ -230,7 +246,7 @@ def advance_weeks():
 
 
 def week_view(week):
-    fixtures, reports = source_data()
+    fixtures, reports = award_data()
     group = [f for w, f in fixtures if w == week]
     if not group:
         raise HTTPException(404, "Semana no encontrada")
@@ -249,6 +265,7 @@ def week_view(week):
     result = results(snapshot, ballots, voters, status == "closed")
     return dict(week=week, status=status, closesAt=row["closes_at"] if row else None,
                 competition=group[0].get("competition", "3.ª División B · PLG · Temporada 13"),
+                currentCoverage=current["coverage"],
                 snapshotChanged=bool(row and json.loads(row["snapshot"]) != current),
                 statisticalWinners=results(snapshot, [], voters)["winners"],
                 **(snapshot | result))
@@ -267,7 +284,7 @@ def vote_page(token: str):
 @router.get("/api/potw")
 def overview():
     advance_weeks()
-    fixtures, _ = source_data()
+    fixtures, _ = award_data()
     weeks = []
     for week in sorted({w for w, _ in fixtures}, reverse=True):
         view = week_view(week)
@@ -299,7 +316,7 @@ def manage_week(week: str, body: VotingAction, x_potw_key: str = Header(default=
     if body.action == "open":
         if view["status"] in ("open", "closed"):
             raise HTTPException(409, "Esta semana ya tiene una votación; no se reinicia")
-        fixtures, reports = source_data()
+        fixtures, reports = award_data()
         snapshot = rank_week([f for w, f in fixtures if w == week], reports, TEAM)
         if not open_week(week, snapshot, now()):
             raise HTTPException(409, "Faltan informes completos o al menos dos candidatos elegibles")

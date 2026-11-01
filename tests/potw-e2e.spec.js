@@ -59,7 +59,7 @@ test("mobile week navigation, detail and layout fit a narrow screen", async ({ p
   await expect(page.locator("#week")).toContainText("19 oct");
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.getByText("Cómo se decide el premio",{exact:false}).click();
-  await expect(page.getByText("03 · La voz del vestuario",{exact:true})).toBeVisible();
+  await expect(page.getByText("03 · Votación",{exact:true})).toBeVisible();
   await page.screenshot({path:"artifacts/potw-mobile.png",fullPage:true});
 });
 
@@ -81,4 +81,31 @@ test("a second week publishes weighted results when voting reaches quorum", asyn
   await expect(page.locator(".statusbar")).toContainText("80 % rendimiento + 20 % votos");
   await expect(page.locator(".statusbar")).toContainText("3/4 papeletas");
   await expect(page.locator("tbody tr:not(.row-detail)").first()).not.toContainText("Ocultos");
+});
+
+test("POTW shows sixteen appearances, eleven scored and five pending without durations",async({page})=>{
+  await page.request.post("/api/login",{multipart:{password:process.env.KORU_E2E_PASSWORD||"test-password"}});
+  const games=Array.from({length:16},(_,i)=>({matchId:i+1,platform:i<4?"PLG":"VPG",opponent:`Rival ${i+1}`,
+    url:`https://example.test/match/${i+1}`,position:"MC",rating:i<11?7.75:null,
+    valid:i<11,score:i<11?71.9:null,ratingPoints:i<11?71.9:null,peers:40,penalty:0}));
+  const data={week:"2026-10-26",status:"pending",complete:false,minimumGames:8,ballots:0,voters:0,quorum:3,
+    snapshotChanged:false,statisticalWinners:["1"],winners:["1"],
+    coverage:{totalMatches:16,playedMatches:16,scoredMatches:11,pendingMatches:5,scheduledMatches:0},
+    byPlatform:{PLG:{played:4,scored:4},VPG:{played:12,scored:7}},
+    players:[{id:"1",name:"Andyelmessy",eligible:true,eligibilityReason:"Candidato",appearances:16,
+      ratedAppearances:11,pendingAppearances:5,performance:71.9,finalScore:71.9,rating:7.75,games}],
+    matches:games.map((g,i)=>({id:g.matchId,platform:g.platform,round:i+1,date:"2026-10-29T21:00:00Z",url:g.url,
+      ready:g.valid,played:true,opponent:g.opponent,forfeit:false}))};
+  await page.route("**/api/potw",route=>route.fulfill({json:{weeks:[{week:data.week,status:data.status}],selectedWeek:data.week,
+    warnings:[],syncedAt:null,seasonPath:"/es/teams/koru-eclub"}}));
+  await page.route("**/api/potw/weeks/2026-10-26",route=>route.fulfill({json:data}));
+  await page.goto("/potw");
+  await expect(page.locator(".coverage")).toContainText("16 partidos jugados por KORU · 11 con informe completo · 5 pendientes");
+  await expect(page.locator("tbody tr:not(.row-detail)")).toContainText("16 / 16");
+  await expect(page.locator("tbody tr:not(.row-detail)")).toContainText("11 con nota · 5 pendientes");
+  await expect(page.locator("#workspace")).not.toContainText(/minutos|PJ \/ min|s\/d/);
+  await page.getByRole("button",{name:"Ver partidos"}).click();
+  await expect(page.locator(".row-detail:not([hidden]) .game")).toHaveCount(16);
+  await expect(page.locator(".game strong",{hasText:"Informe pendiente"})).toHaveCount(5);
+  await expect(page.locator(".score")).toHaveText("71,9");
 });

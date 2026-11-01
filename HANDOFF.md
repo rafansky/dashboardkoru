@@ -1,5 +1,15 @@
 # Handoff for the next agent
 
+## 2026-11-01: POTW participation and complete weekly coverage
+
+- Synced the latest five upstream commits before editing. Preserved the manager's existing 50% appearance threshold and no yellow-card penalty.
+- Replaced duration requirements/weighting/tiebreaks with lineup appearances, arithmetic per-game averages, and appearances as the final merit tiebreak. EA notes are compared by platform and role; actions do not enter the cross-platform criterion. New version: `koru-potw-v2-appearances`.
+- Added `app/potw_vpg.py`: all VPG calendar pages are fetched using `count`/`offset` (provider caps each page at 30), both active leagues, individual `/matches/{id}/data/` reports and verified gamertag identity links. Persist only public ID/username/PSN/EA/Xbox fields from profiles, no unrelated fields. VPG tables are additive; the original VPN cache API is preserved for dashboard callers.
+- Known lineups count as appearances even with missing/zero duration or EA notes. A club report with any invalid note stays pending for everybody; no zero enters the mean. Missing reports do not establish individual absences. The UI shows appearances/KORU games, scored and pending appearances, weekly coverage and all source matches. No duration fields are displayed or calculated.
+- Live verification in isolated `artifacts/potw-appearances-live.db`: week 2026-10-26 has exactly 16 played (4 PLG + 12 VPG), 11 complete (4+7), 5 pending. Andyelmessy has 16 appearances, 11 scored, 5 pending, EA 7.75 and performance 71.8881 (71.9 displayed). No fake ballots added to club data.
+- Verified 79 Python tests, 22 JS tests and four POTW Playwright flows (desktop voting/updates/close, mobile, quorum and 16/11/5 coverage). Live browser checks have no script errors or horizontal overflow at 390px. Test elections use disposable DBs. Preview local at 127.0.0.1:10104 uses the isolated real-data cache; the main service is not remotely deployed by this task.
+- Existing frozen elections retain their snapshots; this change does not silently rewrite historic ballots or results. Pending/unopened weeks use v2 automatically. Updated full rules in `docs/player-of-the-week.md`.
+
 ## 2026-10-24: Player of the Week
 
 - Competition audit: official VPG team memberships currently list Segunda División A and Zero Masters (`vpg-zero-spain`), while VPN lists PLG 3.ª División B, season 6427. KORU is absent from VPG Tercera B's 14-team table. VPG config now derives from live team memberships (names, slugs, source links and match filtering); no forced reassignment based on ambiguous platform names. Zero Masters is retained as a confirmed membership with unpublished stats, excluding historical Zero Gold results. PLG UTC dates now retain their offsets instead of incorrectly being shifted as Madrid-local times; all dashboard display times explicitly use Europe/Madrid. Six new regression tests cover membership changes, empty registered leagues, historical league/season isolation, Zero classification and UTC/DST handling. Verified 53 Python tests, 22 JS tests and 2 desktop/mobile dashboard Playwright flows.

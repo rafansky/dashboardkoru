@@ -1,4 +1,4 @@
-"""Auditable POTW v1: role-relative performances, then a separate team ballot."""
+"""POTW v2: appearances and per-match EA notes, compared by platform and role."""
 from collections import defaultdict
 from datetime import datetime, timedelta
 from math import ceil, isfinite
@@ -6,7 +6,7 @@ from statistics import mean
 from zoneinfo import ZoneInfo
 
 MADRID = ZoneInfo("Europe/Madrid")
-VERSION = "koru-potw-v1"
+VERSION = "koru-potw-v2-appearances"
 ROLES = {"goalkeeper", "defender", "midfielder", "forward"}
 
 
@@ -24,102 +24,108 @@ def number(value, default=0):
 
 
 def metrics(player):
-    ea = player.get("ea") or {}
-    events = player.get("stats") or {}
-    minutes = max(0, min(90, number(ea.get("minutes"))))
+    # A submitted lineup establishes presence even after a disconnected match.
+    # Duration and action totals never determine appearances or weight a score.
+    ea, events = player.get("ea") or {}, player.get("stats") or {}
     role = (player.get("position") or {}).get("group")
     rating = number(ea.get("rating"), -1)
-    required = ("minutes", "rating", "passesMade", "passAttempts", "tacklesMade", "tackleAttempts", "saves")
-    valid = (role in ROLES and 0 < rating <= 10 and minutes >= 30
-             and all(number(ea.get(k), -1) >= 0 for k in required))
-    # Stabilise short appearances and percentages; no 1/1 passing superstar.
-    rate = 90 / max(60, minutes)
-    passed, attempted = max(0, number(ea.get("passesMade"))), max(0, number(ea.get("passAttempts")))
-    tackled, attempts = max(0, number(ea.get("tacklesMade"))), max(0, number(ea.get("tackleAttempts")))
-    passing = 70 * min(1, (passed + 7) / (max(passed, attempted) + 10)) + 30 * min(1, passed * rate / 35)
-    defending = 60 * min(1, tackled * rate / 5) + 40 * (tackled + 1) / (max(tackled, attempts) + 2)
-    goals, assists = number(events.get("1")), number(events.get("2"))
-    attack = min(100, (goals * 55 + assists * 40) * rate)
-    clean = bool(number(events.get("3")) or number(events.get("7")))
-    if role == "goalkeeper":
-        contribution = 65 * min(1, number(ea.get("saves")) * rate / 8) + 20 * clean + .15 * passing
-    elif role == "defender":
-        contribution = .55 * defending + .25 * passing + 10 * clean + .10 * attack
-    elif role == "midfielder":
-        contribution = .40 * passing + .30 * defending + .30 * attack
-    else:
-        contribution = .70 * attack + .20 * passing + .10 * defending
-    penalty = 8 * number(events.get("6"))
-    return dict(valid=valid, role=role, minutes=minutes, rating=rating, contribution=contribution,
-                penalty=penalty, goals=goals, assists=assists, saves=number(ea.get("saves")),
-                passesMade=passed, passAttempts=attempted, tacklesMade=tackled, tackleAttempts=attempts)
+    return dict(valid=role in ROLES and 0 < rating <= 10, role=role,
+                rating=rating if 0 < rating <= 10 else None,
+                penalty=8 * max(0, number(events.get("6"))),
+                goals=max(0, number(events.get("1"))), assists=max(0, number(events.get("2"))),
+                saves=number(ea.get("saves"), None), passesMade=number(ea.get("passesMade"), None),
+                passAttempts=number(ea.get("passAttempts"), None),
+                tacklesMade=number(ea.get("tacklesMade"), None), tackleAttempts=number(ea.get("tackleAttempts"), None))
 
 
 def percentile(value, pool):
-    # Midrank handles ties equally. With insufficient peers use the neutral mark.
     if len(pool) < 4:
         return 50.0
     return 100 * (sum(x < value for x in pool) + .5 * sum(x == value for x in pool)) / len(pool)
 
 
 def rank_week(fixtures, reports, team_id):
-    """Use both sides of this week's reported games; never season totals/future games."""
-    pools = defaultdict(list)
-    entries = []
-    matches = []
+    """Count known lineups; invalid EA notes stay pending, never become zeroes."""
+    pools, entries, matches, seen_matches = defaultdict(list), [], [], set()
     for fixture in fixtures:
-        mid = fixture["id"]
+        mid, platform = fixture["id"], fixture.get("platform", "PLG")
+        if (platform, mid) in seen_matches:
+            continue
+        seen_matches.add((platform, mid))
         report = reports.get(mid)
         forfeited = bool(fixture.get("forfeit") or (report and report["match"].get("forfeit")))
-        ready = bool(fixture.get("published") and report and report["match"].get("published") and not forfeited)
-        side = None
-        if ready:
-            side = next((report[k] for k in ("home", "away") if report[k]["teamId"] == team_id), None)
-            ready = bool(side and side.get("players") and all(
-                p.get("ea") and "minutes" in p["ea"] and
-                (number(p["ea"]["minutes"]) < 30 or metrics(p)["valid"]) for p in side["players"]))
-            ready = ready and any(metrics(p)["valid"] for p in side["players"])
-        matches.append(dict(id=mid, round=fixture["round"], date=fixture["date"],
-                            opponent=fixture.get("opponent", ""), ready=ready,
-                            forfeit=forfeited, score=report["match"].get("score") if report else None,
-                            url=f"https://virtualpronetwork.com/es/matches/{mid}"))
-        if not ready:
+        played = bool(fixture.get("published") or fixture.get("played")) and not forfeited
+        side = next((report[k] for k in ("home", "away") if report[k]["teamId"] == team_id), None) if report else None
+        lineup = side.get("players", []) if side and played else []
+        ready = bool(lineup) and all(metrics(p)["valid"] for p in lineup)
+        match = dict(id=mid, round=fixture["round"], date=fixture["date"],
+                     opponent=fixture.get("opponent", ""), platform=platform, ready=ready,
+                     played=played, forfeit=forfeited, lineupKnown=bool(lineup),
+                     score=report["match"].get("score") if report else None,
+                     url=fixture.get("url") or f"https://virtualpronetwork.com/es/matches/{mid}")
+        matches.append(match)
+        if not lineup:
             continue
         for key in ("home", "away"):
+            seen_players = set()
             for player in report[key]["players"]:
+                pid = str(player["userId"])
+                if pid in seen_players:
+                    continue
+                seen_players.add(pid)
                 data = metrics(player)
+                # An incomplete club report stays pending as a whole. Keep the
+                # lineup appearances, but don't give some players a scoring game
+                # that their teammates are still missing from the same report.
+                data["valid"] = data["valid"] and ready
                 if data["valid"]:
-                    pools[data["role"]].append(data)
-                if key == ("home" if report["home"]["teamId"] == team_id else "away"):
-                    entries.append((mid, player, data))
+                    pools[(platform, data["role"])].append(data["rating"])
+                if report[key]["teamId"] == team_id:
+                    entries.append((match, player, data))
     players = {}
-    for mid, player, data in entries:
+    for match, player, data in entries:
         pid = str(player["userId"])
-        item = players.setdefault(pid, dict(id=pid, name=player["name"], appearances=0, minutes=0,
-                                           games=[], goals=0, assists=0, saves=0))
+        item = players.setdefault(pid, dict(id=pid, name=player["name"], appearances=0,
+                    ratedAppearances=0, pendingAppearances=0, games=[], goals=0, assists=0, saves=0))
         item["name"] = player["name"]
-        if not data["valid"]:
-            continue
-        peers = pools[data["role"]]
-        rating_points = percentile(data["rating"], [p["rating"] for p in peers])
-        contribution_points = percentile(data["contribution"], [p["contribution"] for p in peers])
-        score = max(0, .70 * rating_points + .30 * contribution_points - data["penalty"])
-        item["games"].append(dict(matchId=mid, position=player["position"]["code"],
-                                  score=round(score, 4), ratingPoints=round(rating_points, 2),
-                                  contributionPoints=round(contribution_points, 2), peers=len(peers), **data))
         item["appearances"] += 1
-        item["minutes"] += data["minutes"]
+        points = None
+        peers = pools[(match["platform"], data["role"])]
+        if data["valid"]:
+            points = max(0, percentile(data["rating"], peers) - data["penalty"])
+            item["ratedAppearances"] += 1
+        else:
+            item["pendingAppearances"] += 1
+        item["games"].append(dict(matchId=match["id"], platform=match["platform"],
+                opponent=match["opponent"], url=match["url"], position=(player.get("position") or {}).get("code", "—"),
+                score=round(points, 4) if points is not None else None,
+                ratingPoints=round(percentile(data["rating"], peers), 2) if data["valid"] else None,
+                peers=len(peers), **data))
         for key in ("goals", "assists", "saves"):
-            item[key] += data[key]
-    count = sum(not m["forfeit"] for m in matches)
-    minimum_games, minimum_minutes = max(1, ceil(count * .50)), count * 90 * .50
+            item[key] += data[key] or 0
+    played = sum(m["played"] for m in matches)
+    minimum_games = max(1, ceil(played * .50))
     for item in players.values():
-        item["eligible"] = item["appearances"] >= minimum_games and item["minutes"] >= minimum_minutes
-        item["performance"] = round(sum(g["score"] * g["minutes"] for g in item["games"]) / max(1, item["minutes"]), 4)
-        item["rating"] = round(mean(g["rating"] for g in item["games"]), 3) if item["games"] else None
-    ordered = sorted(players.values(), key=lambda p: (-p["performance"], -p["minutes"], int(p["id"])))
+        rated = [g for g in item["games"] if g["valid"]]
+        item["eligible"] = item["appearances"] >= minimum_games and bool(rated)
+        item["eligibilityReason"] = ("Nota EA pendiente" if not rated else
+                                     "Participación insuficiente" if not item["eligible"] else "Candidato")
+        item["performance"] = round(mean(g["score"] for g in rated), 4) if rated else None
+        item["rating"] = round(mean(g["rating"] for g in rated), 3) if rated else None
+        item["teamMatches"] = played
+    ordered = sorted(players.values(), key=lambda p: (-(p["performance"] if p["performance"] is not None else -1),
+                                                       -p["appearances"], p["id"]))
+    scored = sum(m["ready"] and m["played"] for m in matches)
+    coverage = dict(totalMatches=sum(not m["forfeit"] for m in matches), playedMatches=played,
+                    scoredMatches=scored, pendingMatches=played-scored,
+                    scheduledMatches=sum(not m["played"] and not m["forfeit"] for m in matches),
+                    excludedMatches=sum(m["forfeit"] for m in matches))
+    by_platform = {p: dict(played=sum(m["played"] for m in matches if m["platform"] == p),
+                          scored=sum(m["ready"] and m["played"] for m in matches if m["platform"] == p))
+                   for p in sorted({m["platform"] for m in matches})}
     return dict(version=VERSION, players=ordered, matches=matches, minimumGames=minimum_games,
-                minimumMinutes=minimum_minutes, complete=bool(count) and all(m["ready"] or m["forfeit"] for m in matches))
+                coverage=coverage, byPlatform=by_platform,
+                complete=bool(played) and all(m["ready"] or m["forfeit"] for m in matches))
 
 
 def results(snapshot, ballots, voter_count, closed=False):
@@ -139,12 +145,12 @@ def results(snapshot, ballots, voter_count, closed=False):
         support = 100 * points[p["id"]] / max(1, possible)
         p.update(votePoints=points[p["id"]] if closed else None,
                  voteScore=round(support, 2) if closed else None,
-                 finalScore=round(.8 * p["performance"] + .2 * support, 4) if use_votes else p["performance"])
+                 finalScore=(round(.8 * p["performance"] + .2 * support, 4) if use_votes else p["performance"]) if p["performance"] is not None else None)
         rows.append(p)
-    rows.sort(key=lambda p: (-p["finalScore"], -p["performance"], -p["minutes"], int(p["id"])))
+    rows.sort(key=lambda p: (-(p["finalScore"] if p["finalScore"] is not None else -1), -(p["performance"] if p["performance"] is not None else -1), -p["appearances"], str(p["id"])))
     eligible = [p for p in rows if p["eligible"]]
     # Exact merit ties share the award; IDs only give a stable display order.
-    winners = [p["id"] for p in eligible if (p["finalScore"], p["performance"], p["minutes"]) ==
-               (eligible[0]["finalScore"], eligible[0]["performance"], eligible[0]["minutes"])] if eligible else []
+    winners = [p["id"] for p in eligible if (p["finalScore"], p["performance"], p["appearances"]) ==
+               (eligible[0]["finalScore"], eligible[0]["performance"], eligible[0]["appearances"])] if eligible else []
     return dict(players=rows, winners=winners, ballots=len(ballots), voters=voter_count,
                 quorum=quorum, votesApplied=use_votes)

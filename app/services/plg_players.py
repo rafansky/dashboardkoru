@@ -20,7 +20,7 @@ def player_statistics(fixtures, reports, team_id, season_id):
         for p in side["players"]:
             pid = str(p["userId"])
             ea = p.get("ea") or {}
-            if pid in seen or ("minutes" in ea and (ea["minutes"] or 0) <= 0):
+            if pid in seen:
                 continue
             seen.add(pid)
             item = players.setdefault(pid, dict(key=f"plg:{pid}", playerId=pid, platform="PLG", username=p["name"],

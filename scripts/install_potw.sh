@@ -14,7 +14,7 @@ if [[ ! -f "$release_dir/potw-integration.patch" ]]; then
   exit 1
 fi
 # Refuse a partial second install or unknown changed integration context.
-for file in app/potw.py app/potw_scoring.py static/potw.html static/potw.css static/potw.js; do
+for file in app/potw.py app/potw_scoring.py app/potw_vpg.py static/potw.html static/potw.css static/potw.js; do
   if [[ -e "$file" ]]; then
     echo "POTW file already exists: $file. Review the installed version before updating." >&2
     exit 1
@@ -35,11 +35,11 @@ if db.exists():
     with closing(sqlite3.connect(db)) as source, closing(sqlite3.connect(Path(sys.argv[1]) / 'koru.db')) as target:
         source.backup(target)
 PY
-for file in app/potw.py app/potw_scoring.py static/potw.html static/potw.css static/potw.js; do
+for file in app/potw.py app/potw_scoring.py app/potw_vpg.py static/potw.html static/potw.css static/potw.js; do
   cp "$release_dir/$file" "$file"
 done
 git apply "$release_dir/potw-integration.patch"
-.venv/bin/python -m compileall -q app/potw.py app/potw_scoring.py app/main.py
+.venv/bin/python -m compileall -q app/potw.py app/potw_scoring.py app/potw_vpg.py app/main.py
 mkdir -p docs
 cp "$release_dir/docs/player-of-the-week.md" docs/player-of-the-week.md
 if [[ "$(id -u)" == 0 ]]; then
