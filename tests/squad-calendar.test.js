@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {monthWeeks,playerRecords,recordFilters,dateLabel,simpleAttendance,simpleResponse} from '../static/squad-calendar.js';
+import {gameWeeks,monthWeeks,playerRecords,recordFilters,dateLabel,simpleAttendance,simpleResponse} from '../static/squad-calendar.js';
 
 test('simple attendance separates absences from present non-players without guessing from availability',()=>{
   assert.equal(simpleAttendance({availability:'unavailable'}),'pending');
@@ -38,4 +38,17 @@ test('unknown participation and starting selection never imply played or did not
   assert.equal(records.filter(recordFilters.present).length,3);
   assert.equal(records.filter(recordFilters.played).length,1);
   assert.equal(records.filter(recordFilters.unknown).length,1);
+});
+
+test('playing calendar includes only Monday to Thursday and skips empty partial weeks',()=>{
+ for(const month of ['2026-11','2027-01','2028-02']) {
+  const weeks=gameWeeks(month);
+  assert.ok(weeks.every(week=>week.length>0));
+  assert.ok(weeks.flat().every(date=>{const day=new Date(date+'T12:00Z').getUTCDay();return day>=1&&day<=4;}));
+  assert.equal(new Set(weeks.flat()).size,weeks.flat().length);
+ }
+ assert.deepEqual(gameWeeks('2026-11')[0],['2026-11-02','2026-11-03','2026-11-04','2026-11-05']);
+ assert.equal(gameWeeks('2027-01')[0][0],'2027-01-04');
+ const entries=playerRecords([{id:'2026-11-06',lineup:[],responses:{a:{attendance:'present'}}}],'a');
+ assert.equal(entries.length,1,'Friday history is preserved');
 });

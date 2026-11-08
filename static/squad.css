@@ -99,3 +99,21 @@ main:has(.attendance-calendar){max-width:none;padding:18px clamp(12px,1.5vw,28px
 .simple-calendar .attendance-tools{margin-top:2px}
 .simple-calendar .attendance-calendar tbody th{vertical-align:middle;border-bottom:0;border-radius:6px}
 .simple-calendar.calendar-scroll{border:0;background:transparent}
+
+/* Compact cards for the four playing days. */
+.simple-calendar .attendance-calendar{margin-inline:auto}
+.simple-calendar .attendance-calendar td{min-width:0}
+.simple-calendar .attendance-cell{padding:5px}
+.simple-calendar .attendance-cell .attendance-inline{gap:4px}
+.simple-calendar .attendance-cell .attendance-inline button{height:30px;min-height:30px}
+.simple-calendar .attendance-cell .attendance-selected.simple-state{min-height:22px;margin-top:5px;padding:4px 1px 1px}
+.simple-calendar .attendance-cell .attendance-note,.simple-calendar .attendance-cell .attendance-reset{min-height:16px;padding:1px 2px;font-size:9px}
+
+/* Gentle state tint belongs to the selected card, never all the controls. */
+.simple-calendar .attendance-cell[data-attendance-state=present]{--attendance-accent:var(--green, #70ce98)}
+.simple-calendar .attendance-cell[data-attendance-state=absent]{--attendance-accent:var(--red, #f28b91)}
+.simple-calendar .attendance-cell[data-attendance-state=bench]{--attendance-accent:var(--yellow, #e8c76a)}
+.simple-calendar .attendance-cell:is([data-attendance-state=present],[data-attendance-state=absent],[data-attendance-state=bench]){background:color-mix(in srgb,var(--attendance-accent) 13%,var(--surface, #15191f));border-color:color-mix(in srgb,var(--attendance-accent) 42%,var(--line-strong, #47505b))}
+.simple-calendar .attendance-cell:is([data-attendance-state=present],[data-attendance-state=absent],[data-attendance-state=bench]) .attendance-selected{color:var(--text, #f5f5f5);font-weight:600}
+.simple-calendar .attendance-calendar th{background:var(--surface-2, #151a1f);color:var(--muted)}
+.simple-calendar .attendance-calendar th strong{color:var(--text, #f5f5f5)}
