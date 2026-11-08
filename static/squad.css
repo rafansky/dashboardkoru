@@ -76,3 +76,16 @@ main:has(.attendance-calendar){max-width:none;padding:18px clamp(12px,1.5vw,28px
 .attendance-reset{min-height:20px;padding:2px 4px;border:0;background:transparent;color:var(--muted);font-size:9px}
 .attendance-feedback{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .attendance-feedback[data-error=true]{position:static;width:auto;height:auto;clip-path:none;white-space:normal;color:#f47c75;margin-top:4px}
+/* Neutral controls: colour belongs only to the attendance symbol. */
+.attendance-cell .attendance-inline button.simple-state{background:var(--surface, #14171c);color:var(--text, #f5f5f5);border:1px solid var(--line);opacity:1;height:38px;min-height:38px;box-shadow:none}
+.attendance-cell .attendance-inline button.simple-state[aria-pressed=true]{background:var(--surface-2, #24272b);outline:1px solid var(--line-strong, #a2a7ae);outline-offset:0}
+.attendance-cell .attendance-inline button>span{font-size:21px}
+.attendance-cell .attendance-inline button>small{display:none}
+.attendance-cell .attendance-inline .present>span{color:var(--green, #70ce98)}
+.attendance-cell .attendance-inline .absent>span{color:var(--red, #f28b91)}
+.attendance-cell .attendance-inline .bench>span{color:var(--yellow, #e8c76a)}
+.attendance-cell .attendance-selected.simple-state{background:transparent;border:1px solid transparent;color:var(--muted);font-weight:500}
+.calendar-legend .simple-state{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.calendar-legend .present .state-dot{background:var(--green, #70ce98)}
+.calendar-legend .absent .state-dot{background:var(--red, #f28b91)}
+.calendar-legend .bench .state-dot{background:var(--yellow, #e8c76a)}
