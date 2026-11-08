@@ -21,3 +21,10 @@ test('unknown or ambiguous names are skipped; conflicting marks rejected',()=>{
  assert.throws(()=>confirmationUpdates(parseConfirmations('CAR - Rafa✅\nCAR - Rafa❌',players).rows),/contradictorias/);
  assert.throws(()=>confirmationUpdates(parseConfirmations('CAR - Rafa✅❌',players).rows),/marca/);
 });
+import {confirmationDisplay} from '../static/squad-calendar.js';
+test('imported confirmations are visible without inventing attendance',()=>{
+ assert.deepEqual(confirmationDisplay({availability:'available'}),{state:'present',label:'✓ Confirmado: disponible'});
+ assert.deepEqual(confirmationDisplay({availability:'unavailable',attendance:'pending'}),{state:'absent',label:'× Confirmado: no disponible'});
+ assert.deepEqual(confirmationDisplay({availability:'available',attendance:'absent'}),{state:'absent',label:'No está'});
+ assert.deepEqual(confirmationDisplay({availability:'unavailable',attendance:'present',participation:'not_played'}),{state:'bench',label:'Está, pero no jugó'});
+});

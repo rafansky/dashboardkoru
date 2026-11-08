@@ -1,4 +1,4 @@
-import {mountConfirmationPanel} from './availability-import-panel.js?v=1';
+import {mountConfirmationPanel} from './availability-import-panel.js?v=2';
 import {sortPlayersByPosition} from './player-positions.js?v=1';
 export const availabilityLabels = {pending:'Sin respuesta', available:'Disponible', maybe:'Duda', unavailable:'No disponible'};
 export const attendanceLabels = {pending:'Sin registrar', present:'Presente', late:'Llegó tarde', excused:'Falta justificada', absent:'Faltó'};
@@ -59,26 +59,35 @@ export const recordFilters = {
 const filterLabels={all:'Todos los registros',present:'Asistió',absent:'Faltó',played:'Jugó',confirmedNoPlay:'Confirmó y no jugó',confirmedAbsent:'Confirmó y faltó',unknown:'Pendiente de completar'};
 const esc = (v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+export function confirmationDisplay(row={}) {
+ const attendance=simpleAttendance(row);
+ if(attendance!=='pending')return {state:attendance,label:simpleLabels[attendance]};
+ if(row.availability==='available')return {state:'present',label:'✓ Confirmado: disponible'};
+ if(row.availability==='unavailable')return {state:'absent',label:'× Confirmado: no disponible'};
+ return {state:'pending',label:'Sin marcar'};
+}
 function attendanceCell(p,date,row) {
  const state=simpleAttendance(row);
+ const display=confirmationDisplay(row);
  const attrs=' data-date="'+date+'" data-id="'+esc(p.id)+'"';
  const icons={present:'✓',absent:'×',bench:'–'};
  const short={present:'Está',absent:'No está',bench:'No jugó'};
- return '<div class="attendance-cell" data-attendance-state="'+state+'" role="group" aria-label="'+esc(p.name)+' · '+dateLabel(date)+'">'+
+ return '<div class="attendance-cell" data-attendance-state="'+display.state+'" role="group" aria-label="'+esc(p.name)+' · '+dateLabel(date)+'">'+
  '<div class="attendance-inline">'+['present','absent','bench'].map(value=>
  '<button type="button" class="simple-state '+value+'" data-cal="set-state" data-state="'+value+'"'+attrs+' aria-label="'+simpleLabels[value]+'" title="'+simpleLabels[value]+'" aria-pressed="'+(state===value)+'"><span aria-hidden="true">'+icons[value]+'</span><small aria-hidden="true">'+short[value]+'</small></button>').join('')+'</div>'+
- '<div class="attendance-selected simple-state '+state+'" aria-live="polite">'+simpleLabels[state]+'</div>'+
+ '<div class="attendance-selected simple-state '+display.state+'" aria-live="polite">'+display.label+'</div>'+
  '<div class="attendance-tools"><button type="button" class="attendance-note" data-cal="record"'+attrs+' aria-label="Editar observación de '+esc(p.name)+' · '+dateLabel(date)+'">'+(row?.note?'Nota *':'Nota')+'</button>'+
  '<button type="button" class="attendance-reset" data-cal="set-state" data-state="pending"'+attrs+' aria-label="Borrar selección" title="Dejar sin marcar">Borrar</button></div>'+
  '<div class="confirmation-badge">'+(row?.availability&&row.availability!=='pending'?availabilityLabels[row.availability]:'')+'</div>'+
  '<span class="attendance-feedback" role="status" aria-live="polite"></span></div>';
 }
 
-let view='week',week=0,metric='attendance',player='',historyFilter='all',lastMonth='';
+let view='week',week=0,metric='attendance',player='',historyFilter='all',lastMonth='',confirmationFocus='';
 
 export function mountCalendar(root, {month,today,players,days,changeMonth,openDay,editRecord,saveState,saveConfirmations,openProfile,download}) {
   const weeks = gameWeeks(month);
   if (lastMonth !== month) { week = initialGameWeek(weeks,today); lastMonth = month; }
+  if(confirmationFocus.startsWith(month)){week=initialGameWeek(weeks,confirmationFocus);confirmationFocus='';view='week';}
   week = Math.min(week,weeks.length-1);
   const byDate = Object.fromEntries(days.map(d=>[d.id,d]));
   const roster = sortPlayersByPosition(players.filter(p=>p.status!=='inactive'));
@@ -96,10 +105,9 @@ export function mountCalendar(root, {month,today,players,days,changeMonth,openDa
       const layout=document.createElement('div');layout.className='attendance-import-layout';table.before(layout);layout.append(table);
       mountConfirmationPanel(layout,{players:roster,save:saveConfirmations,updated:saved=>{
         byDate[saved.id]=saved;days=[...days.filter(d=>d.id!==saved.id),saved];
-        root.querySelectorAll('.attendance-cell').forEach(group=>{
-          const button=group.querySelector('[data-date]');
-          if(button?.dataset.date===saved.id){const response=saved.responses[button.dataset.id];let badge=group.querySelector('.confirmation-badge');if(!badge){badge=document.createElement('div');badge.className='confirmation-badge';group.append(badge);}badge.textContent=response?.availability&&response.availability!=='pending'?availabilityLabels[response.availability]:'';group.querySelector('[data-cal=record]').textContent=response?.note?'Nota *':'Nota';}
-        });
+        confirmationFocus=saved.id;view='week';
+        if(!saved.id.startsWith(month)){changeMonth(saved.id.slice(0,7));return;}
+        week=initialGameWeek(weeks,saved.id);confirmationFocus='';draw();
       }});
     }
     root.querySelector('#month').onchange=e=>{if(e.target.value)changeMonth(e.target.value);};
@@ -130,9 +138,10 @@ export function mountCalendar(root, {month,today,players,days,changeMonth,openDa
           group.querySelectorAll('.attendance-inline [data-state]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.state===simpleAttendance(saved.responses[b.dataset.id]))));
           const selected=group.querySelector('.attendance-selected');
           const state=simpleAttendance(saved.responses[b.dataset.id]);
-          group.dataset.attendanceState=state;
-          selected.className='attendance-selected simple-state '+state;
-          selected.textContent=simpleLabels[state];
+          const display=confirmationDisplay(saved.responses[b.dataset.id]);
+          group.dataset.attendanceState=display.state;
+          selected.className='attendance-selected simple-state '+display.state;
+          selected.textContent=display.label;
           group.querySelector('[data-cal=record]').textContent=saved.responses[b.dataset.id]?.note?'Nota *':'Nota';
           feedback.textContent='Guardado';
         }

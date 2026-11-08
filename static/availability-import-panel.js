@@ -1,13 +1,13 @@
 import {parseConfirmations,confirmationUpdates} from './availability-import.js?v=1';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const draft={text:'',date:''};
+const draft={text:'',date:'',message:''};
 export function mountConfirmationPanel(root,{players,save,updated}) {
  const panel=document.createElement('aside');panel.className='confirmation-panel';panel.setAttribute('aria-label','Importar confirmaciones');
- panel.innerHTML=`<h3>Pegar lista de WhatsApp</h3><p>✅ Disponible · ❌ No disponible.<br>No cambia la asistencia real ni las líneas sin marcar.</p><label>Fecha de la lista<input type="date" data-import="date" value="${esc(draft.date)}"></label><label>Lista de jugadores<textarea data-import="text" rows="12" placeholder="Pega aquí la lista completa">${esc(draft.text)}</textarea></label><button type="button" data-import="preview">Revisar lista</button><div data-import="review"></div><p role="status" data-import="message"></p>`;
+ panel.innerHTML=`<h3>Pegar lista de WhatsApp</h3><p>✅ Disponible · ❌ No disponible.<br>No cambia la asistencia real ni las líneas sin marcar.</p><label>Fecha de la lista<input type="date" data-import="date" value="${esc(draft.date)}"></label><label>Lista de jugadores<textarea data-import="text" rows="12" placeholder="Pega aquí la lista completa">${esc(draft.text)}</textarea></label><button type="button" data-import="preview">Revisar lista</button><div data-import="review"></div><p role="status" data-import="message">${esc(draft.message)}</p>`;
  root.append(panel);
  const input=panel.querySelector('[data-import=text]'),date=panel.querySelector('[data-import=date]'),review=panel.querySelector('[data-import=review]'),message=panel.querySelector('[data-import=message]');
  let parsed=null;
- function invalidate(){draft.text=input.value;draft.date=date.value;parsed=null;review.replaceChildren();message.textContent='';}
+ function invalidate(){draft.text=input.value;draft.date=date.value;parsed=null;review.replaceChildren();message.textContent='';draft.message='';}
  input.oninput=invalidate;date.oninput=invalidate;
  panel.querySelector('[data-import=preview]').onclick=()=>{
   invalidate();
@@ -21,16 +21,17 @@ export function mountConfirmationPanel(root,{players,save,updated}) {
   message.textContent=parsed.rows.filter(r=>r.status&&r.id).length+' coincidencias · '+parsed.rows.filter(r=>r.status&&!r.id).length+' sin asignar · '+parsed.rows.filter(r=>!r.status).length+' sin marca.';
   review.querySelectorAll('[data-match]').forEach(el=>el.onchange=()=>{parsed.rows[Number(el.dataset.match)].id=el.value;message.textContent='';});
   review.querySelector('[data-import=apply]').onclick=async e=>{
-   const button=e.currentTarget;
+
    try {
     const updates=confirmationUpdates(parsed.rows);
     if(!updates.length)throw new Error('No hay confirmaciones con jugador asignado para guardar.');
     panel.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);
     message.textContent='Guardando…';
     const saved=await save(date.value,updates);
-    updated(saved);
     review.replaceChildren();parsed=null;
     message.textContent=updates.length+' confirmaciones guardadas para el '+date.value.split('-').reverse().join('/')+'. La asistencia real se conserva.';
+    draft.message=message.textContent;
+    updated(saved);
    }catch(error){message.textContent=error.message||'No se pudo guardar.';}
    finally{panel.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=false);}
   };
