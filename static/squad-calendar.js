@@ -1,3 +1,4 @@
+import {mountConfirmationPanel} from './availability-import-panel.js?v=1';
 import {sortPlayersByPosition} from './player-positions.js?v=1';
 export const availabilityLabels = {pending:'Sin respuesta', available:'Disponible', maybe:'Duda', unavailable:'No disponible'};
 export const attendanceLabels = {pending:'Sin registrar', present:'Presente', late:'Llegó tarde', excused:'Falta justificada', absent:'Faltó'};
@@ -69,12 +70,13 @@ function attendanceCell(p,date,row) {
  '<div class="attendance-selected simple-state '+state+'" aria-live="polite">'+simpleLabels[state]+'</div>'+
  '<div class="attendance-tools"><button type="button" class="attendance-note" data-cal="record"'+attrs+' aria-label="Editar observación de '+esc(p.name)+' · '+dateLabel(date)+'">'+(row?.note?'Nota *':'Nota')+'</button>'+
  '<button type="button" class="attendance-reset" data-cal="set-state" data-state="pending"'+attrs+' aria-label="Borrar selección" title="Dejar sin marcar">Borrar</button></div>'+
+ '<div class="confirmation-badge">'+(row?.availability&&row.availability!=='pending'?availabilityLabels[row.availability]:'')+'</div>'+
  '<span class="attendance-feedback" role="status" aria-live="polite"></span></div>';
 }
 
 let view='week',week=0,metric='attendance',player='',historyFilter='all',lastMonth='';
 
-export function mountCalendar(root, {month,today,players,days,changeMonth,openDay,editRecord,saveState,openProfile,download}) {
+export function mountCalendar(root, {month,today,players,days,changeMonth,openDay,editRecord,saveState,saveConfirmations,openProfile,download}) {
   const weeks = gameWeeks(month);
   if (lastMonth !== month) { week = initialGameWeek(weeks,today); lastMonth = month; }
   week = Math.min(week,weeks.length-1);
@@ -89,6 +91,17 @@ export function mountCalendar(root, {month,today,players,days,changeMonth,openDa
       ${view==='week'?`<div class="week-navigation"><button data-cal="prev-week" aria-label="Semana anterior" ${week===0?'disabled':''}>‹</button><strong>Del ${Number(dates[0].slice(-2))} al ${Number(dates.at(-1).slice(-2))}</strong><button data-cal="next-week" aria-label="Semana siguiente" ${week===weeks.length-1?'disabled':''}>›</button></div>`:''}
       ${roster.length?`<div class="table-wrap calendar-scroll simple-calendar" tabindex="0" aria-label="Calendario de ${esc(title)}"><table class="attendance-calendar" style="min-width:${180+dates.length*128}px;width:${view==='week'?'100%':(180+dates.length*128)+'px'}"><thead><tr><th scope="col">Jugador</th>${dates.map(d=>`<th scope="col" class="${d===today?'is-today':''}"><button data-cal="day" data-date="${d}" title="Abrir jornada: ${dateLabel(d)}"><span>${weekdays[dateObject(d).getUTCDay()].slice(0,3)}</span><strong>${Number(d.slice(-2))}</strong></button></th>`).join('')}</tr></thead><tbody>${roster.map(p=>`<tr><th scope="row"><div class="calendar-person"><button class="calendar-player" data-cal="profile" data-id="${p.id}" title="Ver ficha de ${esc(p.name)}"><strong>${esc(p.name)}</strong><small>${esc(p.position)} · #${p.number}</small></button><button class="remove-player" data-action="remove-player" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la plantilla" title="Quitar de la plantilla">−</button></div></th>${dates.map(d=>{return `<td class="${d===today?'is-today':''}">${attendanceCell(p,d,byDate[d]?.responses[p.id])}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div>`:'<div class="empty">Añade tu primer jugador con <strong>* Añadir jugador</strong> para empezar a pasar lista.</div>'}
       <div class="calendar-bottom"><p>Verde: está · Rojo: no está · Amarillo: está, pero no jugó.<br>Los días sin marcar no cuentan como faltas.</p><div class="actions"><button data-cal="history">Historial detallado</button><button data-cal="export">Exportar asistencia</button></div></div>`;
+    const table=root.querySelector('.simple-calendar');
+    if(table){
+      const layout=document.createElement('div');layout.className='attendance-import-layout';table.before(layout);layout.append(table);
+      mountConfirmationPanel(layout,{players:roster,save:saveConfirmations,updated:saved=>{
+        byDate[saved.id]=saved;days=[...days.filter(d=>d.id!==saved.id),saved];
+        root.querySelectorAll('.attendance-cell').forEach(group=>{
+          const button=group.querySelector('[data-date]');
+          if(button?.dataset.date===saved.id){const response=saved.responses[button.dataset.id];let badge=group.querySelector('.confirmation-badge');if(!badge){badge=document.createElement('div');badge.className='confirmation-badge';group.append(badge);}badge.textContent=response?.availability&&response.availability!=='pending'?availabilityLabels[response.availability]:'';group.querySelector('[data-cal=record]').textContent=response?.note?'Nota *':'Nota';}
+        });
+      }});
+    }
     root.querySelector('#month').onchange=e=>{if(e.target.value)changeMonth(e.target.value);};
   }
   root.onclick = async e=>{
@@ -131,7 +144,7 @@ export function mountCalendar(root, {month,today,players,days,changeMonth,openDa
     if(type==='day')openDay(b.dataset.date);
     if(type==='history'){
       mountAdvancedCalendar(root,{month,today,players,days,changeMonth,openDay,editRecord,download,
-        returnToSimple:()=>mountCalendar(root,{month,today,players,days,changeMonth,openDay,editRecord,saveState,openProfile,download})});
+        returnToSimple:()=>mountCalendar(root,{month,today,players,days,changeMonth,openDay,editRecord,saveState,saveConfirmations,openProfile,download})});
     }
     if(type==='export')download([['Fecha','Jugador','Asistencia','Observación'],...players.flatMap(p=>playerRecords(days,p.id).map(r=>[r.date,p.name,simpleLabels[simpleAttendance(r)],r.note]))],`koru-asistencia-${month}.csv`);
   };

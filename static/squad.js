@@ -1,5 +1,6 @@
+import {applyConfirmations} from './availability-import.js?v=1';
 import {sortPlayersByPosition} from './player-positions.js?v=1';
-import { mountCalendar, participationLabels, dateLabel, simpleLabels, simpleAttendance, simpleResponse } from './squad-calendar.js?v=7';
+import { mountCalendar, participationLabels, dateLabel, simpleLabels, simpleAttendance, simpleResponse } from './squad-calendar.js?v=8';
 const $ = (s) => document.querySelector(s);
 const esc = (v = '') => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons = () => window.lucide?.createIcons();
@@ -86,7 +87,7 @@ function renderMonth() {
   mountCalendar($('#workspace'), {month,today,players,days,
     changeMonth:value=>{month=value;run(()=>navigate('month'));},
     openDay:date=>run(()=>navigate('day',date)),
-    editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),saveState:saveCalendarAttendance,openProfile:pid=>run(()=>openPlayerProfile(pid)),download:downloadCsv});
+    editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),saveState:saveCalendarAttendance,saveConfirmations:saveCalendarConfirmations,openProfile:pid=>run(()=>openPlayerProfile(pid)),download:downloadCsv});
 }
 
 
@@ -102,6 +103,16 @@ function saveCalendarAttendance(pid,date,state) {
  });
  attendanceSaveQueue=job;
  return job;
+}
+
+function saveCalendarConfirmations(date,rows) {
+ const job=attendanceSaveQueue.catch(()=>{}).then(async()=>{
+  const record=await api('/api/squad/days/'+date);
+  const saved=await api('/api/squad/days/'+date,'PUT',payload(applyConfirmations(record,rows)));
+  if(date.startsWith(month))days=[...days.filter(d=>d.id!==date),saved];
+  return saved;
+ });
+ attendanceSaveQueue=job;return job;
 }
 
 async function editAttendanceDetails(pid,date) {
