@@ -1,4 +1,5 @@
-import { mountCalendar, participationLabels, dateLabel, simpleLabels, simpleAttendance, simpleResponse } from './squad-calendar.js?v=3';
+import {sortPlayersByPosition} from './player-positions.js?v=1';
+import { mountCalendar, participationLabels, dateLabel, simpleLabels, simpleAttendance, simpleResponse } from './squad-calendar.js?v=4';
 const $ = (s) => document.querySelector(s);
 const esc = (v = '') => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons = () => window.lucide?.createIcons();
@@ -29,7 +30,7 @@ async function api(path, method='GET', data) {
   return result;
 }
 const payload = obj => { const {id,updatedAt,...rest}=obj; return rest; };
-const active = () => players.filter(p=>p.status!=='inactive');
+const active = () => sortPlayersByPosition(players.filter(p=>p.status!=='inactive'));
 function markDirty() { dirty=true; const el=$('#save-state'); if(el) el.textContent='Cambios sin guardar'; }
 function canLeave() { return !dirty || confirm('Hay cambios sin guardar en este dia. ¿Descartarlos?'); }
 function slots() {return formations[day.formation].flatMap((row,r,rows)=>row.map((label,c)=>({label,x:(c+1)*100/(row.length+1),y:90-r*78/(rows.length-1)})));}
@@ -64,7 +65,7 @@ function renderPlayers() {
   $('#status-filter').onchange=e=>{filter=e.target.value;renderPlayerTable();};
 }
 function renderPlayerTable() {
-  const list=players.filter(p=>(!filter||p.status===filter)&&`${p.name} ${p.alias} ${p.position}`.toLowerCase().includes(search.toLowerCase()));
+  const list=sortPlayersByPosition(players.filter(p=>(!filter||p.status===filter)&&`${p.name} ${p.alias} ${p.position}`.toLowerCase().includes(search.toLowerCase())));
   $('#player-table').innerHTML=list.length?`<div class="table-wrap"><table><thead><tr><th>Jugador</th><th>Dorsal</th><th>Estado</th><th>Cumple</th><th>Comunidad</th><th>X / Twitter</th><th>Ficha</th></tr></thead><tbody>${list.map(p=>`<tr><td>${person(p)}</td><td>${p.number}</td><td><span class="badge ${p.status}">${statuses[p.status]}</span></td><td>${p.birthday?esc(p.birthday.slice(5).split('-').reverse().join('/')):'—'}</td><td>${esc(p.region)||'—'}</td><td>${esc(p.twitter)||'—'}</td><td><button class="profile-button" data-action="view-profile" data-id="${p.id}">Ver ficha</button>${iconButton('edit-player','pencil','Editar '+p.name,p.id)}${p.status!=='inactive'?`<button class="remove-player" data-action="remove-player" data-id="${p.id}" aria-label="Quitar a ${esc(p.name)} de la plantilla">−</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No hay jugadores con estos filtros.</div>';
   icons();
 }
@@ -85,7 +86,22 @@ function renderMonth() {
   mountCalendar($('#workspace'), {month,today,players,days,
     changeMonth:value=>{month=value;run(()=>navigate('month'));},
     openDay:date=>run(()=>navigate('day',date)),
-    editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),openProfile:pid=>run(()=>openPlayerProfile(pid)),download:downloadCsv});
+    editRecord:(pid,date)=>run(()=>editAttendance(pid,date)),saveState:saveCalendarAttendance,openProfile:pid=>run(()=>openPlayerProfile(pid)),download:downloadCsv});
+}
+
+
+let attendanceSaveQueue=Promise.resolve();
+function saveCalendarAttendance(pid,date,state) {
+ const job=attendanceSaveQueue.catch(()=>{}).then(async()=>{
+   const record=await api('/api/squad/days/'+date);
+   const updated=structuredClone(record);
+   updated.responses[pid]=simpleResponse(state,record.responses[pid]||{});
+   const saved=await api('/api/squad/days/'+date,'PUT',payload(updated));
+   if(date.startsWith(month))days=[...days.filter(d=>d.id!==date),saved];
+   return saved;
+ });
+ attendanceSaveQueue=job;
+ return job;
 }
 
 async function editAttendanceDetails(pid,date) {

@@ -45,3 +45,23 @@
 
 .mobile-quick-nav{display:none}
 @media(max-width:600px){body{padding-bottom:82px}.mobile-quick-nav{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:20;display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:6px;border:1px solid #3a414a;border-radius:15px;background:#0d0f15f2;box-shadow:0 12px 32px #0007;backdrop-filter:blur(18px)}.mobile-quick-link{min-height:54px;display:grid;place-items:center;align-content:center;gap:3px;border-radius:10px;color:var(--muted);font-size:11px;font-weight:700;text-decoration:none}.mobile-quick-link svg{width:21px;height:21px}.mobile-quick-link:hover,.mobile-quick-link:focus-visible,.mobile-quick-link.active{color:#fff;background:#f9551629}.mobile-quick-link:first-child svg{color:#facc15}.mobile-quick-link:nth-child(2) svg{color:#12d6df}.mobile-quick-link:nth-child(3) svg{color:var(--orange)}}
+
+/* All attendance states remain visible in every day/player cell. */
+.simple-calendar .attendance-calendar td{min-width:164px;vertical-align:top}
+.attendance-inline{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.attendance-inline button{display:block;min-height:38px;min-width:0;padding:5px 4px;font-size:11px;line-height:1.25;border-radius:7px;white-space:normal;text-align:center;opacity:.68}
+.attendance-inline button[aria-pressed=true]{opacity:1;outline:2px solid currentColor;outline-offset:1px;font-weight:800}
+.attendance-inline button:hover,.attendance-inline button:focus-visible{opacity:1}
+.attendance-inline button:disabled{cursor:wait}
+.attendance-note{font-size:10px;padding:3px 4px;min-height:24px;color:var(--muted);background:transparent;border:0}
+.attendance-feedback{display:block;max-width:150px;font-size:10px;line-height:1.25;color:var(--muted);overflow-wrap:anywhere}
+.attendance-cell[aria-busy=true]{opacity:.7}
+/* Use the available page width and height instead of a nested scrolling box. */
+main:has(.attendance-calendar){max-width:none;padding:18px clamp(12px,1.5vw,28px)}
+.calendar-scroll{max-height:none}
+.attendance-intro{margin-bottom:16px}
+.calendar-toolbar{margin-bottom:12px}
+.attendance-inline button{min-height:32px;padding:4px;opacity:.8}
+.attendance-note{min-height:20px;padding:2px 4px}
+.attendance-inline{gap:4px}
+@media(min-width:1100px){.simple-calendar .attendance-calendar td{padding:5px}}

@@ -96,22 +96,22 @@ test('simple calendar saves every state, restores it after reload and safely rem
   await expect(pdf.locator('body')).toContainText('Estadísticas VPG');
   await pdf.close();
   await page.getByRole('button',{name:'Cerrar ficha'}).click();
-  const cell=page.locator('[data-cal=record][data-date="2032-06-01"][data-id="'+p.id+'"]');
+  const cell=page.locator('.attendance-cell').filter({has:page.locator('[data-cal=set-state][data-date="2032-06-01"][data-id="'+p.id+'"]')});
   for(const [state,label] of [['present','Está'],['absent','No está'],['bench','Está, pero no jugó'],['pending','Sin marcar']]){
     await cell.click();
     await page.getByRole('button',{name:label,exact:true}).click();
     await expect(page.locator('#editor')).not.toBeVisible();
-    await expect(cell).toHaveClass(new RegExp(state));
+    await expect(cell.locator('[data-state="'+state+'"]')).toHaveAttribute('aria-pressed','true');
     const row=(await (await page.request.get('/api/squad/days/2032-06-01')).json()).responses[p.id];
     expect(row.attendance).toBe({present:'present',absent:'absent',bench:'present',pending:'pending'}[state]);
   }
   await cell.click();
   await page.getByRole('button',{name:'Está, pero no jugó',exact:true}).click();
-  await expect(cell).toHaveClass(/bench/);
+  await expect(cell.locator('[data-state=bench]')).toHaveAttribute('aria-pressed','true');
   await page.reload();
   await page.locator('#month').fill('2032-06');
   await page.locator('#month').dispatchEvent('change');
-  await expect(cell).toHaveClass(/bench/);
+  await expect(cell.locator('[data-state=bench]')).toHaveAttribute('aria-pressed','true');
   await page.setViewportSize({width:1440,height:1000});
   await page.getByRole('button',{name:'Historial detallado',exact:true}).click();
   await expect(page.locator('#player-history')).toBeVisible();

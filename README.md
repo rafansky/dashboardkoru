@@ -155,3 +155,11 @@ La prueba E2E necesita la aplicacion ejecutandose. Por defecto usa `http://127.0
 - `data/`: base SQLite persistente.
 - `uploads/`: archivos subidos por el club.
 - `docker-compose.yml`: despliegue simple para el mini PC.
+
+### Asistencia directa y espacio de la cuadrícula
+
+Los cuatro estados (`Sin marcar`, `Está`, `No está`, `Está, pero no jugó`) se eligen directamente en cada casilla del calendario, con selección visible y confirmación de guardado. El botón Nota mantiene las observaciones y los detalles. Marcar presencia no implica haber jugado. Las actualizaciones se encolan, leen la versión reciente del día y conservan las respuestas de otros jugadores, notas y convocatoria; los conflictos del servidor se muestran para reintentar.
+
+La plantilla, el pase de lista y el historial se ordenan por posición desde portería hasta delantera, reconociendo siglas inglesas y españolas. Los puestos desconocidos quedan al final, sin ocultar jugadores ni modificar sus posiciones guardadas. La asistencia aprovecha todo el ancho y no limita la altura a un recuadro con desplazamiento vertical interno; el mes completo conserva desplazamiento horizontal.
+
+Validación: 5 pruebas de calendario/orden, 5 pruebas de API de plantilla, recorrido manual de los cuatro estados en navegador, persistencia al recargar, observaciones conservadas y comprobación de ausencia de scroll vertical interno. Desplegado en el mini PC con copia de los archivos anteriores y conservando su tema. La revisión independiente del once se recoge en `docs/revision-posiciones-2026-11-08.md`.
