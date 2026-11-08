@@ -1,5 +1,5 @@
 import {sortPlayersByPosition} from './player-positions.js?v=1';
-import { mountCalendar, participationLabels, dateLabel, simpleLabels, simpleAttendance, simpleResponse } from './squad-calendar.js?v=4';
+import { mountCalendar, participationLabels, dateLabel, simpleLabels, simpleAttendance, simpleResponse } from './squad-calendar.js?v=5';
 const $ = (s) => document.querySelector(s);
 const esc = (v = '') => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icons = () => window.lucide?.createIcons();

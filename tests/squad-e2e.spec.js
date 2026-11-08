@@ -97,11 +97,12 @@ test('simple calendar saves every state, restores it after reload and safely rem
   await pdf.close();
   await page.getByRole('button',{name:'Cerrar ficha'}).click();
   const cell=page.locator('.attendance-cell').filter({has:page.locator('[data-cal=set-state][data-date="2032-06-01"][data-id="'+p.id+'"]')});
-  for(const [state,label] of [['present','Está'],['absent','No está'],['bench','Está, pero no jugó'],['pending','Sin marcar']]){
+  for(const [state,label] of [['present','Está'],['absent','No está'],['bench','Está, pero no jugó'],['pending','Borrar selección']]){
     await cell.click();
     await page.getByRole('button',{name:label,exact:true}).click();
     await expect(page.locator('#editor')).not.toBeVisible();
-    await expect(cell.locator('[data-state="'+state+'"]')).toHaveAttribute('aria-pressed','true');
+    await expect(cell.locator('.attendance-selected')).toHaveText(state==='pending'?'Sin marcar':label);
+    await expect(cell.locator('.attendance-inline button')).toHaveCount(3);
     const row=(await (await page.request.get('/api/squad/days/2032-06-01')).json()).responses[p.id];
     expect(row.attendance).toBe({present:'present',absent:'absent',bench:'present',pending:'pending'}[state]);
   }

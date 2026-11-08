@@ -53,10 +53,14 @@ const esc = (v='')=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 function attendanceCell(p,date,row) {
  const state=simpleAttendance(row);
  const attrs=' data-date="'+date+'" data-id="'+esc(p.id)+'"';
+ const icons={present:'✓',absent:'×',bench:'–'};
+ const short={present:'Está',absent:'No está',bench:'No jugó'};
  return '<div class="attendance-cell" role="group" aria-label="'+esc(p.name)+' · '+dateLabel(date)+'">'+
- '<div class="attendance-inline">'+Object.entries(simpleLabels).map(([value,label])=>
- '<button type="button" class="simple-state '+value+'" data-cal="set-state" data-state="'+value+'"'+attrs+' aria-pressed="'+(state===value)+'">'+label+'</button>').join('')+'</div>'+
- '<button type="button" class="attendance-note" data-cal="record"'+attrs+' aria-label="Editar observación de '+esc(p.name)+' · '+dateLabel(date)+'">'+(row?.note?'Nota *':'Nota')+'</button>'+
+ '<div class="attendance-inline">'+['present','absent','bench'].map(value=>
+ '<button type="button" class="simple-state '+value+'" data-cal="set-state" data-state="'+value+'"'+attrs+' aria-label="'+simpleLabels[value]+'" title="'+simpleLabels[value]+'" aria-pressed="'+(state===value)+'"><span aria-hidden="true">'+icons[value]+'</span><small aria-hidden="true">'+short[value]+'</small></button>').join('')+'</div>'+
+ '<div class="attendance-selected simple-state '+state+'" aria-live="polite">'+simpleLabels[state]+'</div>'+
+ '<div class="attendance-tools"><button type="button" class="attendance-note" data-cal="record"'+attrs+' aria-label="Editar observación de '+esc(p.name)+' · '+dateLabel(date)+'">'+(row?.note?'Nota *':'Nota')+'</button>'+
+ '<button type="button" class="attendance-reset" data-cal="set-state" data-state="pending"'+attrs+' aria-label="Borrar selección" title="Dejar sin marcar">Borrar</button></div>'+
  '<span class="attendance-feedback" role="status" aria-live="polite"></span></div>';
 }
 
@@ -89,23 +93,28 @@ export function mountCalendar(root, {month,today,players,days,changeMonth,openDa
       const d=dateObject(month+'-01');d.setUTCMonth(d.getUTCMonth()+(type==='prev-month'?-1:1));changeMonth(d.toISOString().slice(0,7));
     }
     if(type==='set-state') {
-      if(b.getAttribute('aria-pressed')==='true')return;
+      if(simpleAttendance(byDate[b.dataset.date]?.responses[b.dataset.id])===b.dataset.state)return;
       const group=b.closest('.attendance-cell');
       const buttons=[...group.querySelectorAll('button')];
       buttons.forEach(button=>button.disabled=true);
       group.setAttribute('aria-busy','true');
       const feedback=group.querySelector('[role=status]');
+      delete feedback.dataset.error;
       feedback.textContent='Guardando…';
       try {
         const saved=await saveState(b.dataset.id,b.dataset.date,b.dataset.state);
         byDate[saved.id]=saved;
         days=[...days.filter(day=>day.id!==saved.id),saved];
         if(group.isConnected) {
-          group.querySelectorAll('[data-state]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.state===simpleAttendance(saved.responses[b.dataset.id]))));
+          group.querySelectorAll('.attendance-inline [data-state]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.state===simpleAttendance(saved.responses[b.dataset.id]))));
+          const selected=group.querySelector('.attendance-selected');
+          const state=simpleAttendance(saved.responses[b.dataset.id]);
+          selected.className='attendance-selected simple-state '+state;
+          selected.textContent=simpleLabels[state];
           group.querySelector('[data-cal=record]').textContent=saved.responses[b.dataset.id]?.note?'Nota *':'Nota';
           feedback.textContent='Guardado';
         }
-      } catch(error) { feedback.textContent=error.message||'No se pudo guardar. Vuelve a intentarlo.'; }
+      } catch(error) { feedback.dataset.error='true';feedback.textContent=error.message||'No se pudo guardar. Vuelve a intentarlo.'; }
       finally {buttons.forEach(button=>button.disabled=false);group.removeAttribute('aria-busy');}
     }
     if(type==='record')editRecord(b.dataset.id,b.dataset.date);
